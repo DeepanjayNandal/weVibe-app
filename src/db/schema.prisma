@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model matches {
+  id                             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_a_id                      String?            @db.Uuid
+  user_b_id                      String?            @db.Uuid
+  created_at                     DateTime?          @default(now()) @db.Timestamp(6)
+  status                         enum_match_status? @default(active)
+  last_message_content           String?            @db.VarChar(255)
+  last_message_at                DateTime?          @db.Timestamp(6)
+  users_matches_user_a_idTousers users?             @relation("matches_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_matches_user_b_idTousers users?             @relation("matches_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages                       messages[]
+
+  @@index([user_a_id, last_message_at], map: "idx_matches_user_a")
+  @@index([user_b_id, last_message_at], map: "idx_matches_user_b")
+}
+
+model messages {
+  id         BigInt         @id @default(autoincrement())
+  match_id   String?        @db.Uuid
+  sender_id  String?        @db.Uuid
+  content    String
+  type       enum_msg_type? @default(text)
+  created_at DateTime?      @default(now()) @db.Timestamp(6)
+  read_at    DateTime?      @db.Timestamp(6)
+  matches    matches?       @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users?         @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([match_id, created_at], map: "idx_messages_match_id")
+}
+
+model profiles {
+  user_id               String                    @id @db.Uuid
+  display_name          String?                   @db.VarChar(100)
+  birth_date            DateTime?                 @db.Date
+  gender                String?                   @db.VarChar(50)
+  location_point        Unsupported("geography")?
+  personality_primary   String?                   @db.VarChar(100)
+  personality_secondary String?                   @db.VarChar(100)
+  details               Json?
+  tags                  Json?
+  negative_tags         Json?
+  photos                Json?
+  social_integrations   Json?
+  likes_received_count  Int?                      @default(0)
+  users                 users                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([location_point], map: "idx_profiles_location", type: Gist)
+  @@index([gender, personality_primary], map: "idx_profiles_personality")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+model speed_dating_sessions {
+  id                                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_a_id                                    String?   @db.Uuid
+  user_b_id                                    String?   @db.Uuid
+  started_at                                   DateTime? @default(now()) @db.Timestamp(6)
+  expires_at                                   DateTime? @db.Timestamp(6)
+  status                                       String?   @db.VarChar(50)
+  users_speed_dating_sessions_user_a_idTousers users?    @relation("speed_dating_sessions_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_speed_dating_sessions_user_b_idTousers users?    @relation("speed_dating_sessions_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model swipes {
+  id                            BigInt            @id @default(autoincrement())
+  actor_id                      String?           @db.Uuid
+  target_id                     String?           @db.Uuid
+  action                        enum_swipe_action
+  created_at                    DateTime?         @default(now()) @db.Timestamp(6)
+  users_swipes_actor_idTousers  users?            @relation("swipes_actor_idTousers", fields: [actor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_swipes_target_idTousers users?            @relation("swipes_target_idTousers", fields: [target_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([actor_id, target_id])
+}
+
+model users {
+  id                                                           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                                                        String                  @unique @db.VarChar(255)
+  phone                                                        String?                 @unique @db.VarChar(50)
+  password_hash                                                String?                 @db.VarChar(255)
+  created_at                                                   DateTime?               @default(now()) @db.Timestamp(6)
+  last_active_at                                               DateTime?               @db.Timestamp(6)
+  is_banned                                                    Boolean?                @default(false)
+  current_status                                               enum_user_status?       @default(offline)
+  search_radius_km                                             Int?                    @default(50)
+  search_age_min                                               Int?                    @default(18)
+  search_age_max                                               Int?                    @default(35)
+  preferences                                                  Json?
+  matches_matches_user_a_idTousers                             matches[]               @relation("matches_user_a_idTousers")
+  matches_matches_user_b_idTousers                             matches[]               @relation("matches_user_b_idTousers")
+  messages                                                     messages[]
+  profiles                                                     profiles?
+  speed_dating_sessions_speed_dating_sessions_user_a_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_a_idTousers")
+  speed_dating_sessions_speed_dating_sessions_user_b_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_b_idTousers")
+  swipes_swipes_actor_idTousers                                swipes[]                @relation("swipes_actor_idTousers")
+  swipes_swipes_target_idTousers                               swipes[]                @relation("swipes_target_idTousers")
+}
+
+enum enum_match_status {
+  active
+  unmatched
+  reported
+}
+
+enum enum_msg_type {
+  text
+  image
+  audio
+  system
+}
+
+enum enum_swipe_action {
+  like
+  pass
+  super_like
+}
+
+enum enum_user_status {
+  active
+  offline
+  in_speed_date
+  banned
+}

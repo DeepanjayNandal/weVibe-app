@@ -25,7 +25,7 @@ struct ThankAndBegin: View {
                 
                 
                 Button {
-                        router.navigateToLogin()
+                        router.navigateSurveyStep1()
                 } label: {
                         Text("Begin")
                             .font(.system(size: 16, weight: .bold))

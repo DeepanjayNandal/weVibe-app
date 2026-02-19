@@ -18,6 +18,13 @@
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
 		A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC72F46FC0F00E908DB /* ConfirmScreen.swift */; };
 		A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC92F478AA100E908DB /* ThankAndBegin.swift */; };
+		A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAACF2F47B6A600E908DB /* SurveyStep1.swift */; };
+		A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAD12F47B6AE00E908DB /* SurveyStep2.swift */; };
+		A38BAAD42F47B6BB00E908DB /* SurveyStep3.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */; };
+		A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */; };
+		A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAE32F47CE1200E908DB /* EthnicityChip.swift */; };
+		A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAE92F47CE9900E908DB /* FlowLayout.swift */; };
+		A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAEB2F47CED700E908DB /* DatePartField.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +33,13 @@
 		A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterScreen.swift; sourceTree = "<group>"; };
 		A38BAAC72F46FC0F00E908DB /* ConfirmScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmScreen.swift; sourceTree = "<group>"; };
 		A38BAAC92F478AA100E908DB /* ThankAndBegin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThankAndBegin.swift; sourceTree = "<group>"; };
+		A38BAACF2F47B6A600E908DB /* SurveyStep1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep1.swift; sourceTree = "<group>"; };
+		A38BAAD12F47B6AE00E908DB /* SurveyStep2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep2.swift; sourceTree = "<group>"; };
+		A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep3.swift; sourceTree = "<group>"; };
+		A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBarView.swift; sourceTree = "<group>"; };
+		A38BAAE32F47CE1200E908DB /* EthnicityChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EthnicityChip.swift; sourceTree = "<group>"; };
+		A38BAAE92F47CE9900E908DB /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		A38BAAEB2F47CED700E908DB /* DatePartField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePartField.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		B10004 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -83,6 +97,9 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */,
+				A38BAAD12F47B6AE00E908DB /* SurveyStep2.swift */,
+				A38BAACF2F47B6A600E908DB /* SurveyStep1.swift */,
 				A38BAAC92F478AA100E908DB /* ThankAndBegin.swift */,
 				A38BAAC72F46FC0F00E908DB /* ConfirmScreen.swift */,
 				A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */,
@@ -95,6 +112,10 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				A38BAAEB2F47CED700E908DB /* DatePartField.swift */,
+				A38BAAE92F47CE9900E908DB /* FlowLayout.swift */,
+				A38BAAE32F47CE1200E908DB /* EthnicityChip.swift */,
+				A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */,
 				A38BAABF2F45432500E908DB /* TextFieldView.swift */,
 				B10005 /* LogoView.swift */,
 			);
@@ -193,9 +214,16 @@
 				A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
+				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
+				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
+				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
+				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,
 				A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */,
+				A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
+				A38BAAD42F47B6BB00E908DB /* SurveyStep3.swift in Sources */,
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
+				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
 				A10005 /* LogoView.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,

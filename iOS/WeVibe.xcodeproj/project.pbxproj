@@ -136,6 +136,9 @@
 				A38BAAB62F45367000E908DB /* Services */,
 			);
 			name = WeVibe;
+			packageProductDependencies = (
+				PKGP0001 /* SwiftLintBuildToolPlugin */,
+			);
 			productName = WeVibe;
 			productReference = C10001 /* WeVibe.app */;
 			productType = "com.apple.product-type.application";
@@ -164,6 +167,9 @@
 				Base,
 			);
 			mainGroup = E10001;
+			packageReferences = (
+				PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */,
+			);
 			productRefGroup = E10006 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -350,6 +356,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/realm/SwiftLint";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.57.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		PKGP0001 /* SwiftLintBuildToolPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */;
+			productName = SwiftLintBuildToolPlugin;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = H10001 /* Project object */;
 }

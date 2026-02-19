@@ -2,9 +2,9 @@ import Foundation
 import SwiftUI
 
 struct RouterView: View {
-    
+
     @State private var router = Router()
-    
+
     var body: some View {
         NavigationStack(path: $router.path) {
             SplashScreen()
@@ -23,11 +23,8 @@ struct RouterView: View {
                     case .thankAndBegin:
                         ThankAndBegin()
                     }
-                    
-                
                 }
         }
         .environment(router)
     }
 }
-

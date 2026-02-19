@@ -3,28 +3,28 @@ import SwiftUI
 struct LoginScreen: View {
     @State private var email: String = ""
     @State private var password: String = ""
-    
+
     @Environment(Router.self) private var router
-    
+
     var body: some View {
         ZStack {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 10) {
                 LogoView(size: 130)
-                
+
                 Text("Log In")
                     .foregroundStyle(.white)
                     .font(.title)
                     .bold()
                     .padding(.bottom, 10)
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Email")
                         .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
-                    
+
                     TextField("", text: $email)
                         .padding(.horizontal, 16)
                         .frame(height: 52)
@@ -34,19 +34,19 @@ struct LoginScreen: View {
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Password")
                         .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
-                    
+
                     SecureField("", text: $password)
                         .padding(.horizontal, 16)
                         .frame(height: 52)
                         .background(.white)
                         .cornerRadius(14)
                 }
-                
+
                 HStack {
                     Button(action: {}) {
                         Text("Forgot Password?")
@@ -54,20 +54,18 @@ struct LoginScreen: View {
                             .underline()
                             .font(.system(size: 14))
                     }
-                        
-                    
+
                     Spacer()
-                    
-                    Button(action: { router.navigateToRegister()}) {
+
+                    Button(action: { router.navigateToRegister() }) {
                         Text("Sign up")
                             .foregroundStyle(AppTheme.smallText)
                             .underline()
                             .font(.system(size: 14))
                     }
-                        
                 }
                 .padding(.top, 4)
-                
+
                 Button("Sign in") { }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
@@ -77,9 +75,8 @@ struct LoginScreen: View {
                     .cornerRadius(14)
                     .padding(.top, 8)
                     .padding(.bottom, 16)
-                
+
                 Button {
-                    
                 } label: {
                     HStack {
                         Text("Continue with Google")
@@ -92,9 +89,8 @@ struct LoginScreen: View {
                     .foregroundStyle(.white)
                     .cornerRadius(14)
                 }
-                
+
                 Button {
-                    
                 } label: {
                     HStack {
                         Text("Continue with Apple")
@@ -111,5 +107,4 @@ struct LoginScreen: View {
             .padding(.horizontal, 24)
         }
     }
-    
 }

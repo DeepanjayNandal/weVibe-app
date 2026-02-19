@@ -4,7 +4,7 @@ import SwiftUI
 struct WeVibeApp: App {
     var body: some Scene {
         WindowGroup {
-            SplashScreen()
+            RouterView()
         }
     }
 }

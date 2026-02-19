@@ -1,12 +1,11 @@
 import Foundation
-import SwiftUI
 import Observation
-
+import SwiftUI
 
 @Observable
 class Router {
     var path = NavigationPath()
-    
+
     func navigateToLogin() {
         path.append(Route.login)
     }
@@ -28,9 +27,7 @@ class Router {
     func popToRoot() {
         path.removeLast(path.count)
     }
-    
 }
-
 
 enum Route: Hashable {
     case login

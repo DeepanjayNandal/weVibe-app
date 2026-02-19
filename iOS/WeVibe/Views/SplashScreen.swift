@@ -22,12 +22,10 @@ struct SplashScreen: View {
                     .offset(y: chevronOffset)
                     .opacity(chevronOpacity)
                     .padding(.bottom, 60)
-                
+
                 Button("Go to Login") {
                     router.navigateToLogin()
                 }
-                
-                
             }
         }
         .onAppear {
@@ -41,7 +39,6 @@ struct SplashScreen: View {
         }
     }
 }
-
 
 struct ChevronUp: Shape {
     func path(in rect: CGRect) -> Path {

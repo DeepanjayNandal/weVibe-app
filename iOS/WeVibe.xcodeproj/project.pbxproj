@@ -18,6 +18,7 @@
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
 		A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC72F46FC0F00E908DB /* ConfirmScreen.swift */; };
 		A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC92F478AA100E908DB /* ThankAndBegin.swift */; };
+		BB7F870C2F47D616005DC9FA /* SwiftLintFramework in Frameworks */ = {isa = PBXBuildFile; productRef = BB7F870B2F47D616005DC9FA /* SwiftLintFramework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB7F870C2F47D616005DC9FA /* SwiftLintFramework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,9 +138,6 @@
 				A38BAAB62F45367000E908DB /* Services */,
 			);
 			name = WeVibe;
-			packageProductDependencies = (
-				PKGP0001 /* SwiftLintBuildToolPlugin */,
-			);
 			productName = WeVibe;
 			productReference = C10001 /* WeVibe.app */;
 			productType = "com.apple.product-type.application";
@@ -168,7 +167,7 @@
 			);
 			mainGroup = E10001;
 			packageReferences = (
-				PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */,
+				BB7F870A2F47D616005DC9FA /* XCRemoteSwiftPackageReference "SwiftLint" */,
 			);
 			productRefGroup = E10006 /* Products */;
 			projectDirPath = "";
@@ -358,21 +357,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
+		BB7F870A2F47D616005DC9FA /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/realm/SwiftLint";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.57.0;
+				minimumVersion = 0.63.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		PKGP0001 /* SwiftLintBuildToolPlugin */ = {
+		BB7F870B2F47D616005DC9FA /* SwiftLintFramework */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = PKG0001 /* XCRemoteSwiftPackageReference "SwiftLint" */;
-			productName = SwiftLintBuildToolPlugin;
+			package = BB7F870A2F47D616005DC9FA /* XCRemoteSwiftPackageReference "SwiftLint" */;
+			productName = SwiftLintFramework;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -2,9 +2,9 @@ import Foundation
 import SwiftUI
 
 struct RouterView: View {
-    
+
     @State private var router = Router()
-    
+
     var body: some View {
         NavigationStack(path: $router.path) {
             SplashScreen()
@@ -33,11 +33,8 @@ struct RouterView: View {
                     case .surveyStep5:
                         SurveyStep1()
                     }
-                    
-                
                 }
         }
         .environment(router)
     }
 }
-

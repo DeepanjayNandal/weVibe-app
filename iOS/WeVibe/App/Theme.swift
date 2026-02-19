@@ -25,10 +25,11 @@ struct AppTheme {
     static let primaryBackground = Color(hex: "#0D2329")
     static let primaryButton     = Color(hex: "#4DC778")
     static let primaryText       = Color.white
+    static let smallText     = Color(hex: "#05664F")
 
     // MARK: - Secondary Colors
     static let secondaryText       = Color.white.opacity(0.6)
-    static let secondaryButton     = Color(hex: "#339966")
+    static let secondaryButton     = Color(hex: "#1a4a3a")
     static let secondaryBackground = Color(hex: "#122F36")
 
     // MARK: - Input Fields

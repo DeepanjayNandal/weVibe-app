@@ -1,8 +1,8 @@
 import SwiftUI
-
 struct SplashScreen: View {
     @State private var chevronOffset: CGFloat = 0
     @State private var chevronOpacity: Double = 1.0
+    @Environment(Router.self) private var router
 
     var body: some View {
         ZStack {
@@ -22,6 +22,12 @@ struct SplashScreen: View {
                     .offset(y: chevronOffset)
                     .opacity(chevronOpacity)
                     .padding(.bottom, 60)
+                
+                Button("Go to Login") {
+                    router.navigateToLogin()
+                }
+                
+                
             }
         }
         .onAppear {

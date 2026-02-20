@@ -10,7 +10,7 @@ struct SurveyStep5: View {
     @State private var ownText: String = ""
     
     let prompts = [
-        "I like the type of kind heart ",
+        "I like the type of warming heart ",
         "The way to my heart is...",
         "I'm looking for someone who..."
     ]

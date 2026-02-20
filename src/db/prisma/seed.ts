@@ -8,7 +8,7 @@ async function main() {
 
   // 1. Clean up old data (Order matters due to Foreign Key constraints)
   // Note: Prisma's deleteMany does not reset Auto Increment ID, but it doesn't matter for UUIDs
-  await prisma.$executeRaw`TRUNCATE TABLE messages, matches, swipes, profiles, users CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE messages, matches, profiles, users CASCADE`;
 
   // 2. Create 10 fake users
   for (let i = 0; i < 10; i++) {
@@ -20,6 +20,8 @@ async function main() {
     const user = await prisma.users.create({
       data: {
         email: faker.internet.email({ firstName, lastName }),
+        firebase_uid: faker.string.uuid(),
+        auth_provider: 'email',
         password_hash: '$2b$10$EpQqjFwOWI7NYrEn8xtzPO5/8Kx.J.a/lam/a.a.a.a', // Fake hash
         phone: faker.phone.number(),
         current_status: 'active',

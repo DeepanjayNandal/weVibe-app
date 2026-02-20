@@ -9,6 +9,7 @@
     "db:setup": "node src/db/setup-db.js",
     "db:check": "node src/db/test-db.js",
     "db:pull": "prisma db pull --schema=src/db/schema.prisma",
+    "db:push": "prisma db push --schema=src/db/schema.prisma",
     "db:generate": "prisma generate --schema=src/db/schema.prisma",
     "db:seed": "prisma db seed --schema=src/db/schema.prisma",
     "test": "jest"

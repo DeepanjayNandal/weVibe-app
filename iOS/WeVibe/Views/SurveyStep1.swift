@@ -144,6 +144,19 @@ struct SurveyStep1: View {
                         }
                     }
                     
+                    Button {
+                            router.navigateSurveyStep2()
+                    } label: {
+                            Text("Next step")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 16)
+                                .background(.white)
+                                .clipShape(Capsule())
+                    }
+                    .padding(.top, 40)
+                    
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal, 24)

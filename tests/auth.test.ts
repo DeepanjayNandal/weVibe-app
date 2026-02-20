@@ -72,13 +72,13 @@ describe('Auth API', () => {
     await request(app)
       .post('/api/v1/auth/register')
       .send({
-        provider: 'google',
-        idToken: 'mock:google:g-777:charlie@auth.test',
+        provider: 'email',
+        idToken: 'mock:email:e-001:charlie@auth.test',
       });
 
     const response = await request(app)
       .get('/api/v1/auth/me')
-      .set('Authorization', 'Bearer mock:google:g-777:charlie@auth.test');
+      .set('Authorization', 'Bearer mock:email:e-001:charlie@auth.test');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);

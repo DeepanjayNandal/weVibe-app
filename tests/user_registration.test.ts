@@ -33,7 +33,7 @@ describe('User Registration Integration Flow', () => {
     // Use raw query to ensure execution even if Prisma Client types are not updated
     const userResult = await prisma.$queryRaw<any[]>`
       INSERT INTO users (email, firebase_uid, auth_provider, created_at)
-      VALUES (${mockUser.email}, ${mockUser.firebase_uid}, 'google', NOW())
+      VALUES (${mockUser.email}, ${mockUser.firebase_uid}, 'email', NOW())
       RETURNING id;
     `;
     
@@ -68,7 +68,7 @@ describe('User Registration Integration Flow', () => {
     expect(savedData.length).toBe(1);
     expect(savedData[0].email).toBe(mockUser.email);
     expect(savedData[0].firebase_uid).toBe(mockUser.firebase_uid);
-    expect(savedData[0].auth_provider).toBe('google');
+    expect(savedData[0].auth_provider).toBe('email');
     expect(savedData[0].display_name).toBe(mockUser.display_name);
     expect(savedData[0].details.bio).toBe(mockUser.bio);
   });

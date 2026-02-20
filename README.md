@@ -14,11 +14,41 @@ Single Express API serving all clients (Next.js web, Swift iOS).
 Routes delegate to controllers, which call services for business logic.
 Repositories handle all direct database queries via pg.
 
+## Auth API (Firebase-ready with Mock Verifier)
+
+Current implementation supports three providers: `google`, `apple`, `email`.
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout` (requires `Authorization: Bearer <idToken>`, returns `204`)
+- `GET /api/v1/auth/me` (requires bearer token)
+
+### Request Body for register/login
+
+```json
+{
+   "provider": "google",
+   "idToken": "mock:google:uid-123:user@example.com"
+}
+```
+
+### Mock Token Rules (Local Development)
+
+When `AUTH_PROVIDER_MODE=mock`, backend accepts this token format:
+
+`mock:<provider>:<uid>:<email>`
+
+Examples:
+
+- `mock:google:g-001:alice@gmail.com`
+- `mock:apple:a-001:bob@icloud.com`
+- `mock:email:e-001:charlie@example.com`
+
 ## Database Setup & Testing
 
 1. **Install Dependencies**
    ```bash
-   npm install
+   npm ci
    ```
 
 2. **Start Database (Docker)**
@@ -51,6 +81,11 @@ Repositories handle all direct database queries via pg.
 7. **Check Connection (Optional)**
    ```bash
    npm run db:check
+   ```
+
+8. **Run API Server**
+   ```bash
+   npm start
    ```
 
 ## Folder Structure

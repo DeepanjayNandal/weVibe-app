@@ -46,6 +46,7 @@ Repositories handle all direct database queries via pg.
    ```bash
    npm test
    ```
+   > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
 
 7. **Check Connection (Optional)**
    ```bash

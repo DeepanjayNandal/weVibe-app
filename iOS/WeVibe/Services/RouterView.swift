@@ -31,7 +31,7 @@ struct RouterView: View {
                     case .surveyStep4:
                         SurveyStep4()
                     case .surveyStep5:
-                        SurveyStep1()
+                        SurveyStep4()
                     }
                 }
         }

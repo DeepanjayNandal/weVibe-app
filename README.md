@@ -26,14 +26,14 @@ Repositories handle all direct database queries via pg.
    npm run db:start
    ```
 
-3. **Initialize Schema (SQL)**
+3. **Apply Schema to Database**
+   Push the schema defined in `src/db/schema.prisma` to the database:
    ```bash
-   npm run db:setup
+   npm run db:push
    ```
 
-4. **Sync Prisma & Generate Client**
+4. **Generate Prisma Client**
    ```bash
-   npm run db:pull
    npm run db:generate
    ```
 
@@ -46,6 +46,7 @@ Repositories handle all direct database queries via pg.
    ```bash
    npm test
    ```
+   > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
 
 7. **Check Connection (Optional)**
    ```bash

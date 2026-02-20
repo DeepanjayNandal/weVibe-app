@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [postgis]
 }
 
 model matches {
@@ -57,15 +59,6 @@ model profiles {
   @@index([gender, personality_primary], map: "idx_profiles_personality")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model spatial_ref_sys {
-  srid      Int     @id
-  auth_name String? @db.VarChar(256)
-  auth_srid Int?
-  srtext    String? @db.VarChar(2048)
-  proj4text String? @db.VarChar(2048)
-}
-
 model speed_dating_sessions {
   id                                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_a_id                                    String?   @db.Uuid
@@ -77,21 +70,11 @@ model speed_dating_sessions {
   users_speed_dating_sessions_user_b_idTousers users?    @relation("speed_dating_sessions_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model swipes {
-  id                            BigInt            @id @default(autoincrement())
-  actor_id                      String?           @db.Uuid
-  target_id                     String?           @db.Uuid
-  action                        enum_swipe_action
-  created_at                    DateTime?         @default(now()) @db.Timestamp(6)
-  users_swipes_actor_idTousers  users?            @relation("swipes_actor_idTousers", fields: [actor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users_swipes_target_idTousers users?            @relation("swipes_target_idTousers", fields: [target_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([actor_id, target_id])
-}
-
 model users {
   id                                                           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                                                        String                  @unique @db.VarChar(255)
+  firebase_uid                                                 String                  @unique @db.VarChar(255)
+  auth_provider                                                enum_auth_provider?     @default(email)
   phone                                                        String?                 @unique @db.VarChar(50)
   password_hash                                                String?                 @db.VarChar(255)
   created_at                                                   DateTime?               @default(now()) @db.Timestamp(6)
@@ -108,8 +91,6 @@ model users {
   profiles                                                     profiles?
   speed_dating_sessions_speed_dating_sessions_user_a_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_a_idTousers")
   speed_dating_sessions_speed_dating_sessions_user_b_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_b_idTousers")
-  swipes_swipes_actor_idTousers                                swipes[]                @relation("swipes_actor_idTousers")
-  swipes_swipes_target_idTousers                               swipes[]                @relation("swipes_target_idTousers")
 }
 
 enum enum_match_status {
@@ -125,10 +106,12 @@ enum enum_msg_type {
   system
 }
 
-enum enum_swipe_action {
-  like
-  pass
-  super_like
+enum enum_auth_provider {
+  google
+  apple
+  facebook
+  twitter
+  email
 }
 
 enum enum_user_status {

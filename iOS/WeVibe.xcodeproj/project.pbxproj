@@ -28,6 +28,8 @@
 		A38BAB272F47E10500E908DB /* GenderCheckbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB262F47E10000E908DB /* GenderCheckbox.swift */; };
 		A38BAB292F47E13100E908DB /* GoalCheckbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB282F47E12D00E908DB /* GoalCheckbox.swift */; };
 		A38BAB2B2F47E16200E908DB /* DualSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2A2F47E16000E908DB /* DualSlider.swift */; };
+		A38BAB2D2F47E68D00E908DB /* HabitSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2C2F47E68500E908DB /* HabitSection.swift */; };
+		A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +48,8 @@
 		A38BAB262F47E10000E908DB /* GenderCheckbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenderCheckbox.swift; sourceTree = "<group>"; };
 		A38BAB282F47E12D00E908DB /* GoalCheckbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCheckbox.swift; sourceTree = "<group>"; };
 		A38BAB2A2F47E16000E908DB /* DualSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualSlider.swift; sourceTree = "<group>"; };
+		A38BAB2C2F47E68500E908DB /* HabitSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSection.swift; sourceTree = "<group>"; };
+		A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep4.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		B10004 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -103,6 +107,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */,
 				A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */,
 				A38BAAD12F47B6AE00E908DB /* SurveyStep2.swift */,
 				A38BAACF2F47B6A600E908DB /* SurveyStep1.swift */,
@@ -118,6 +123,7 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				A38BAB2C2F47E68500E908DB /* HabitSection.swift */,
 				A38BAB2A2F47E16000E908DB /* DualSlider.swift */,
 				A38BAB282F47E12D00E908DB /* GoalCheckbox.swift */,
 				A38BAB262F47E10000E908DB /* GenderCheckbox.swift */,
@@ -231,6 +237,7 @@
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
+				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,
 				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,
 				A38BAB272F47E10500E908DB /* GenderCheckbox.swift in Sources */,
@@ -240,6 +247,7 @@
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
 				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
+				A38BAB2D2F47E68D00E908DB /* HabitSection.swift in Sources */,
 				A10005 /* LogoView.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,
 				A38BAB292F47E13100E908DB /* GoalCheckbox.swift in Sources */,

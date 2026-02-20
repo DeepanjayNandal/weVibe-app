@@ -41,7 +41,13 @@ class FirebaseVerifierStub implements AuthVerifier {
 }
 
 function isAuthProvider(input: string): input is AuthProvider {
-  return input === 'google' || input === 'apple' || input === 'password';
+  return (
+    input === 'google' ||
+    input === 'apple' ||
+    input === 'facebook' ||
+    input === 'twitter' ||
+    input === 'email'
+  );
 }
 
 export function createAuthVerifier(): AuthVerifier {

@@ -1,4 +1,4 @@
-export type AuthProvider = 'google' | 'apple' | 'password';
+export type AuthProvider = 'google' | 'apple' | 'facebook' | 'twitter' | 'email';
 
 export interface AuthIdentity {
   uid: string;

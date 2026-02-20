@@ -72,13 +72,13 @@ describe('Auth API', () => {
     await request(app)
       .post('/api/v1/auth/register')
       .send({
-        provider: 'password',
-        idToken: 'mock:password:p-001:charlie@auth.test',
+        provider: 'google',
+        idToken: 'mock:google:g-777:charlie@auth.test',
       });
 
     const response = await request(app)
       .get('/api/v1/auth/me')
-      .set('Authorization', 'Bearer mock:password:p-001:charlie@auth.test');
+      .set('Authorization', 'Bearer mock:google:g-777:charlie@auth.test');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -105,8 +105,8 @@ describe('Auth API', () => {
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({
-        provider: 'facebook',
-        idToken: 'mock:facebook:f-001:user@auth.test',
+        provider: 'linkedin',
+        idToken: 'mock:linkedin:l-001:user@auth.test',
       });
 
     expect(response.status).toBe(400);
@@ -211,8 +211,8 @@ describe('Auth API', () => {
     const response = await request(app)
       .post('/api/v1/auth/login')
       .send({
-        provider: 'twitter',
-        idToken: 'mock:twitter:t-001:user@auth.test',
+        provider: 'linkedin',
+        idToken: 'mock:linkedin:l-001:user@auth.test',
       });
 
     expect(response.status).toBe(400);

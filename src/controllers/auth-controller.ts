@@ -5,12 +5,18 @@ import { badRequest } from '../utils/errors';
 import { AuthProvider } from '../services/auth/types';
 
 function isAuthProvider(input: string): input is AuthProvider {
-  return input === 'google' || input === 'apple' || input === 'password';
+  return (
+    input === 'google' ||
+    input === 'apple' ||
+    input === 'facebook' ||
+    input === 'twitter' ||
+    input === 'email'
+  );
 }
 
 function readProvider(value: unknown): AuthProvider {
   if (typeof value !== 'string' || !isAuthProvider(value)) {
-    badRequest('provider must be one of google, apple, password', 'INVALID_PROVIDER');
+    badRequest('provider must be one of google, apple, facebook, twitter, email', 'INVALID_PROVIDER');
   }
 
   return value;

@@ -22,6 +22,16 @@ struct RouterView: View {
                         ConfirmScreen()
                     case .thankAndBegin:
                         ThankAndBegin()
+                    case .surveyStep1:
+                        SurveyStep1()
+                    case .surveyStep2:
+                        SurveyStep2()
+                    case .surveyStep3:
+                        SurveyStep1()
+                    case .surveyStep4:
+                        SurveyStep1()
+                    case .surveyStep5:
+                        SurveyStep1()
                     }
                 }
         }

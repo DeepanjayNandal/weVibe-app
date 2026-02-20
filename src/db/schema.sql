@@ -6,13 +6,14 @@
 -- 1. Clean up existing tables and types (For a fresh start)
 -- Order matters due to Foreign Key constraints
 DROP TABLE IF EXISTS speed_dating_sessions, messages, matches, swipes, profiles, users CASCADE;
-DROP TYPE IF EXISTS enum_user_status, enum_swipe_action, enum_match_status, enum_msg_type CASCADE;
+DROP TYPE IF EXISTS enum_auth_provider, enum_user_status, enum_swipe_action, enum_match_status, enum_msg_type CASCADE;
 
 -- 2. Enable PostGIS Extension (Critical for distance-based matching)
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 3. Define Custom Enumerated Types
 CREATE TYPE enum_user_status AS ENUM ('active', 'offline', 'in_speed_date', 'banned');
+CREATE TYPE enum_auth_provider AS ENUM ('google', 'apple', 'password');
 CREATE TYPE enum_swipe_action AS ENUM ('like', 'pass', 'super_like');
 CREATE TYPE enum_match_status AS ENUM ('active', 'unmatched', 'reported');
 CREATE TYPE enum_msg_type AS ENUM ('text', 'image', 'audio', 'system');
@@ -23,6 +24,8 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(50) UNIQUE,
     password_hash VARCHAR(255),
+    firebase_uid VARCHAR(128) UNIQUE,
+    auth_provider enum_auth_provider,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP,
     

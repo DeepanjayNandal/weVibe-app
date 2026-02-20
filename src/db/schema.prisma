@@ -77,6 +77,8 @@ model users {
   auth_provider                                                enum_auth_provider?     @default(email)
   phone                                                        String?                 @unique @db.VarChar(50)
   password_hash                                                String?                 @db.VarChar(255)
+  firebase_uid                                                 String?                 @unique @db.VarChar(128)
+  auth_provider                                                enum_auth_provider?
   created_at                                                   DateTime?               @default(now()) @db.Timestamp(6)
   last_active_at                                               DateTime?               @db.Timestamp(6)
   is_banned                                                    Boolean?                @default(false)
@@ -119,4 +121,10 @@ enum enum_user_status {
   offline
   in_speed_date
   banned
+}
+
+enum enum_auth_provider {
+  google
+  apple
+  password
 }

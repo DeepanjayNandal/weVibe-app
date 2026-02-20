@@ -1,4 +1,4 @@
-import SwiftUI 
+import SwiftUI
 
 struct PromptField: View {
     let label: String

@@ -1,4 +1,4 @@
-# WeVibe-Backend
+# WeVibe Backend
 
 Unified Node.js backend for WeVibe — serves both the web frontend and iOS app from a single API.
 

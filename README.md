@@ -12,11 +12,11 @@ Unified Node.js backend for WeVibe — serves both the web frontend and iOS app 
 
 Single Express API serving all clients (Next.js web, Swift iOS).
 Routes delegate to controllers, which call services for business logic.
-Repositories handle all direct database queries via Prisma Client.
+Repositories handle all direct database queries via pg.
 
 ## Auth API (Firebase-ready with Mock Verifier)
 
-Current implementation supports providers: `google`, `apple`, `facebook`, `twitter`, `email`.
+Current implementation supports three providers: `google`, `apple`, `email`.
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -48,7 +48,7 @@ Examples:
 
 1. **Install Dependencies**
    ```bash
-   npm install
+   npm ci
    ```
 
 2. **Start Database (Docker)**

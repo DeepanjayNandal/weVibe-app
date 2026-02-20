@@ -27,11 +27,11 @@ struct RouterView: View {
                     case .surveyStep2:
                         SurveyStep2()
                     case .surveyStep3:
-                        SurveyStep1()
+                        SurveyStep3()
                     case .surveyStep4:
-                        SurveyStep1()
+                        SurveyStep4()
                     case .surveyStep5:
-                        SurveyStep1()
+                        SurveyStep4()
                     }
                 }
         }

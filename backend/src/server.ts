@@ -23,3 +23,4 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   void shutdown('SIGTERM');
 });
+export { app };

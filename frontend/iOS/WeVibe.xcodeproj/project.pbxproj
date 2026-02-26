@@ -32,6 +32,7 @@
 		A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */; };
 		A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB662F4820EB00E908DB /* SurveyStep5.swift */; };
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
+		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		B10005 /* LogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoView.swift; sourceTree = "<group>"; };
 		B10007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10008 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BBB2B97B2F50239A002190F2 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		C10001 /* WeVibe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WeVibe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -111,6 +113,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				BBB2B97B2F50239A002190F2 /* HomeScreen.swift */,
 				A38BAB662F4820EB00E908DB /* SurveyStep5.swift */,
 				A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */,
 				A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */,
@@ -242,6 +245,7 @@
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
+				BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */,
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,
@@ -329,7 +333,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"WeVibe/Preview Content\"";
-				DEVELOPMENT_TEAM = 9JMK2ZH93W;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;
@@ -364,7 +368,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"WeVibe/Preview Content\"";
-				DEVELOPMENT_TEAM = 9JMK2ZH93W;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;

@@ -1,2 +1,3 @@
-.planning/*
-.vscode/*
+.planning/
+.vscode/
+.DS_Store

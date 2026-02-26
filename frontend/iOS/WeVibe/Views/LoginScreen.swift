@@ -9,6 +9,7 @@ struct LoginScreen: View {
     @State private var passwordError: String?
     @State private var isPasswordVisible: Bool = false
     @State private var isLoading: Bool = false
+    @FocusState private var isPasswordFocused: Bool
 
     var body: some View {
         ZStack {
@@ -16,7 +17,7 @@ struct LoginScreen: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 10) {
-                LogoView(size: 130)
+                LogoView(size: 170)
 
                 Text("Log In")
                     .foregroundStyle(.white)
@@ -63,6 +64,7 @@ struct LoginScreen: View {
                                 .cornerRadius(14)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
+                                .focused($isPasswordFocused)
                                 .onChange(of: password) { _, _ in passwordError = nil }
                         } else {
                             SecureField("", text: $password)
@@ -74,10 +76,15 @@ struct LoginScreen: View {
                                 .cornerRadius(14)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
+                                .focused($isPasswordFocused)
                                 .onChange(of: password) { _, _ in passwordError = nil }
                         }
 
-                        Button(action: { isPasswordVisible.toggle() }) {
+                        Button(action: {
+                            let wasFocused = isPasswordFocused
+                            isPasswordVisible.toggle()
+                            if wasFocused { isPasswordFocused = true }
+                        }) {
                             Image(systemName: isPasswordVisible ? "eye" : "eye.slash")
                                 .foregroundStyle(.gray)
                                 .padding(.trailing, 16)
@@ -110,27 +117,18 @@ struct LoginScreen: View {
                 }
                 .padding(.top, 4)
 
-                Button(action: {
-                    if validate() {
-                        performLogin()
-                    }
-                }) {
-                    if isLoading {
-                        ProgressView()
-                            .tint(AppTheme.primaryBackground)
-                    } else {
-                        Text("Sign in")
-                    }
+                PrimaryButton(
+                    title: "Sign in",
+                    background: Color.white,
+                    foreground: AppTheme.primaryBackground,
+                    height: 50,
+                    isLoading: isLoading,
+                    isDisabled: email.isEmpty || password.isEmpty
+                ) {
+                    if validate() { performLogin() }
                 }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(email.isEmpty || password.isEmpty || isLoading ? .white.opacity(0.6) : .white)
-                    .foregroundStyle(AppTheme.primaryBackground)
-                    .bold()
-                    .cornerRadius(14)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
-                    .disabled(email.isEmpty || password.isEmpty || isLoading)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
 
                 Button {
                 } label: {
@@ -141,7 +139,7 @@ struct LoginScreen: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color(hex: "1a4a3a"))
+                    .background(AppTheme.secondaryButton)
                     .foregroundStyle(.white)
                     .cornerRadius(14)
                 }
@@ -164,13 +162,15 @@ struct LoginScreen: View {
         }
     }
 
-    public func validate() -> Bool {
+    private func validate() -> Bool {
         var isValid = true
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Simple regex: ^[^\s@]+@[^\s@]+\.[^\s@]+$
         let emailRegex = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
         let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+
+        email = trimmedEmail
 
         if trimmedEmail.isEmpty {
             emailError = "Email is required"

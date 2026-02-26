@@ -1,51 +1,62 @@
 import SwiftUI
 
 struct HomeScreen: View {
+    @State private var selectedTab: Int = 0
+
     var body: some View {
-        TabView {
-            // Tab 1: Speed Dating
-            ZStack {
-                AppTheme.primaryBackground
-                    .ignoresSafeArea()
-                Text("Speed Dating")
-                    .font(.largeTitle)
-                    .foregroundStyle(.white)
-            }
-            .tabItem {
-                Label("Speed Dating", systemImage: "heart.text.square.fill")
-            }
-
-            // Tab 2: Chat
-            ZStack {
-                AppTheme.primaryBackground
-                    .ignoresSafeArea()
-                Text("Chat")
-                    .font(.largeTitle)
-                    .foregroundStyle(.white)
-            }
-            .tabItem {
-                Label("Chat", systemImage: "message.fill")
-            }
-
-            // Tab 3: Profile
-            ZStack {
-                AppTheme.primaryBackground
-                    .ignoresSafeArea()
-                Text("Profile")
-                    .font(.largeTitle)
-                    .foregroundStyle(.white)
-            }
-            .tabItem {
-                Label("Profile", systemImage: "person.fill")
+        Group {
+            switch selectedTab {
+            case 0:
+                ZStack { AppTheme.primaryBackground.ignoresSafeArea() }
+            case 1:
+                ZStack { AppTheme.primaryBackground.ignoresSafeArea() }
+            default:
+                ZStack { AppTheme.primaryBackground.ignoresSafeArea() }
             }
         }
-        .tint(AppTheme.primaryBackground)
-        .onAppear {
-            let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = .white
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            CustomTabBar(selectedTab: $selectedTab)
         }
+    }
+}
+
+private struct CustomTabBar: View {
+    @Binding var selectedTab: Int
+
+    private let items: [(systemImage: String, label: String)] = [
+        ("stopwatch.fill", "Speed Dating"),
+        ("message.fill",   "Chat"),
+        ("person.fill",    "Profile"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { index in
+                Button {
+                    selectedTab = index
+                } label: {
+                    VStack(spacing: 8) {
+                        Rectangle()
+                            .fill(selectedTab == index ? AppTheme.iconColor : Color.clear)
+                            .frame(width: 36, height: 2)
+                            .cornerRadius(1)
+
+                        Image(systemName: items[index].systemImage)
+                            .font(.system(size: 22))
+                            .foregroundStyle(
+                                selectedTab == index
+                                    ? AppTheme.iconColor
+                                    : AppTheme.iconColor.opacity(0.35)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+            }
+        }
+        .background(
+            AppTheme.secondaryBackground
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 }

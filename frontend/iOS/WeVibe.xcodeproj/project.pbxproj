@@ -33,6 +33,7 @@
 		A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB662F4820EB00E908DB /* SurveyStep5.swift */; };
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
 		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
+		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +63,7 @@
 		B10007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10008 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		BBB2B97B2F50239A002190F2 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
+		BBB2B97D2F503025002190F2 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
 		C10001 /* WeVibe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WeVibe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -131,6 +133,7 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				BBB2B97D2F503025002190F2 /* PrimaryButton.swift */,
 				A38BAB682F48215500E908DB /* PromptField.swift */,
 				A38BAB2C2F47E68500E908DB /* HabitSection.swift */,
 				A38BAB2A2F47E16000E908DB /* DualSlider.swift */,
@@ -255,6 +258,7 @@
 				A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */,
 				A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
 				A38BAAD42F47B6BB00E908DB /* SurveyStep3.swift in Sources */,
+				BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */,
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
 				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
@@ -355,7 +359,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -390,7 +394,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

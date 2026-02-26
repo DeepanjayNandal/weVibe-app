@@ -73,7 +73,8 @@ export class AuthController {
   };
 
   logout = async (req: Request, res: Response): Promise<void> => {
-    const idToken = (req as any).idToken;
+    // req.idToken is typed via src/types/express.d.ts — set by authenticate middleware
+    const idToken = req.idToken;
     if (!idToken) {
       badRequest('idToken not found in request context', 'MISSING_REQUEST_TOKEN');
     }
@@ -83,7 +84,8 @@ export class AuthController {
   };
 
   me = async (req: Request, res: Response): Promise<void> => {
-    const idToken = (req as any).idToken;
+    // req.idToken is typed via src/types/express.d.ts — set by authenticate middleware
+    const idToken = req.idToken;
     if (!idToken) {
       badRequest('idToken not found in request context', 'MISSING_REQUEST_TOKEN');
     }

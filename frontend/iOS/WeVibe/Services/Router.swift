@@ -42,6 +42,9 @@ class Router {
     func popToRoot() {
         path.removeLast(path.count)
     }
+    func navigateToHome() {
+        path.append(Route.home)
+    }
 }
 
 enum Route: Hashable {
@@ -56,4 +59,5 @@ enum Route: Hashable {
     case surveyStep3
     case surveyStep4
     case surveyStep5
+    case home
 }

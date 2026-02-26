@@ -32,6 +32,8 @@ struct RouterView: View {
                         SurveyStep4()
                     case .surveyStep5:
                         SurveyStep5()
+                    case .home:
+                        HomeScreen()
                     }
                 }
         }

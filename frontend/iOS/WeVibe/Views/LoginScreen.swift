@@ -5,6 +5,10 @@ struct LoginScreen: View {
     @State private var password: String = ""
 
     @Environment(Router.self) private var router
+    @State private var emailError: String?
+    @State private var passwordError: String?
+    @State private var isPasswordVisible: Bool = false
+    @State private var isLoading: Bool = false
 
     var body: some View {
         ZStack {
@@ -29,10 +33,18 @@ struct LoginScreen: View {
                         .padding(.horizontal, 16)
                         .frame(height: 52)
                         .background(.white)
+                        .foregroundStyle(.black)
                         .cornerRadius(14)
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                        .onChange(of: email) { _, _ in emailError = nil }
+
+                    if let emailError {
+                        Text(emailError)
+                            .foregroundStyle(.red)
+                            .font(.system(size: 12))
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -40,11 +52,43 @@ struct LoginScreen: View {
                         .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
 
-                    SecureField("", text: $password)
-                        .padding(.horizontal, 16)
-                        .frame(height: 52)
-                        .background(.white)
-                        .cornerRadius(14)
+                    ZStack(alignment: .trailing) {
+                        if isPasswordVisible {
+                            TextField("", text: $password)
+                                .padding(.horizontal, 16)
+                                .padding(.trailing, 40)
+                                .frame(height: 52)
+                                .background(.white)
+                                .foregroundStyle(.black)
+                                .cornerRadius(14)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .onChange(of: password) { _, _ in passwordError = nil }
+                        } else {
+                            SecureField("", text: $password)
+                                .padding(.horizontal, 16)
+                                .padding(.trailing, 40)
+                                .frame(height: 52)
+                                .background(.white)
+                                .foregroundStyle(.black)
+                                .cornerRadius(14)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .onChange(of: password) { _, _ in passwordError = nil }
+                        }
+
+                        Button(action: { isPasswordVisible.toggle() }) {
+                            Image(systemName: isPasswordVisible ? "eye" : "eye.slash")
+                                .foregroundStyle(.gray)
+                                .padding(.trailing, 16)
+                        }
+                    }
+
+                    if let passwordError {
+                        Text(passwordError)
+                            .foregroundStyle(.red)
+                            .font(.system(size: 12))
+                    }
                 }
 
                 HStack {
@@ -66,15 +110,27 @@ struct LoginScreen: View {
                 }
                 .padding(.top, 4)
 
-                Button("Sign in") { }
+                Button(action: {
+                    if validate() {
+                        performLogin()
+                    }
+                }) {
+                    if isLoading {
+                        ProgressView()
+                            .tint(AppTheme.primaryBackground)
+                    } else {
+                        Text("Sign in")
+                    }
+                }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(.white)
+                    .background(email.isEmpty || password.isEmpty || isLoading ? .white.opacity(0.6) : .white)
                     .foregroundStyle(AppTheme.primaryBackground)
                     .bold()
                     .cornerRadius(14)
                     .padding(.top, 8)
                     .padding(.bottom, 16)
+                    .disabled(email.isEmpty || password.isEmpty || isLoading)
 
                 Button {
                 } label: {
@@ -105,6 +161,43 @@ struct LoginScreen: View {
                 }
             }
             .padding(.horizontal, 24)
+        }
+    }
+
+    public func validate() -> Bool {
+        var isValid = true
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Simple regex: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+        let emailRegex = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+
+        if trimmedEmail.isEmpty {
+            emailError = "Email is required"
+            isValid = false
+        } else if trimmedEmail.count > 254 {
+            emailError = "Email is too long"
+            isValid = false
+        } else if !emailPredicate.evaluate(with: trimmedEmail) {
+            emailError = "Invalid email format"
+            isValid = false
+        }
+
+        if password.isEmpty {
+            passwordError = "Password is required"
+            isValid = false
+        }
+
+        return isValid
+    }
+
+    private func performLogin() {
+        isLoading = true
+        
+        // Simulate API call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            isLoading = false
+            router.navigateToHome()
         }
     }
 }

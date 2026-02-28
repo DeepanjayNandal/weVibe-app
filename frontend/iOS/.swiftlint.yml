@@ -1,0 +1,43 @@
+included:
+  - WeVibe
+
+excluded:
+  - WeVibe/Preview Content
+
+disabled_rules:
+  - multiple_closures_with_trailing_closure
+  - identifier_name
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+  - discouraged_object_literal
+  - empty_string
+  - modifier_order
+  - overridden_super_call
+  - vertical_whitespace_closing_braces
+  - sorted_imports
+  - redundant_type_annotation
+  - private_outlet
+  - unowned_variable_capture
+
+line_length:
+  warning: 120
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 50
+  error: 100
+
+nesting:
+  type_level: 2
+  function_level: 3

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ThankAndBegin: View {
 
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
 
     var body: some View {
         ZStack {
@@ -31,17 +31,18 @@ struct ThankAndBegin: View {
 
                 PrimaryButton(
                     title: "Begin",
-                    background: Color.white,
-                    foreground: AppTheme.primaryBackground,
+                    background: AppTheme.primaryButton,
+                    foreground: Color.white,
                     height: 54,
                     width: 220,
                     cornerRadius: 22
                 ) {
-                    router.navigateSurveyStep1()
+                    onboardingRouter.navigate(to: .step1)
                 }
                 .padding(.horizontal, 60)
                 .padding(.bottom, 136)
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
 }

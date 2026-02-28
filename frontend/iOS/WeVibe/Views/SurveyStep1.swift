@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SurveyStep1: View {
     
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
     
     // Date of Birth
     @State private var day: String = ""
@@ -145,7 +145,7 @@ struct SurveyStep1: View {
                     }
                     
                     Button {
-                            router.navigateSurveyStep2()
+                            onboardingRouter.navigate(to: .step2)
                     } label: {
                             Text("Next step")
                                 .font(.system(size: 16, weight: .bold))

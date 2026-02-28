@@ -1,34 +1,30 @@
 import SwiftUI
+
 struct SplashScreen: View {
-    @Environment(Router.self) private var router
+    @Environment(AuthRouter.self) private var authRouter
 
     var body: some View {
         ZStack {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
 
+            LogoView(size: 170)
+
             VStack {
-                Spacer()
-
-                LogoView(size: 170)
-
                 Spacer()
 
                 PrimaryButton(
                     title: "Get Started",
-                    background: AppTheme.buttonGradient,
-                    foreground: .white,
+                    background: AppTheme.primaryButton,
+                    foreground: Color.white,
                     height: 54
                 ) {
-                    router.navigateToLogin()
+                    authRouter.navigate(to: .login)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 56)
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
-}
-
-#Preview {
-    SplashScreen()
 }

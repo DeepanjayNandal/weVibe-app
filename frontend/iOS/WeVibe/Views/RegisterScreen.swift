@@ -17,6 +17,7 @@ struct RegisterScreen: View {
     @State private var confirmEmailError: String?
     @State private var passwordError: String?
     @State private var confirmPasswordError: String?
+    @State private var authError: String?
 
     // MARK: - UI State
     @State private var isPasswordVisible: Bool = false
@@ -29,7 +30,7 @@ struct RegisterScreen: View {
     // Excludes injection-risk chars: < > ' " ; & | \ / ` ( ) { } [ ]
     private let specialCharacters = CharacterSet(charactersIn: "!@#$%^*_+=~?-")
 
-    @Environment(Router.self) private var router
+    @Environment(AuthManager.self) private var authManager
 
     private var isFormEmpty: Bool {
         firstName.isEmpty || lastName.isEmpty || email.isEmpty ||
@@ -48,7 +49,8 @@ struct RegisterScreen: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Sign Up")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.white)
+                            .background(AppTheme.primaryButton) 
                             .font(.system(size: 24, weight: .bold))
                             .padding(.bottom, 10)
 
@@ -114,7 +116,7 @@ struct RegisterScreen: View {
                                 .keyboardType(.emailAddress)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
-                                .onChange(of: email) { _, _ in emailError = nil }
+                                .onChange(of: email) { _, _ in emailError = nil; authError = nil }
 
                             if let emailError {
                                 Text(emailError)
@@ -280,6 +282,14 @@ struct RegisterScreen: View {
                         }
                         .padding(.top, 4)
 
+                        if let authError {
+                            Text(authError)
+                                .foregroundStyle(.red)
+                                .font(.system(size: 13))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 4)
+                        }
+
                         PrimaryButton(
                             title: "Sign Up",
                             background: AppTheme.secondaryButton,
@@ -392,20 +402,22 @@ struct RegisterScreen: View {
 
     // MARK: - Submit
     private func performSignUp() {
+        isLoading = true
+        authError = nil
         Task {
-            isLoading = true
             defer { isLoading = false }
             do {
-                try await registerUser()
-                router.navigateToConfirmScreen()
+                try await authManager.register(
+                    email: email,
+                    password: password,
+                    firstName: firstName,
+                    lastName: lastName
+                )
+                // AppState changes to .pendingVerification in AuthManager.
+                // RootView switches to ConfirmScreen automatically — no nav call needed.
             } catch {
-                // TODO: Surface API error to user
+                authError = error.localizedDescription
             }
         }
-    }
-
-    /// TODO: Replace with real API call.
-    private func registerUser() async throws {
-        try await Task.sleep(nanoseconds: 1_500_000_000)
     }
 }

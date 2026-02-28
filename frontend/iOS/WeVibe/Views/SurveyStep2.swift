@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SurveyStep2: View {
     
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
     
     // Who to meet
     @State private var openToEveryone: Bool = true
@@ -117,7 +117,7 @@ struct SurveyStep2: View {
                     
                     HStack(spacing: 40) {
                         Button {
-                                router.navigateSurveyStep1()
+                                onboardingRouter.pop()
                         } label: {
                                 Text("Last step")
                                     .font(.system(size: 16, weight: .bold))
@@ -130,7 +130,7 @@ struct SurveyStep2: View {
                         Spacer()
                         
                         Button {
-                                router.navigateSurveyStep3()
+                                onboardingRouter.navigate(to: .step3)
                         } label: {
                                 Text("Next step")
                                     .font(.system(size: 16, weight: .bold))

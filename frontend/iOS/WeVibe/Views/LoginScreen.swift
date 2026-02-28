@@ -4,11 +4,15 @@ struct LoginScreen: View {
     @State private var email: String = ""
     @State private var password: String = ""
 
-    @Environment(Router.self) private var router
+    @Environment(AuthRouter.self) private var authRouter
+    @Environment(AuthManager.self) private var authManager
+
     @State private var emailError: String?
     @State private var passwordError: String?
+    @State private var authError: String?
     @State private var isPasswordVisible: Bool = false
     @State private var isLoading: Bool = false
+    @State private var isSSOLoading: Bool = false
     @FocusState private var isPasswordFocused: Bool
 
     var body: some View {
@@ -39,7 +43,7 @@ struct LoginScreen: View {
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-                        .onChange(of: email) { _, _ in emailError = nil }
+                        .onChange(of: email) { _, _ in emailError = nil; authError = nil }
 
                     if let emailError {
                         Text(emailError)
@@ -65,7 +69,7 @@ struct LoginScreen: View {
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .focused($isPasswordFocused)
-                                .onChange(of: password) { _, _ in passwordError = nil }
+                                .onChange(of: password) { _, _ in passwordError = nil; authError = nil }
                         } else {
                             SecureField("", text: $password)
                                 .padding(.horizontal, 16)
@@ -77,7 +81,7 @@ struct LoginScreen: View {
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .focused($isPasswordFocused)
-                                .onChange(of: password) { _, _ in passwordError = nil }
+                                .onChange(of: password) { _, _ in passwordError = nil; authError = nil }
                         }
 
                         Button(action: {
@@ -101,29 +105,37 @@ struct LoginScreen: View {
                 HStack {
                     Button(action: {}) {
                         Text("Forgot Password?")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.white)
                             .underline()
-                            .font(.system(size: 14))
+                            .font(.system(size: 16))
                     }
 
                     Spacer()
 
-                    Button(action: { router.navigateToRegister() }) {
+                    Button(action: { authRouter.navigate(to: .register) }) {
                         Text("Sign up")
                             .foregroundStyle(AppTheme.smallText)
                             .underline()
-                            .font(.system(size: 14))
+                            .font(.system(size: 16))
                     }
                 }
                 .padding(.top, 4)
 
+                if let authError {
+                    Text(authError)
+                        .foregroundStyle(.red)
+                        .font(.system(size: 13))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 2)
+                }
+
                 PrimaryButton(
                     title: "Sign in",
-                    background: Color.white,
-                    foreground: AppTheme.primaryBackground,
+                    background: AppTheme.primaryButton,
+                    foreground:  Color.white,
                     height: 50,
                     isLoading: isLoading,
-                    isDisabled: email.isEmpty || password.isEmpty
+                    isDisabled: email.isEmpty || password.isEmpty || isSSOLoading
                 ) {
                     if validate() { performLogin() }
                 }
@@ -131,6 +143,7 @@ struct LoginScreen: View {
                 .padding(.bottom, 16)
 
                 Button {
+                    performSSOLogin(provider: .google)
                 } label: {
                     HStack {
                         Text("Continue with Google")
@@ -139,12 +152,15 @@ struct LoginScreen: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(AppTheme.secondaryButton)
-                    .foregroundStyle(.white)
+                    .background(Color.white)
+                    .foregroundStyle(Color.black)
                     .cornerRadius(14)
+                    .opacity(isSSOLoading || isLoading ? 0.6 : 1)
                 }
+                .disabled(isLoading || isSSOLoading)
 
                 Button {
+                    performSSOLogin(provider: .apple)
                 } label: {
                     HStack {
                         Text("Continue with Apple")
@@ -153,23 +169,25 @@ struct LoginScreen: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(Color(hex: "145c3e"))
-                    .foregroundStyle(.white)
+                    .background(Color.black)
+                    .foregroundStyle(Color.white)
                     .cornerRadius(14)
+                    .opacity(isSSOLoading || isLoading ? 0.6 : 1)
                 }
+                .disabled(isLoading || isSSOLoading)
             }
             .padding(.horizontal, 24)
         }
+        .navigationBarBackButtonHidden(false)
     }
+
+    // MARK: - Validation
 
     private func validate() -> Bool {
         var isValid = true
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Simple regex: ^[^\s@]+@[^\s@]+\.[^\s@]+$
         let emailRegex = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
         let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
-
         email = trimmedEmail
 
         if trimmedEmail.isEmpty {
@@ -191,13 +209,37 @@ struct LoginScreen: View {
         return isValid
     }
 
+    // MARK: - Auth Actions
+
     private func performLogin() {
         isLoading = true
-        
-        // Simulate API call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            isLoading = false
-            router.navigateToHome()
+        authError = nil
+        Task {
+            defer { isLoading = false }
+            do {
+                try await authManager.login(email: email, password: password)
+                // AppState change in AuthManager automatically advances RootView.
+            } catch {
+                authError = error.localizedDescription
+            }
+        }
+    }
+
+    private enum SSOProvider { case google, apple }
+
+    private func performSSOLogin(provider: SSOProvider) {
+        isSSOLoading = true
+        authError = nil
+        Task {
+            defer { isSSOLoading = false }
+            do {
+                switch provider {
+                case .google: try await authManager.loginWithGoogle()
+                case .apple:  try await authManager.loginWithApple()
+                }
+            } catch {
+                authError = error.localizedDescription
+            }
         }
     }
 }

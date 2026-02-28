@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SurveyStep3: View {
     
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
     
     @State private var drinks: String = ""
     @State private var smoking: String = ""
@@ -68,7 +68,7 @@ struct SurveyStep3: View {
                     // Navigation buttons
                     HStack {
                         Button {
-                            router.navigateSurveyStep2()
+                            onboardingRouter.pop()
                         } label: {
                             Text("Last step")
                                 .font(.system(size: 16, weight: .bold))
@@ -82,7 +82,7 @@ struct SurveyStep3: View {
                         Spacer()
                         
                         Button {
-                            router.navigateSurveyStep4()
+                            onboardingRouter.navigate(to: .step4)
                         } label: {
                             Text("Next step")
                                 .font(.system(size: 16, weight: .bold))

@@ -1,0 +1,189 @@
+{
+	"info": {
+		"_postman_id": "wevibe-api-test-collection",
+		"name": "WeVibe API Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Register User (Mock)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"email\",\n    \"idToken\": \"mock:email:{{$guid}}:henry.lin@example.com\",\n    \"firstName\": \"Henry\",\n    \"lastName\": \"Lin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"register"
+					]
+				},
+				"description": "測試註冊 API。使用 mock token 格式：mock:provider:uid:email。這裡使用了 {{$guid}} 來自動產生唯一 ID 以避免重複註冊錯誤。"
+			},
+			"response": []
+		},
+		{
+			"name": "Login User (Mock)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"email\",\n    \"idToken\": \"mock:email:uid-test-fixed:henry.fixed@example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"login"
+					]
+				},
+				"description": "測試登入 API。注意：為了測試成功，請確保 idToken 中的 email 與 uid 與資料庫中已註冊的使用者一致。"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Current User (Me)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token 放在 Bearer Header 中"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/me",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"me"
+					]
+				},
+				"description": "取得當前使用者資料。這需要將 Token 放在 Authorization Header (Bearer Token) 中。"
+			},
+			"response": []
+		},
+		{
+			"name": "Logout User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token 放在 Bearer Header 中"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/logout",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"logout"
+					]
+				},
+				"description": "登出使用者。這需要將 Token 放在 Authorization Header 中。成功會回傳 204 No Content。"
+			},
+			"response": []
+		},
+		{
+			"name": "Update Profile",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token 放在 Bearer Header 中"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"firstName\": \"Henry\",\n    \"lastName\": \"Updated\",\n    \"gender\": \"Male\",\n    \"birthDate\": \"1995-01-01\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/me",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"me"
+					]
+				},
+				"description": "更新使用者個人檔案 (Profile)。支援 firstName, lastName, gender, birthDate。"
+			},
+			"response": []
+		}
+	]
+}

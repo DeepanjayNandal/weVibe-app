@@ -245,6 +245,7 @@ Content-Type: application/json
 | 400 | `MISSING_LAST_NAME` | `last_name` missing or empty |
 | 400 | `MISSING_BIRTH_DATE` | `birth_date` missing or empty |
 | 400 | `INVALID_BIRTH_DATE` | `birth_date` not a valid date |
+| 400 | `INVALID_AGE` | User is under 18 years old |
 | 400 | `MISSING_GENDER` | `gender` missing or empty |
 | 400 | `INVALID_GENDER` | `gender` not one of the allowed values |
 | 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |

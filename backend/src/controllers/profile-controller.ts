@@ -23,6 +23,16 @@ function readBirthDate(value: unknown): Date {
     badRequest('birth_date must be a valid date (YYYY-MM-DD)', 'INVALID_BIRTH_DATE');
   }
 
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age--;
+  }
+  if (age < 18) {
+    badRequest('Must be at least 18 years old to join', 'INVALID_AGE');
+  }
+
   return date;
 }
 

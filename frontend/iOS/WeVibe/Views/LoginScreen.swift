@@ -6,6 +6,9 @@ struct LoginScreen: View {
 
     @Environment(AuthRouter.self) private var authRouter
     @Environment(AuthManager.self) private var authManager
+    
+    @Binding var showLogin: Bool
+    @Binding var showRegister: Bool
 
     @State private var emailError: String?
     @State private var passwordError: String?
@@ -112,7 +115,7 @@ struct LoginScreen: View {
 
                     Spacer()
 
-                    Button(action: { authRouter.navigate(to: .register) }) {
+                    Button(action: { showRegister = true }) {
                         Text("Sign up")
                             .foregroundStyle(AppTheme.smallText)
                             .underline()

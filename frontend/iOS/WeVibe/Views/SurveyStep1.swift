@@ -30,6 +30,10 @@ struct SurveyStep1: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 28) {
                     
+                    Button("Back", systemImage: "arrow.left") {
+                        onboardingRouter.pop()
+                    }.labelStyle(.iconOnly)
+                    
                     // Progress Bar
                     ProgressBarView(current: 1, total: 5)
                     
@@ -144,9 +148,11 @@ struct SurveyStep1: View {
                         }
                     }
                     
-                    Button {
+                    HStack() {
+                        Spacer()
+                        Button {
                             onboardingRouter.navigate(to: .step2)
-                    } label: {
+                        } label: {
                             Text("Next step")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(AppTheme.primaryBackground)
@@ -154,6 +160,7 @@ struct SurveyStep1: View {
                                 .padding(.vertical, 16)
                                 .background(.white)
                                 .clipShape(Capsule())
+                        }
                     }
                     .padding(.top, 40)
                     

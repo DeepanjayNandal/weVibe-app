@@ -31,6 +31,9 @@ struct RegisterScreen: View {
     private let specialCharacters = CharacterSet(charactersIn: "!@#$%^*_+=~?-")
 
     @Environment(AuthManager.self) private var authManager
+    @Environment(AuthRouter.self) private var authRouter
+    @Binding var showRegister: Bool
+
 
     private var isFormEmpty: Bool {
         firstName.isEmpty || lastName.isEmpty || email.isEmpty ||
@@ -45,12 +48,24 @@ struct RegisterScreen: View {
 
             ScrollView {
                 VStack(spacing: 10) {
+                    Button(action: { showRegister = false }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 17))
+                        }
+                        .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                    
+                    
                     LogoView(size: 130)
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Sign Up")
                             .foregroundStyle(Color.white)
-                            .background(AppTheme.primaryButton) 
                             .font(.system(size: 24, weight: .bold))
                             .padding(.bottom, 10)
 

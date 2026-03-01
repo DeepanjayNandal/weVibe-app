@@ -51,21 +51,30 @@ struct LaunchView: View {
 // Unauthenticated flow: Splash → Login/Register
 struct AuthFlowView: View {
     @State private var authRouter = AuthRouter()
+    @State private var showLogin = false
+    @State private var showRegister = false
 
     var body: some View {
-        NavigationStack(path: $authRouter.path) {
-            SplashScreen()
-                .navigationDestination(for: AuthRoute.self) { route in
-                    switch route {
-                    case .login:    LoginScreen()
-                    case .register: RegisterScreen()
-                    }
-                }
+        ZStack {
+            SplashScreen(showLogin: $showLogin)
+
+            if showLogin {
+                LoginScreen(showLogin: $showLogin, showRegister: $showRegister)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(1)
+            }
+
+            if showRegister {
+                RegisterScreen(showRegister: $showRegister)
+                    .transition(.move(edge: .trailing))
+                    .zIndex(2)
+            }
         }
+        .animation(.easeInOut(duration: 0.5), value: showLogin)
+        .animation(.easeInOut(duration: 0.5), value: showRegister)
         .environment(authRouter)
     }
 }
-
 // MARK: - Onboarding Flow
 
 // Onboarding flow: welcome screen → survey steps

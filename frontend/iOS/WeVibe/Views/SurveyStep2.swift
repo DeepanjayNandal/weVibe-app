@@ -119,26 +119,24 @@ struct SurveyStep2: View {
                         Button {
                                 onboardingRouter.pop()
                         } label: {
-                                Text("Last step")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(AppTheme.primaryBackground)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 16)
-                                    .background(.white)
-                                    .clipShape(Capsule())
+                            Image(systemName: "chevron.left")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primaryBackground)
+                                        .frame(width: 48, height: 48)
+                                        .background(.white)
+                                        .clipShape(Circle())
                         }
                         Spacer()
                         
                         Button {
                                 onboardingRouter.navigate(to: .step3)
                         } label: {
-                                Text("Next step")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(AppTheme.primaryBackground)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 16)
-                                    .background(.white)
-                                    .clipShape(Capsule())
+                            Image(systemName: "chevron.right")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primaryBackground)
+                                        .frame(width: 48, height: 48)
+                                        .background(.white)
+                                        .clipShape(Circle())
                         }
                     }
                     .padding(.top, 30)

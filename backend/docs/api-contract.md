@@ -194,11 +194,10 @@ No body.
 
 ---
 
-### 5. Create Profile *(coming — Sprint 2)*
+### 5. Create Profile
 
-> **Status:** In progress. Endpoint not yet available.
-> Creates the user's profile after account registration. Must be called after `/auth/register`.
-> Protected — requires a valid Bearer token.
+Creates the dating profile for an authenticated user. Must be called after `/auth/register`.
+`first_name` and `last_name` are concatenated into `display_name` on the backend.
 
 ```
 POST /api/v1/users/profile
@@ -206,30 +205,64 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 ```
 
-**Request Body (draft)**
+**Request Body**
 ```json
 {
-  "display_name": "Alex",
+  "first_name": "Alice",
+  "last_name": "Smith",
   "birth_date": "1998-05-20",
-  "gender": "male",
-  "bio": "Love hiking and coffee."
+  "gender": "Female"
 }
 ```
 
-**Response 201 (draft)**
+| Field | Type | Required | Values |
+|---|---|---|---|
+| `first_name` | string | yes | Any non-empty string |
+| `last_name` | string | yes | Any non-empty string |
+| `birth_date` | string | yes | ISO date format `YYYY-MM-DD` |
+| `gender` | string | yes | `Male`, `Female`, `Non-binary`, `Prefer not to say` |
+
+**Response 201 — Success**
 ```json
 {
   "success": true,
   "data": {
     "profile": {
       "userId": "uuid",
-      "displayName": "Alex",
-      "birthDate": "1998-05-20",
-      "gender": "male",
-      "bio": "Love hiking and coffee."
+      "displayName": "Alice Smith",
+      "birthDate": "1998-05-20T00:00:00.000Z",
+      "gender": "Female"
     }
   }
 }
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_FIRST_NAME` | `first_name` missing or empty |
+| 400 | `MISSING_LAST_NAME` | `last_name` missing or empty |
+| 400 | `MISSING_BIRTH_DATE` | `birth_date` missing or empty |
+| 400 | `INVALID_BIRTH_DATE` | `birth_date` not a valid date |
+| 400 | `INVALID_AGE` | User is under 18 years old |
+| 400 | `MISSING_GENDER` | `gender` missing or empty |
+| 400 | `INVALID_GENDER` | `gender` not one of the allowed values |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 409 | `PROFILE_ALREADY_EXISTS` | Profile already created for this user |
+
+---
+
+### 6. Get Profile *(to be done)*
+
+> **Status:** In progress. Endpoint not yet available.
+> Returns the authenticated user's dating profile.
+
+```
+GET /api/v1/users/profile
+Authorization: Bearer <firebase-id-token>
 ```
 
 ---

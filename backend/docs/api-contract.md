@@ -255,7 +255,7 @@ Content-Type: application/json
 
 ---
 
-### 6. Get Profile *(coming — Sprint 2)*
+### 6. Get Profile *(to be done)*
 
 > **Status:** In progress. Endpoint not yet available.
 > Returns the authenticated user's dating profile.

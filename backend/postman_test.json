@@ -39,7 +39,7 @@
 						"register"
 					]
 				},
-				"description": "測試註冊 API。使用 mock token 格式：mock:provider:uid:email。這裡使用了 {{$guid}} 來自動產生唯一 ID 以避免重複註冊錯誤。"
+				"description": "Test Register API. Uses mock token format: mock:provider:uid:email. Uses {{$guid}} to automatically generate a unique ID to avoid duplicate registration errors."
 			},
 			"response": []
 		},
@@ -77,7 +77,7 @@
 						"login"
 					]
 				},
-				"description": "測試登入 API。注意：為了測試成功，請確保 idToken 中的 email 與 uid 與資料庫中已註冊的使用者一致。"
+				"description": "Test Login API. Note: To succeed, ensure the email and uid in the idToken match a registered user in the database."
 			},
 			"response": []
 		},
@@ -90,7 +90,7 @@
 						"key": "Authorization",
 						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
 						"type": "text",
-						"description": "Mock Token 放在 Bearer Header 中"
+						"description": "Mock Token placed in Bearer Header"
 					}
 				],
 				"url": {
@@ -107,7 +107,7 @@
 						"me"
 					]
 				},
-				"description": "取得當前使用者資料。這需要將 Token 放在 Authorization Header (Bearer Token) 中。"
+				"description": "Get current user data. Requires Token in Authorization Header (Bearer Token)."
 			},
 			"response": []
 		},
@@ -120,7 +120,7 @@
 						"key": "Authorization",
 						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
 						"type": "text",
-						"description": "Mock Token 放在 Bearer Header 中"
+						"description": "Mock Token placed in Bearer Header"
 					}
 				],
 				"url": {
@@ -137,7 +137,7 @@
 						"logout"
 					]
 				},
-				"description": "登出使用者。這需要將 Token 放在 Authorization Header 中。成功會回傳 204 No Content。"
+				"description": "Logout user. Requires Token in Authorization Header. Returns 204 No Content on success."
 			},
 			"response": []
 		},
@@ -150,7 +150,7 @@
 						"key": "Authorization",
 						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
 						"type": "text",
-						"description": "Mock Token 放在 Bearer Header 中"
+						"description": "Mock Token placed in Bearer Header"
 					},
 					{
 						"key": "Content-Type",
@@ -181,7 +181,7 @@
 						"me"
 					]
 				},
-				"description": "更新使用者個人檔案 (Profile)。支援 firstName, lastName, gender, birthDate。"
+				"description": "Update user profile. Supports firstName, lastName, gender, birthDate."
 			},
 			"response": []
 		}

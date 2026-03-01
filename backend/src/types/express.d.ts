@@ -1,5 +1,4 @@
 import { AuthIdentity } from '../services/auth/types';
-import { Request } from 'express';
 
 // Extend Express's Request interface so TypeScript knows about auth fields
 // set by the authenticate middleware. This gives type safety and autocomplete

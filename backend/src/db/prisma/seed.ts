@@ -1,4 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { 
+  PrismaClient, 
+  enum_sex, 
+  enum_intent, 
+  enum_education, 
+  enum_frequency, 
+  enum_preference_level, 
+  enum_sleep_schedule,
+  enum_meet_gender
+} from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
@@ -7,12 +16,12 @@ async function main() {
   console.log('🌱 Seeding fake data...');
 
   // 1. Clean up old data (Order matters due to Foreign Key constraints)
-  // Note: Prisma's deleteMany does not reset Auto Increment ID, but it doesn't matter for UUIDs
-  await prisma.$executeRaw`TRUNCATE TABLE messages, matches, profiles, users CASCADE`;
+  // Use TRUNCATE to clear tables cleanly
+  await prisma.$executeRaw`TRUNCATE TABLE speed_dating_messages, speed_dating_sessions, messages, matches, profiles, users CASCADE`;
 
   // 2. Create 10 fake users
   for (let i = 0; i < 10; i++) {
-    const sex = faker.person.sexType();
+    const sex = i % 2 === 0 ? enum_sex.male : enum_sex.female;
     const firstName = faker.person.firstName(sex);
     const lastName = faker.person.lastName();
     
@@ -22,16 +31,14 @@ async function main() {
         email: faker.internet.email({ firstName, lastName }),
         firebase_uid: faker.string.uuid(),
         auth_provider: 'email',
-        password_hash: '$2b$10$EpQqjFwOWI7NYrEn8xtzPO5/8Kx.J.a/lam/a.a.a.a', // Fake hash
+        password_hash: 'mock_hash_secret', 
         phone: faker.phone.number(),
         current_status: 'active',
         search_radius_km: 50,
         search_age_min: 18,
         search_age_max: 35,
-        preferences: {
-          accepts_smoker: faker.datatype.boolean(),
-          accepts_pets: true,
-        },
+        search_gender: enum_meet_gender.both,
+        preferences: {},
       },
     });
 
@@ -51,16 +58,36 @@ async function main() {
       data: {
         user_id: user.id,
         display_name: `${firstName} ${lastName}`,
-        gender: sex,
+        sex: sex,
+        gender: sex === 'male' ? 'Man' : 'Woman',
         birth_date: faker.date.birthdate({ min: 18, max: 35, mode: 'age' }),
         personality_primary: faker.helpers.arrayElement(['Serene Soul', 'Wild Heart', 'Quiet Observer']),
         personality_secondary: 'Empathetic Companion',
-        tags: [faker.word.noun(), faker.word.noun()], // Prisma handles JSON serialization automatically
-        details: {
-          zodiac: "Leo",
-          bio: faker.lorem.sentence(),
-          job: faker.person.jobTitle(),
+        ethnicity: faker.helpers.arrayElement(['Asian', 'White', 'Hispanic', 'Black', 'Mixed']),
+        height_cm: faker.number.int({ min: 150, max: 200 }),
+        state: faker.location.state(),
+        zip_code: faker.location.zipCode(),
+        career_field: faker.person.jobArea(),
+        languages: ['English', 'Mandarin'],
+        prompts: [
+          { question: "My simple pleasure", answer: faker.lorem.sentence() },
+          { question: "I'm looking for", answer: faker.lorem.sentence() }
+        ],
+        photos: [
+          faker.image.urlLoremFlickr({ category: 'people' }),
+          faker.image.urlLoremFlickr({ category: 'nature' })
+        ],
+        social_integrations: {
+          instagram: faker.internet.userName(),
         },
+        education: enum_education.bachelors,
+        relationship_intent: enum_intent.long_term,
+        lifestyle_drinks: enum_frequency.sometimes,
+        lifestyle_smoking: enum_frequency.never,
+        lifestyle_workout: enum_frequency.often,
+        lifestyle_pets: enum_preference_level.want,
+        lifestyle_children: enum_preference_level.unsure,
+        lifestyle_sleep: enum_sleep_schedule.flexible,
         likes_received_count: faker.number.int({ min: 0, max: 100 }),
       },
     });

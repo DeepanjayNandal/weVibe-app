@@ -20,13 +20,19 @@ async function runSetup() {
     
     // Check if DB exists
     const res = await defaultClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-    if (res.rowCount === 0) {
-      console.log(`Database '${dbName}' not found. Creating it...`);
-      await defaultClient.query(`CREATE DATABASE "${dbName}"`);
-      console.log(`Database '${dbName}' created successfully.`);
-    } else {
-      console.log(`Database '${dbName}' already exists.`);
+    if (res.rowCount > 0) {
+      console.log(`Database '${dbName}' already exists. Dropping it to apply new schema...`);
+      // Terminate other connections to allow DROP DATABASE
+      await defaultClient.query(`
+        SELECT pg_terminate_backend(pg_stat_activity.pid)
+        FROM pg_stat_activity
+        WHERE pg_stat_activity.datname = $1
+        AND pid <> pg_backend_pid()
+      `, [dbName]);
+      await defaultClient.query(`DROP DATABASE "${dbName}"`);
     }
+    console.log(`Creating Database '${dbName}'...`);
+    await defaultClient.query(`CREATE DATABASE "${dbName}"`);
     await defaultClient.end();
 
     // 2. Connect to the target DB to run schema

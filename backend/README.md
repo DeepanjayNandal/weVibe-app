@@ -57,9 +57,9 @@ Examples:
    ```
 
 3. **Apply Schema to Database**
-   Push the schema defined in `src/db/schema.prisma` to the database:
+   This will drop the existing database (if any) and recreate it using `src/db/schema.sql`:
    ```bash
-   npm run db:push
+   node src/db/setup-db.js
    ```
 
 4. **Generate Prisma Client**
@@ -74,6 +74,7 @@ Examples:
 
 6. **Run Tests**
    ```bash
+   npm install firebase-admin
    npm test
    ```
    > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
@@ -86,6 +87,12 @@ Examples:
 8. **Run API Server**
    ```bash
    npm start
+   ```
+
+9. **Inspect Database (Prisma Studio)**
+   Launch a visual editor to view and edit your data:
+   ```bash
+   npx prisma studio
    ```
 
 ## Folder Structure

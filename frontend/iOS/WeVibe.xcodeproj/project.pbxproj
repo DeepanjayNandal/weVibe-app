@@ -32,6 +32,7 @@
 		A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */; };
 		A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB662F4820EB00E908DB /* SurveyStep5.swift */; };
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
+		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
 		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
 		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
@@ -65,6 +66,7 @@
 		B10005 /* LogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoView.swift; sourceTree = "<group>"; };
 		B10007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10008 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		BBB2B97B2F50239A002190F2 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		BBB2B97D2F503025002190F2 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
 		BBB2B9932F51330E002190F2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */,
 				BBB2B97B2F50239A002190F2 /* HomeScreen.swift */,
 				A38BAB662F4820EB00E908DB /* SurveyStep5.swift */,
 				A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */,
@@ -275,6 +278,7 @@
 				BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */,
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
 				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
+				BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
 				A38BAB2D2F47E68D00E908DB /* HabitSection.swift in Sources */,
 				A10005 /* LogoView.swift in Sources */,

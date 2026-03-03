@@ -85,7 +85,7 @@ struct SpeedDatingPlaceholder: View {
                         .bold()
                         .offset(y: titleOffset)
                         .opacity(titleOpacity)
-                        .padding(.bottom, 80)
+                        .padding(.bottom, 60)
 
                     
                     VStack(spacing: 4) {
@@ -97,7 +97,7 @@ struct SpeedDatingPlaceholder: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 40)
 
                     PrimaryButton(
                         title: "Let's get it →",

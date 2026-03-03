@@ -221,7 +221,7 @@ struct LoginScreen: View {
             defer { isLoading = false }
             do {
                 // 1. Prepare Request
-                guard let url = URL(string: "http://localhost:3000/api/v1/auth/login") else { return }
+                guard let url = URL(string: "\(AppConfig.apiBaseURL)/auth/login") else { return }
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

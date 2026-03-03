@@ -429,7 +429,7 @@ struct RegisterScreen: View {
                 
                 // 2. Prepare Request
                 // localhost should be modified later
-                guard let url = URL(string: "http://localhost:3000/api/v1/auth/register") else { return }
+                guard let url = URL(string: "\(AppConfig.apiBaseURL)/auth/register") else { return }
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

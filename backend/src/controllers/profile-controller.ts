@@ -100,4 +100,30 @@ export class ProfileController {
       },
     });
   };
+
+  getProfile = async (req: Request, res: Response): Promise<void> => {
+    // req.auth is set by authenticate middleware — contains Firebase uid
+    const firebaseUid = req.auth?.uid;
+    if (!firebaseUid) {
+      unauthorized('User identity not found in request', 'MISSING_USER_IDENTITY');
+    }
+
+    // Resolve DB user id from firebase uid
+    const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+    if (!user) {
+      unauthorized('User not found in database', 'USER_NOT_FOUND');
+    }
+
+    const profile = await this.profileService.getProfile(user.id);
+    if (!profile) {
+      unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profile: serializeProfile(profile),
+      },
+    });
+  };
 }

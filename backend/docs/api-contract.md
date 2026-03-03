@@ -255,15 +255,38 @@ Content-Type: application/json
 
 ---
 
-### 6. Get Profile *(coming — Sprint 2)*
+### 6. Get Profile
 
-> **Status:** In progress. Endpoint not yet available.
-> Returns the authenticated user's dating profile.
+Returns the authenticated user's dating profile.
 
 ```
 GET /api/v1/users/profile
 Authorization: Bearer <firebase-id-token>
 ```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "userId": "uuid",
+      "displayName": "Alice Smith",
+      "birthDate": "1998-05-20T00:00:00.000Z",
+      "gender": "Female"
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 401 | `PROFILE_NOT_FOUND` | User exists but has no profile yet |
 
 ---
 

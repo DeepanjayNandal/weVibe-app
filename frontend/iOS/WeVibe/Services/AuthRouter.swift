@@ -4,6 +4,7 @@ import Observation
 enum AuthRoute: Hashable {
     case login
     case register
+    case confirm
 }
 
 @Observable

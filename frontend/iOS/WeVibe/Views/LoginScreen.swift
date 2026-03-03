@@ -221,7 +221,31 @@ struct LoginScreen: View {
         Task {
             defer { isLoading = false }
             do {
-                try await authManager.login(email: email, password: password)
+                // 1. Prepare Request
+                guard let url = URL(string: "\(AppConfig.apiBaseURL)/auth/login") else { return }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                
+                let mockToken = "mock:email:uid-test-1:\(email)"
+                let body: [String: String] = [
+                    "provider": "email",
+                    "idToken": mockToken
+                ]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                
+                // 2. Send Request
+                let (_, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NSError(domain: "LoginError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    try await authManager.login(email: email, password: password)
+                } else {
+                    throw NSError(domain: "LoginError", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Login failed"])
+                }
                 // AppState change in AuthManager automatically advances RootView.
             } catch {
                 authError = error.localizedDescription

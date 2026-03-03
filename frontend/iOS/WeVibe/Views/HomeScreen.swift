@@ -6,6 +6,7 @@ import SwiftUI
 enum AppTab: Hashable {
     case speedDating
     case chat
+    case listMatches
     case profile
 }
 
@@ -22,6 +23,10 @@ struct HomeScreen: View {
             TabView(selection: $selectedTab) {
                 SpeedDatingTab()
                     .tag(AppTab.speedDating)
+                    .toolbar(.hidden, for: .tabBar)
+                
+                ListMatchesTab()
+                    .tag(AppTab.listMatches)
                     .toolbar(.hidden, for: .tabBar)
 
                 ChatTab()
@@ -49,6 +54,12 @@ private struct SpeedDatingTab: View {
     }
 }
 
+private struct ListMatchesTab: View {
+    var body: some View {
+        NavigationStack { ListMatchesPlaceholder() }
+    }
+}
+
 private struct ChatTab: View {
     var body: some View {
         NavigationStack { ChatPlaceholder() }
@@ -64,11 +75,11 @@ private struct ProfileTab: View {
 // MARK: - Placeholders
 // Replace each of these with the real root screen for that tab when ready.
 
-private struct SpeedDatingPlaceholder: View {
+private struct ListMatchesPlaceholder: View {
     var body: some View {
         ZStack {
             AppTheme.primaryBackground.ignoresSafeArea()
-            Text("Speed Dating")
+            Text("Matches")
                 .foregroundStyle(.white.opacity(0.4))
                 .font(.system(size: 18, weight: .semibold))
         }
@@ -87,6 +98,7 @@ private struct ChatPlaceholder: View {
         .navigationBarBackButtonHidden(true)
     }
 }
+
 
 private struct ProfilePlaceholder: View {
     var body: some View {
@@ -113,6 +125,7 @@ private struct CustomTabBar: View {
     // Add a new TabItem here when a new tab is introduced.
     private let items: [TabItem] = [
         TabItem(tab: .speedDating, systemImage: "stopwatch.fill"),
+        TabItem(tab: .listMatches, systemImage: "heart.fill"),
         TabItem(tab: .chat,        systemImage: "message.fill"),
         TabItem(tab: .profile,     systemImage: "person.fill"),
     ]

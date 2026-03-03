@@ -61,6 +61,7 @@ final class AuthManager {
     func login(email: String, password: String) async throws {
         // TODO: try await Auth.auth().signIn(withEmail: email, password: password)
         try await Task.sleep(nanoseconds: 1_500_000_000) // stub network delay
+        appState = .onboarding
         await resolvePostAuthState()
     }
 

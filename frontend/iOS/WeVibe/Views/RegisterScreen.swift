@@ -422,17 +422,78 @@ struct RegisterScreen: View {
         Task {
             defer { isLoading = false }
             do {
+                // 1. Generate Random UID & Mock Token
+                // * It should be firebase token later
+                let randomId = UUID().uuidString
+                let mockToken = "mock:email:\(randomId):\(email)"
+                
+                // 2. Prepare Request
+                // localhost should be modified later
+                guard let url = URL(string: "http://localhost:3000/api/v1/auth/register") else { return }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                
+                let body: [String: String] = [
+                    "provider": "email",
+                    "idToken": mockToken
+                ]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                
+                // 3. Send Request
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NSError(domain: "RegisterError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+                }
+                
+                // Handle 409 Conflict (User already exists)
+                if httpResponse.statusCode == 409 {
+                    throw NSError(domain: "RegisterError", code: 409, userInfo: [NSLocalizedDescriptionKey: "This email is already registered."])
+                }
+                
+                if !(200...299).contains(httpResponse.statusCode) {
+                    throw NSError(domain: "RegisterError", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Registration failed with status \(httpResponse.statusCode)"])
+                }
+                
+                // 4. Parse Success Response & Navigate
+                let apiResponse = try JSONDecoder().decode(RegisterResponse.self, from: data)
+                if apiResponse.success {
+                    print("User registered: \(apiResponse.data?.user.email ?? "unknown")")
+                    authManager.pendingVerificationEmail = email
+                    authRouter.navigate(to: .confirm)
+                }
+
                 try await authManager.register(
                     email: email,
                     password: password,
                     firstName: firstName,
                     lastName: lastName
                 )
-                // AppState changes to .pendingVerification in AuthManager.
-                // RootView switches to ConfirmScreen automatically — no nav call needed.
             } catch {
                 authError = error.localizedDescription
             }
         }
     }
+}
+
+// MARK: - API Response Models
+struct RegisterResponse: Decodable {
+    let success: Bool
+    let data: RegisterData?
+    let error: RegisterErrorDetails?
+}
+
+struct RegisterData: Decodable {
+    let user: RegisterUser
+}
+
+struct RegisterUser: Decodable {
+    let id: String
+    let email: String
+}
+
+struct RegisterErrorDetails: Decodable {
+    let code: String
+    let message: String
 }

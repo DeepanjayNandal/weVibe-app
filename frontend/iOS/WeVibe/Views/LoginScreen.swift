@@ -9,6 +9,7 @@ struct LoginScreen: View {
     
     @Binding var showLogin: Bool
     @Binding var showRegister: Bool
+    @Binding var showForgotPassword: Bool
 
     @State private var emailError: String?
     @State private var passwordError: String?
@@ -106,7 +107,7 @@ struct LoginScreen: View {
                 }
 
                 HStack {
-                    Button(action: {}) {
+                    Button(action: { showForgotPassword = true }) {
                         Text("Forgot Password?")
                             .foregroundStyle(Color.white)
                             .underline()

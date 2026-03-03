@@ -89,6 +89,21 @@ final class AuthManager {
         try await Task.sleep(nanoseconds: 500_000_000) // stub
     }
 
+    func forgotPassword(email: String) async throws {
+        // TODO: try await Auth.auth().sendPasswordReset(withEmail: email)
+        //
+        // Firebase sends a reset email with a 1-hour expiring link.
+        // The link opens Firebase's hosted web page where the user sets a new password.
+        // Resetting the password invalidates all existing sessions on other devices
+        // (their refresh tokens are revoked; those devices are logged out within ~1 hour).
+        //
+        // Note: Firebase throws AuthErrorCode.userNotFound if the email isn't registered.
+        // The caller (ForgotPasswordScreen) intentionally silences all errors and always
+        // shows the same success message to prevent email enumeration attacks.
+
+        try await Task.sleep(nanoseconds: 1_000_000_000) // stub network delay
+    }
+
     // For when the deep link didn't fire — reloads the user and checks isEmailVerified manually.
     func checkEmailVerified() async throws {
         // TODO:

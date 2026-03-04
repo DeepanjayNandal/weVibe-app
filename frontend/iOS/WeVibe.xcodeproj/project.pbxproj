@@ -13,6 +13,7 @@
 		A10005 /* LogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005 /* LogoView.swift */; };
 		A10007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10007 /* Assets.xcassets */; };
 		A10008 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10008 /* Preview Assets.xcassets */; };
+		A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */; };
 		A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAB22F45314900E908DB /* LoginScreen.swift */; };
 		A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAABF2F45432500E908DB /* TextFieldView.swift */; };
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
@@ -42,6 +43,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingMainScreen.swift; sourceTree = "<group>"; };
 		A38BAAB22F45314900E908DB /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		A38BAABF2F45432500E908DB /* TextFieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFieldView.swift; sourceTree = "<group>"; };
 		A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterScreen.swift; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */,
 				BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */,
 				BBB2B97B2F50239A002190F2 /* HomeScreen.swift */,
 				A38BAB662F4820EB00E908DB /* SurveyStep5.swift */,
@@ -268,6 +271,7 @@
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
 				BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */,
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
+				A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */,
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
 				BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,

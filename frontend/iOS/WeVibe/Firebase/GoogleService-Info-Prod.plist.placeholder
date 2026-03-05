@@ -1,0 +1,13 @@
+# GoogleService-Info-Prod.plist
+
+This file is git-ignored. To set up Firebase for production:
+
+1. Go to the Firebase console (https://console.firebase.google.com)
+2. Open the "wevibe-prod" Firebase project
+3. Go to Project Settings > General > Your apps > iOS app
+4. Download GoogleService-Info.plist
+5. Rename it to GoogleService-Info-Prod.plist
+6. Place it in this directory: frontend/iOS/WeVibe/Firebase/
+
+DO NOT add this file to Xcode's Copy Bundle Resources phase.
+The build script (Run Script phase) copies it automatically.

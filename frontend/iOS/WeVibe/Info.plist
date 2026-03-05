@@ -9,5 +9,30 @@
 		<key>ImageName</key>
 		<string>LogoPlaceholder</string>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin-dev</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- REPLACE_WITH_DEV_REVERSED_CLIENT_ID: Find this value in GoogleService-Info-Dev.plist under REVERSED_CLIENT_ID (format: com.googleusercontent.apps.XXXXX-XXXXX). Re-download the plist from Firebase console after enabling Google Sign-In with the bundle ID com.wevibe1.dev. -->
+				<string>REPLACE_WITH_DEV_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin-prod</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- REPLACE_WITH_PROD_REVERSED_CLIENT_ID: Find this value in GoogleService-Info-Prod.plist under REVERSED_CLIENT_ID (format: com.googleusercontent.apps.XXXXX-XXXXX). Re-download the plist from Firebase console after enabling Google Sign-In with the bundle ID com.wevibe1.app. -->
+				<string>REPLACE_WITH_PROD_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

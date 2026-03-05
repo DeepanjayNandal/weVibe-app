@@ -17,7 +17,7 @@ async function main() {
 
   // 1. Clean up old data (Order matters due to Foreign Key constraints)
   // Use TRUNCATE to clear tables cleanly
-  await prisma.$executeRaw`TRUNCATE TABLE speed_dating_messages, speed_dating_sessions, messages, matches, profiles, users CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE user_blocks, matching_queue, speed_dating_messages, speed_dating_sessions, messages, matches, profiles, users CASCADE`;
 
   // 2. Create 10 fake users
   for (let i = 0; i < 10; i++) {

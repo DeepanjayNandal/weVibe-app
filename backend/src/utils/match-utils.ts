@@ -1,4 +1,4 @@
-import { profiles } from '@prisma/client';
+import { profiles } from "@prisma/client";
 
 export type PreferenceWeights = {
   drinking?: number;
@@ -7,85 +7,117 @@ export type PreferenceWeights = {
   chronotype?: number;
 };
 
-export const PERSON_MATRIX: Record<string, { bestBalance: string[] }> = {
-  A: { bestBalance: ['B', 'C'] },
-  B: { bestBalance: ['C', 'D'] },
-  C: { bestBalance: ['A', 'B'] },
-  D: { bestBalance: ['B', 'A'] },
+type WeightedPart = {
+  weight: number;
+  value: number;
 };
 
-export function computePersonalityScore(a?: string | null, b?: string | null): number {
-  if (!a || !b) return 0.2;
-  const A = a.toUpperCase();
-  const B = b.toUpperCase();
-  if (A === B) return 1.0;
-  const balance = PERSON_MATRIX[A]?.bestBalance || [];
-  if (balance.includes(B)) return 0.8;
-  return 0.2;
+export function normalizeWeightedSum(parts: WeightedPart[]): number {
+  let totalWeight = 0;
+  let totalScore = 0;
+
+  for (const p of parts) {
+    totalWeight += p.weight;
+    totalScore += p.weight * p.value;
+  }
+
+  if (totalWeight === 0) return 0;
+
+  const result = totalScore / totalWeight;
+
+  return Math.max(0, Math.min(1, result));
 }
 
-export function computeInterestsScore(a?: string[] | null, b?: string[] | null): number {
-  if (!a || !b) return 0;
-  const sa = new Set(a.map((s) => s.toLowerCase()));
-  const sb = new Set(b.map((s) => s.toLowerCase()));
-  const intersection = [...sa].filter((x) => sb.has(x));
-  const union = new Set([...sa, ...sb]);
-  if (union.size === 0) return 0;
-  return intersection.length / union.size;
+//Instant termination for incompatiblity/incorrect data
+export function hasHardStop(user: Partial<profiles>, candidate: Partial<profiles>): boolean {
+  if (!user || !candidate) return true;
+
+  // Example for strong incompatibility
+  if (user.lifestyle_smoking === "never" && candidate.lifestyle_smoking === "often") {
+    return true;
+  }
+
+  if (user.lifestyle_drinks === "never" && candidate.lifestyle_drinks === "often") {
+    return true;
+  }
+
+  return false;
 }
 
-function prefStrNorm(s?: string | null): string {
-  return (s || '').toLowerCase();
-}
-
-function scorePreferencePair(a?: string | null, b?: string | null): number {
-  const A = prefStrNorm(a);
-  const B = prefStrNorm(b);
-  if (!A || !B) return 0.5; // unknown/neutral
-  if (A === B) return 1.0;
-  // treat some fuzzy matches
-  const fuzzyPairs: Array<[string, string]> = [
-    ['sometimes', 'often'],
-    ['sometimes', 'never'],
-    ['occasionally', 'sometimes'],
-  ];
-  if (fuzzyPairs.some(([x, y]) => (x === A && y === B) || (x === B && y === A))) return 0.7;
-  return 0.0;
-}
-
-export function computePreferencesScore(
-  a?: Partial<profiles> | null,
-  b?: Partial<profiles> | null,
-  weights: PreferenceWeights = {},
+//Personality scoring
+export function computePersonalityScore(
+  primary?: string | null,
+  candidate?: string | null
 ): number {
-  const w = {
-    drinking: weights.drinking ?? 1,
-    smoking: weights.smoking ?? 1,
-    pets: weights.pets ?? 1,
-    chronotype: weights.chronotype ?? 1,
+
+  if (!primary || !candidate) {
+    return 0.3; // reduced confidence
+  }
+  //same personality is a strong match
+  if (primary === candidate) {
+    return 1;
+  }
+
+  // default compatibility fallback
+  return 0.5;
+}
+
+// Interest similarity, used jaccard similarity 
+export function computeInterestsScore(
+  interestsA?: string[],
+  interestsB?: string[]
+): number {
+
+  if (!interestsA || !interestsB || interestsA.length === 0 || interestsB.length === 0) {
+    return 0;
+  }
+
+  const setA = new Set(interestsA.map(i => i.toLowerCase()));
+  const setB = new Set(interestsB.map(i => i.toLowerCase()));
+
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+
+  return intersection.size / union.size;
+}
+
+//Preference scoring
+export function computePreferencesScore(
+  user: Partial<profiles>,
+  candidate: Partial<profiles>,
+  weights: PreferenceWeights = {}
+): number {
+
+  const prefWeights = {
+    drinking: 1,
+    smoking: 1,
+    pets: 1,
+    chronotype: 1,
+    ...weights
   };
 
-  const totalWeight = w.drinking + w.smoking + w.pets + w.chronotype;
-  if (!a || !b) return 0;
+  let totalScore = 0;
+  let totalWeight = 0;
 
-  const s1 = scorePreferencePair(a.lifestyle_drinks, b.lifestyle_drinks) * w.drinking;
-  const s2 = scorePreferencePair(a.lifestyle_smoking, b.lifestyle_smoking) * w.smoking;
-  const s3 = scorePreferencePair(a.lifestyle_pets, b.lifestyle_pets) * w.pets;
-  const s4 = (() => {
-    const A = prefStrNorm(a.lifestyle_sleep);
-    const B = prefStrNorm(b.lifestyle_sleep);
-    if (!A || !B) return 0.5;
-    if (A === B) return 1.0;
-    // night_owl vs early_bird is less compatible
-    return 0.2;
-  })() * w.chronotype;
+  function score(a?: any, b?: any): number {
+    if (!a || !b) return 0.5;
+    if (a === b) return 1;
+    return 0;
+  }
 
-  return (s1 + s2 + s3 + s4) / totalWeight;
-}
+  const prefs = [
+    { weight: prefWeights.drinking, value: score(user.lifestyle_drinks, candidate.lifestyle_drinks) },
+    { weight: prefWeights.smoking, value: score(user.lifestyle_smoking, candidate.lifestyle_smoking) },
+    { weight: prefWeights.pets, value: score(user.lifestyle_pets, candidate.lifestyle_pets) },
+    { weight: prefWeights.chronotype, value: score(user.lifestyle_sleep, candidate.lifestyle_sleep) }
+  ];
+  
+  for (const p of prefs) {
+    totalWeight += p.weight ?? 1;
+    totalScore += (p.weight ?? 1) * p.value;
+  }
 
-export function normalizeWeightedSum(parts: Array<{ weight: number; value: number }>): number {
-  const totalWeight = parts.reduce((s, p) => s + p.weight, 0);
-  if (totalWeight <= 0) return 0;
-  const v = parts.reduce((s, p) => s + p.weight * p.value, 0) / totalWeight;
-  return Math.max(0, Math.min(1, v));
+  if (totalWeight === 0) return 0;
+
+  return totalScore / totalWeight;
 }

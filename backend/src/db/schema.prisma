@@ -103,6 +103,29 @@ model speed_dating_messages {
   @@index([session_id, created_at], map: "idx_sd_messages_session_id")
 }
 
+model matching_queue {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id   String   @unique @db.Uuid
+  joined_at DateTime @default(now()) @db.Timestamp(6)
+  users     users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([joined_at], map: "idx_matching_queue_joined_at")
+}
+
+model user_blocks {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blocker_user_id  String   @db.Uuid
+  blocked_user_id  String   @db.Uuid
+  reason           String?  @db.VarChar(255)
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+  users_user_blocks_blocked users @relation("user_blocks_blocked", fields: [blocked_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_blocks_blocker users @relation("user_blocks_blocker", fields: [blocker_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([blocker_user_id, blocked_user_id], map: "uq_user_blocks_pair")
+  @@index([blocker_user_id], map: "idx_user_blocks_blocker")
+  @@index([blocked_user_id], map: "idx_user_blocks_blocked")
+}
+
 model users {
   id                                                           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                                                        String                  @unique @db.VarChar(255)
@@ -122,10 +145,13 @@ model users {
   matches_matches_user_a_idTousers                             matches[]               @relation("matches_user_a_idTousers")
   matches_matches_user_b_idTousers                             matches[]               @relation("matches_user_b_idTousers")
   messages                                                     messages[]
+  matching_queue                                               matching_queue?
   profiles                                                     profiles?
   speed_dating_messages                                        speed_dating_messages[]
   speed_dating_sessions_speed_dating_sessions_user_a_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_a_idTousers")
   speed_dating_sessions_speed_dating_sessions_user_b_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_b_idTousers")
+  user_blocks_user_blocks_blocked                              user_blocks[]          @relation("user_blocks_blocked")
+  user_blocks_user_blocks_blocker                              user_blocks[]          @relation("user_blocks_blocker")
 }
 
 enum enum_match_status {

@@ -267,6 +267,118 @@ Authorization: Bearer <firebase-id-token>
 
 ---
 
+### 7. Join Matching Queue
+
+Adds the authenticated user to the matching queue and tries to match immediately.
+
+```
+POST /api/v1/matching/queue/join
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Waiting**
+```json
+{
+  "success": true,
+  "data": {
+    "state": "waiting",
+    "queueJoinedAt": "2026-01-01T00:00:00.000Z",
+    "poolSize": 0
+  }
+}
+```
+
+**Response 200 — Matched**
+```json
+{
+  "success": true,
+  "data": {
+    "state": "matched",
+    "queueJoinedAt": "2026-01-01T00:00:00.000Z",
+    "poolSize": 1,
+    "selectedCandidate": {
+      "userId": "uuid",
+      "displayName": "Alice Smith",
+      "scoreForward": 82,
+      "scoreBackward": 79,
+      "scoreCombined": 80.5
+    },
+    "sessionId": "uuid",
+    "sessionExpiresAt": "2026-01-02T00:00:00.000Z"
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `PROFILE_REQUIRED` | User must complete profile before queue join |
+| 400 | `QUEUE_JOIN_FAILED` | Queue entry could not be created |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
+### 8. Leave Matching Queue
+
+Removes the authenticated user from the matching queue.
+
+```
+POST /api/v1/matching/queue/leave
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "state": "left_queue"
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
+### 9. Get Matching Queue Status
+
+Returns whether the authenticated user is currently in queue.
+
+```
+GET /api/v1/matching/queue/status
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "inQueue": true
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

@@ -1,6 +1,8 @@
 import request from 'supertest';
 import 'dotenv/config';
-import { app } from '../src/server';
+import { createApp } from '../src/app';
+
+const app = createApp();
 
 describe('Auth: Register Endpoint - Type Validation', () => {
 

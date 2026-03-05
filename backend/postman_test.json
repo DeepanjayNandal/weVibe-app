@@ -1,0 +1,189 @@
+{
+	"info": {
+		"_postman_id": "wevibe-api-test-collection",
+		"name": "WeVibe API Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Register User (Mock)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"email\",\n    \"idToken\": \"mock:email:{{$guid}}:henry.lin@example.com\",\n    \"firstName\": \"Henry\",\n    \"lastName\": \"Lin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"register"
+					]
+				},
+				"description": "Test Register API. Uses mock token format: mock:provider:uid:email. Uses {{$guid}} to automatically generate a unique ID to avoid duplicate registration errors."
+			},
+			"response": []
+		},
+		{
+			"name": "Login User (Mock)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"provider\": \"email\",\n    \"idToken\": \"mock:email:uid-test-fixed:henry.fixed@example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"login"
+					]
+				},
+				"description": "Test Login API. Note: To succeed, ensure the email and uid in the idToken match a registered user in the database."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Current User (Me)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token placed in Bearer Header"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/me",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"me"
+					]
+				},
+				"description": "Get current user data. Requires Token in Authorization Header (Bearer Token)."
+			},
+			"response": []
+		},
+		{
+			"name": "Logout User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token placed in Bearer Header"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/logout",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"logout"
+					]
+				},
+				"description": "Logout user. Requires Token in Authorization Header. Returns 204 No Content on success."
+			},
+			"response": []
+		},
+		{
+			"name": "Update Profile",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer mock:email:uid-test-fixed:henry.fixed@example.com",
+						"type": "text",
+						"description": "Mock Token placed in Bearer Header"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"firstName\": \"Henry\",\n    \"lastName\": \"Updated\",\n    \"gender\": \"Male\",\n    \"birthDate\": \"1995-01-01\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/v1/auth/me",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"me"
+					]
+				},
+				"description": "Update user profile. Supports firstName, lastName, gender, birthDate."
+			},
+			"response": []
+		}
+	]
+}

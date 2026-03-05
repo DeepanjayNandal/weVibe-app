@@ -64,6 +64,16 @@ struct ConfirmScreen: View {
                 Spacer()
 
                 VStack(spacing: 12) {
+                    // Escape hatch — sign out and return to login screen
+                    Button {
+                        authManager.logout()
+                    } label: {
+                        Text("Use a different email")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    .padding(.bottom, 4)
+
                     // Resend button with 60s cooldown
                     Button {
                         resendEmail()

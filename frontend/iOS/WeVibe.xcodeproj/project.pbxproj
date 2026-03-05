@@ -38,6 +38,7 @@
 		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
 		BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AC2F59B8B100178889 /* GoogleSignIn */; };
 		BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */; };
+		BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */; };
 		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
 		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
@@ -95,6 +96,7 @@
 			files = (
 				BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */,
 				BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */,
+				BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */,
 				BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */,
 				BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */,
 			);
@@ -212,6 +214,7 @@
 				D10001 /* Frameworks */,
 				8F467D0BCFACFAC0E67948D9 /* Firebase Plist Copy */,
 				F10003 /* Resources */,
+				BB45E4D62F59D72B00178889 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -226,6 +229,7 @@
 				BB45E4A92F59B7FB00178889 /* FirebaseAuth */,
 				BB45E4AC2F59B8B100178889 /* GoogleSignIn */,
 				BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */,
+				BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */,
 			);
 			productName = WeVibe;
 			productReference = C10001 /* WeVibe.app */;
@@ -299,6 +303,29 @@
 			shellPath = /bin/sh;
 			shellScript = "PLIST_FILENAME=\"GoogleService-Info.plist\"\nFIREBASE_DIR=\"${SRCROOT}/WeVibe/Firebase\"\n\nif [ \"${CONFIGURATION}\" == \"Release\" ]; then\n    SOURCE_PLIST=\"${FIREBASE_DIR}/GoogleService-Info-Prod.plist\"\n    echo \"Firebase: using PROD plist\"\nelse\n    SOURCE_PLIST=\"${FIREBASE_DIR}/GoogleService-Info-Dev.plist\"\n    echo \"Firebase: using DEV plist\"\nfi\n\nif [ ! -f \"${SOURCE_PLIST}\" ]; then\n    echo \"error: ${SOURCE_PLIST} not found. Download it from Firebase console and place it in WeVibe/Firebase/.\"\n    exit 1\nfi\n\ncp \"${SOURCE_PLIST}\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/${PLIST_FILENAME}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		BB45E4D62F59D72B00178889 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}.debug.dylib",
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -408,6 +435,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"WeVibe/Preview Content\"";
 				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				ENABLE_PREVIEWS = YES;
@@ -424,6 +452,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -462,6 +494,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -537,6 +573,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

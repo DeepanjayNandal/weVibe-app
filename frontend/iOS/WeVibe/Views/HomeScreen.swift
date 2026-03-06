@@ -45,8 +45,20 @@ struct HomeScreen: View {
 // Add .navigationDestination cases here as screens are built for each tab.
 
 private struct SpeedDatingTab: View {
+    @State private var speedDatingRouter = SpeedDatingRouter()
+    
     var body: some View {
-        NavigationStack { SpeedDatingPlaceholder() }
+        NavigationStack(path: $speedDatingRouter.path) {
+            SpeedDatingPlaceholder()
+                .navigationDestination(for: SpeedDatingRoute.self) { route in
+                    switch(route) {
+                    case .rules: SpeedDatingRules()
+                    case .q1: SurveyStep1()
+
+                    }
+                }
+        }
+        .environment(speedDatingRouter)
     }
 }
 

@@ -1,8 +1,7 @@
 import SwiftUI
-
-// TODO: When GoogleService-Info.plist is added, uncomment:
-// import FirebaseCore
-// import FirebaseAnalytics
+import FirebaseCore
+import FirebaseAnalytics
+import GoogleSignIn
 
 @main
 struct WeVibeApp: App {
@@ -10,15 +9,14 @@ struct WeVibeApp: App {
     @State private var authManager = AuthManager()
 
     init() {
-        // TODO: FirebaseApp.configure()
-        //
-        // Also add to Info.plist once GoogleService-Info.plist is available:
-        //   REVERSED_CLIENT_ID  → URL scheme for Google Sign-In
-        //   wevibe              → Custom URL scheme for email verification deep links
-        //
-        // And add a Crashlytics Run Script build phase:
-        //   "${PODS_ROOT}/FirebaseCrashlytics/run" (CocoaPods)
-        //   or the SPM equivalent via the Xcode build phase editor
+        FirebaseApp.configure()
+        #if DEBUG
+        Analytics.setAnalyticsCollectionEnabled(false)
+        #endif
+        // GoogleSignIn v7+ requires explicit client ID configuration.
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
     }
 
     var body: some Scene {
@@ -26,13 +24,11 @@ struct WeVibeApp: App {
             RootView()
                 .environment(authManager)
                 .task {
-                    // Silently check for a stored Firebase session on every launch.
+                    // Restores a saved Firebase session on every launch.
                     await authManager.checkAuthState()
                 }
                 .onOpenURL { url in
                     // Firebase email verification deep links arrive here.
-                    // AuthManager inspects the URL, applies the action code,
-                    // and advances appState to .onboarding on success.
                     authManager.handleDeepLink(url)
                 }
         }

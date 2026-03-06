@@ -81,12 +81,27 @@ private struct ChatPlaceholder: View {
 
 
 private struct ProfilePlaceholder: View {
+    @Environment(AuthManager.self) private var authManager
+
     var body: some View {
         ZStack {
             AppTheme.primaryBackground.ignoresSafeArea()
-            Text("Profile")
-                .foregroundStyle(.white.opacity(0.4))
-                .font(.system(size: 18, weight: .semibold))
+            VStack(spacing: 24) {
+                Text("Profile")
+                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 18, weight: .semibold))
+
+                Button {
+                    authManager.logout()
+                } label: {
+                    Text("Log Out")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 160, height: 48)
+                        .background(AppTheme.secondaryButton)
+                        .cornerRadius(12)
+                }
+            }
         }
         .navigationBarBackButtonHidden(true)
     }

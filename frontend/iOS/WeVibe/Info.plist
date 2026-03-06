@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSApplicationCrashOnExceptions</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>BackgroundColor</key>
@@ -9,5 +11,30 @@
 		<key>ImageName</key>
 		<string>LogoPlaceholder</string>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- DEV: REVERSED_CLIENT_ID from GoogleService-Info-Dev.plist (bundle ID: com.wevibe1.dev) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin-dev</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.754456353577-r3lsbkibe2gn69hn1p5dittvp82ronep</string>
+			</array>
+		</dict>
+		<!-- PROD: REVERSED_CLIENT_ID from GoogleService-Info-Prod.plist (bundle ID: com.wevibe1.app) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin-prod</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.75164545772-a4s9iftagha84lfpoo59dkb3dv9r3sqg</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

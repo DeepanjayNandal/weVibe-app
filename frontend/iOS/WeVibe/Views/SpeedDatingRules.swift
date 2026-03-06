@@ -8,6 +8,8 @@ struct SpeedDatingRules: View {
     @State private var rulesOffset: CGFloat   = 20
     @State private var buttonOpacity: Double  = 0
     @State private var buttonOffset: CGFloat  = 16
+    
+    @Environment(SpeedDatingRouter.self) private var speedDatingRouter
 
     private let rules: [RuleItem] = [
         RuleItem(
@@ -101,7 +103,7 @@ struct SpeedDatingRules: View {
                         isLoading: false,
                         isDisabled: false
                     ) {
-                      
+                        speedDatingRouter.navigate(to: .q1)
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)

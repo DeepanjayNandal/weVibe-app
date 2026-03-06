@@ -15,6 +15,8 @@
 		A10008 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10008 /* Preview Assets.xcassets */; };
 		A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */; };
 		A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */; };
+		A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54C2F5A591C007C6412 /* PersonalityTest.swift */; };
+		A351B54F2F5A5F36007C6412 /* DataModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54E2F5A5F33007C6412 /* DataModel.swift */; };
 		A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAB22F45314900E908DB /* LoginScreen.swift */; };
 		A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAABF2F45432500E908DB /* TextFieldView.swift */; };
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
@@ -46,6 +48,8 @@
 /* Begin PBXFileReference section */
 		A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingMainScreen.swift; sourceTree = "<group>"; };
 		A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingRules.swift; sourceTree = "<group>"; };
+		A351B54C2F5A591C007C6412 /* PersonalityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityTest.swift; sourceTree = "<group>"; };
+		A351B54E2F5A5F33007C6412 /* DataModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModel.swift; sourceTree = "<group>"; };
 		A38BAAB22F45314900E908DB /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		A38BAABF2F45432500E908DB /* TextFieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFieldView.swift; sourceTree = "<group>"; };
 		A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterScreen.swift; sourceTree = "<group>"; };
@@ -109,6 +113,7 @@
 		E10002 /* WeVibe */ = {
 			isa = PBXGroup;
 			children = (
+				A351B54E2F5A5F33007C6412 /* DataModel.swift */,
 				C6A84C032F57A7250060DFD1 /* AppConfig.swift */,
 				A38BAAB62F45367000E908DB /* Services */,
 				E10003 /* App */,
@@ -134,6 +139,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A351B54C2F5A591C007C6412 /* PersonalityTest.swift */,
 				A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */,
 				A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */,
 				BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */,
@@ -287,12 +293,14 @@
 				BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */,
 				BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */,
 				A38BAAD42F47B6BB00E908DB /* SurveyStep3.swift in Sources */,
+				A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */,
 				BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */,
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
 				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
 				BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
 				A38BAB2D2F47E68D00E908DB /* HabitSection.swift in Sources */,
+				A351B54F2F5A5F36007C6412 /* DataModel.swift in Sources */,
 				A10005 /* LogoView.swift in Sources */,
 				A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,

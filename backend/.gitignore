@@ -7,4 +7,4 @@ postgres_data/
 Thumbs.db
 
 # Firebase service account keys — never commit these
-config/
+secrets/

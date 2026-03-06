@@ -17,6 +17,7 @@
 		A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */; };
 		A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54C2F5A591C007C6412 /* PersonalityTest.swift */; };
 		A351B54F2F5A5F36007C6412 /* DataModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54E2F5A5F33007C6412 /* DataModel.swift */; };
+		A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5522F5A8CF5007C6412 /* StaticConfig.swift */; };
 		A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAB22F45314900E908DB /* LoginScreen.swift */; };
 		A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAABF2F45432500E908DB /* TextFieldView.swift */; };
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
@@ -50,6 +51,7 @@
 		A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingRules.swift; sourceTree = "<group>"; };
 		A351B54C2F5A591C007C6412 /* PersonalityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityTest.swift; sourceTree = "<group>"; };
 		A351B54E2F5A5F33007C6412 /* DataModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModel.swift; sourceTree = "<group>"; };
+		A351B5522F5A8CF5007C6412 /* StaticConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticConfig.swift; sourceTree = "<group>"; };
 		A38BAAB22F45314900E908DB /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		A38BAABF2F45432500E908DB /* TextFieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFieldView.swift; sourceTree = "<group>"; };
 		A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterScreen.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 		E10002 /* WeVibe */ = {
 			isa = PBXGroup;
 			children = (
+				A351B5522F5A8CF5007C6412 /* StaticConfig.swift */,
 				A351B54E2F5A5F33007C6412 /* DataModel.swift */,
 				C6A84C032F57A7250060DFD1 /* AppConfig.swift */,
 				A38BAAB62F45367000E908DB /* Services */,
@@ -274,6 +277,7 @@
 				A38BAB2B2F47E16200E908DB /* DualSlider.swift in Sources */,
 				C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */,
 				A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */,
+				A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,

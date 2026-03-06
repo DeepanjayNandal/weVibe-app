@@ -5,18 +5,17 @@ import SwiftUI
 struct PersonalityTestView: View {
 
 
-    var onComplete: (([Int]) -> Void)? // passes back selected answer indices
+    var onComplete: (([Int]) -> Void)?
 
-    // Current question index drives the whole screen
     @State private var currentIndex: Int = 0
-    @State private var selectedAnswers: [Int?] = Array(repeating: nil, count: AppConfig.personalityQuestions.count)
+    @State private var selectedAnswers: [Int?] = Array(repeating: nil, count: StaticConfig.personalityQuestions.count)
 
-    // Per-question animation
+   
     @State private var contentOpacity: Double = 1
     @State private var contentOffset: CGFloat = 0
 
     private var current: PersonalityQuestion {
-        AppConfig.personalityQuestions[currentIndex]
+        StaticConfig.personalityQuestions[currentIndex]
     }
 
     private var selectedForCurrent: Int? {
@@ -24,7 +23,7 @@ struct PersonalityTestView: View {
     }
 
     private var isLastQuestion: Bool {
-        currentIndex == AppConfig.personalityQuestions.count - 1
+        currentIndex == StaticConfig.personalityQuestions.count - 1
     }
 
     var body: some View {
@@ -49,7 +48,7 @@ struct PersonalityTestView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
 
-                    ProgressBarView(current: currentIndex + 1, total: AppConfig.personalityQuestions.count)
+                    ProgressBarView(current: currentIndex + 1, total: StaticConfig.personalityQuestions.count)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
@@ -59,7 +58,7 @@ struct PersonalityTestView: View {
                 VStack(alignment: .leading, spacing: 0) {
 
                     // Question label
-                    Text("Question \(currentIndex + 1) of \(AppConfig.personalityQuestions.count)")
+                    Text("Question \(currentIndex + 1) of \(StaticConfig.personalityQuestions.count)")
                         .font(.system(size: 12, weight: .semibold))
                         .tracking(1.5)
                         .textCase(.uppercase)
@@ -164,7 +163,7 @@ struct OptionRowView: View {
         Button(action: onTap) {
             HStack(alignment: .top, spacing: 14) {
 
-                // Radio circle
+                
                 ZStack {
                     Circle()
                         .strokeBorder(
@@ -182,7 +181,7 @@ struct OptionRowView: View {
                 .padding(.top, 2)
                 .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
 
-                // Letter + text
+                
                 VStack(alignment: .leading, spacing: 3) {
                     Text(option.letter + ".")
                         .font(.system(size: 11, weight: .bold))

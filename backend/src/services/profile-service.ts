@@ -13,6 +13,10 @@ export interface CreateProfileInput {
 export class ProfileService {
   constructor(private readonly profileRepository: ProfileRepository) {}
 
+  async getProfile(userId: string): Promise<profiles | null> {
+    return this.profileRepository.findByUserId(userId);
+  }
+
   async createProfile(input: CreateProfileInput): Promise<profiles> {
     const existing = await this.profileRepository.findByUserId(input.userId);
     if (existing) {

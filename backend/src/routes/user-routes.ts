@@ -27,3 +27,9 @@ userRouter.post(
   authenticate(authVerifier),
   asyncHandler(profileController.createProfile),
 );
+
+userRouter.get(
+  '/profile',
+  authenticate(authVerifier),
+  asyncHandler(profileController.getProfile),
+);

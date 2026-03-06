@@ -216,3 +216,70 @@ describe('Profile API - POST /api/v1/users/profile', () => {
     }
   });
 });
+
+describe('Profile API - GET /api/v1/users/profile', () => {
+  beforeAll(async () => {
+    await prisma.$connect();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRaw`DELETE FROM profiles WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@get.profile.test')`;
+    await prisma.$executeRaw`DELETE FROM users WHERE email LIKE '%@get.profile.test'`;
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  async function registerUser(token: string): Promise<void> {
+    await request(app)
+      .post('/api/v1/auth/register')
+      .send({ provider: 'google', idToken: token });
+  }
+
+  async function createProfile(token: string): Promise<void> {
+    await request(app)
+      .post('/api/v1/users/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        first_name: 'Alice',
+        last_name: 'Smith',
+        birth_date: '1998-05-20',
+        gender: 'Female',
+      });
+  }
+
+  test('should return profile for authenticated user', async () => {
+    const token = 'mock:google:g-001:alice@get.profile.test';
+    await registerUser(token);
+    await createProfile(token);
+
+    const response = await request(app)
+      .get('/api/v1/users/profile')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.profile.displayName).toBe('Alice Smith');
+    expect(response.body.data.profile.gender).toBe('Female');
+  });
+
+  test('should return 401 without bearer token', async () => {
+    const response = await request(app).get('/api/v1/users/profile');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('MISSING_BEARER_TOKEN');
+  });
+
+  test('should return 401 if profile does not exist', async () => {
+    const token = 'mock:google:g-002:bob@get.profile.test';
+    await registerUser(token);
+
+    const response = await request(app)
+      .get('/api/v1/users/profile')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('PROFILE_NOT_FOUND');
+  });
+});

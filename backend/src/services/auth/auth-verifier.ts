@@ -60,10 +60,21 @@ class RealFirebaseVerifier implements AuthVerifier {
         );
       }
 
-      // Uses GOOGLE_APPLICATION_CREDENTIALS env var automatically (service account JSON path),
-      // or falls back to Application Default Credentials (ADC) in GCP environments.
+      const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      if (!credentialsPath) {
+        throw new Error(
+          'GOOGLE_APPLICATION_CREDENTIALS is not set. Required when AUTH_PROVIDER_MODE=firebase.',
+        );
+      }
+
+      // Load service account JSON from the path in GOOGLE_APPLICATION_CREDENTIALS.
+      // Place dev key at config/firebase-service-account-dev.json
+      // Place prod key at config/firebase-service-account-prod.json (gitignored)
+      // Switch environments by updating FIREBASE_PROJECT_ID + GOOGLE_APPLICATION_CREDENTIALS in .env
+      const serviceAccount = require(require('path').resolve(credentialsPath));
+
       admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
+        credential: admin.credential.cert(serviceAccount),
         projectId: env.firebaseProjectId,
       });
     }

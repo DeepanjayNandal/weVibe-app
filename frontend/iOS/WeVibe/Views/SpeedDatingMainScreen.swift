@@ -11,6 +11,8 @@ struct SpeedDatingPlaceholder: View {
     @State private var taglineOpacity: Double = 0
     @State private var buttonOpacity: Double  = 0
     @State private var buttonOffset: CGFloat  = 16
+    
+    @Environment(SpeedDatingRouter.self) private var speedDatingRouter
 
     var body: some View {
         ZStack {
@@ -106,7 +108,7 @@ struct SpeedDatingPlaceholder: View {
                         height: 52,
                         isLoading: false,
                         isDisabled: false
-                    ) {}
+                    ) { speedDatingRouter.navigate(to: .rules) }
                     .padding(.horizontal, 24)
                     .opacity(buttonOpacity)
                     .offset(y: buttonOffset)

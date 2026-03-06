@@ -15,3 +15,4 @@ enum AppConfig {
     static let firebaseHostingDomain = "https://wevibe-prod.firebaseapp.com"
     #endif
 }
+

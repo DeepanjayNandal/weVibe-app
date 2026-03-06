@@ -13,6 +13,11 @@
 		A10005 /* LogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005 /* LogoView.swift */; };
 		A10007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10007 /* Assets.xcassets */; };
 		A10008 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10008 /* Preview Assets.xcassets */; };
+		A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */; };
+		A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */; };
+		A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54C2F5A591C007C6412 /* PersonalityTest.swift */; };
+		A351B54F2F5A5F36007C6412 /* DataModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54E2F5A5F33007C6412 /* DataModel.swift */; };
+		A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5522F5A8CF5007C6412 /* StaticConfig.swift */; };
 		A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAB22F45314900E908DB /* LoginScreen.swift */; };
 		A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAABF2F45432500E908DB /* TextFieldView.swift */; };
 		A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */; };
@@ -32,9 +37,26 @@
 		A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */; };
 		A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB662F4820EB00E908DB /* SurveyStep5.swift */; };
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
+		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
+		BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A02F59AE1100178889 /* FirebaseAnalytics */; };
+		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
+		BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AC2F59B8B100178889 /* GoogleSignIn */; };
+		BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */; };
+		BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */; };
+		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
+		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
+		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
+		BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9962F5134E5002190F2 /* RootView.swift */; };
+		BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9992F513510002190F2 /* ErrorToast.swift */; };
+		C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A84C032F57A7250060DFD1 /* AppConfig.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingMainScreen.swift; sourceTree = "<group>"; };
+		A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingRules.swift; sourceTree = "<group>"; };
+		A351B54C2F5A591C007C6412 /* PersonalityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityTest.swift; sourceTree = "<group>"; };
+		A351B54E2F5A5F33007C6412 /* DataModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModel.swift; sourceTree = "<group>"; };
+		A351B5522F5A8CF5007C6412 /* StaticConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticConfig.swift; sourceTree = "<group>"; };
 		A38BAAB22F45314900E908DB /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		A38BAABF2F45432500E908DB /* TextFieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFieldView.swift; sourceTree = "<group>"; };
 		A38BAAC52F46DFFF00E908DB /* RegisterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterScreen.swift; sourceTree = "<group>"; };
@@ -60,7 +82,15 @@
 		B10005 /* LogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoView.swift; sourceTree = "<group>"; };
 		B10007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10008 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
+		BBB2B97B2F50239A002190F2 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
+		BBB2B97D2F503025002190F2 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
+		BBB2B9932F51330E002190F2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BBB2B9952F5134E5002190F2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BBB2B9962F5134E5002190F2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		BBB2B9992F513510002190F2 /* ErrorToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToast.swift; sourceTree = "<group>"; };
 		C10001 /* WeVibe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WeVibe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6A84C032F57A7250060DFD1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -72,16 +102,30 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */,
+				BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */,
+				BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */,
+				BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */,
+				BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BB45E4A82F59B7FB00178889 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		E10001 = {
 			isa = PBXGroup;
 			children = (
+				BBB2B9932F51330E002190F2 /* AppState.swift */,
 				E10002 /* WeVibe */,
+				BB45E4A82F59B7FB00178889 /* Frameworks */,
 				E10006 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -89,6 +133,9 @@
 		E10002 /* WeVibe */ = {
 			isa = PBXGroup;
 			children = (
+				A351B5522F5A8CF5007C6412 /* StaticConfig.swift */,
+				A351B54E2F5A5F33007C6412 /* DataModel.swift */,
+				C6A84C032F57A7250060DFD1 /* AppConfig.swift */,
 				A38BAAB62F45367000E908DB /* Services */,
 				E10003 /* App */,
 				E10004 /* Views */,
@@ -102,6 +149,8 @@
 		E10003 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				BBB2B9952F5134E5002190F2 /* AppState.swift */,
+				BBB2B9962F5134E5002190F2 /* RootView.swift */,
 				B10001 /* WeVibeApp.swift */,
 				B10004 /* Theme.swift */,
 			);
@@ -111,6 +160,11 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A351B54C2F5A591C007C6412 /* PersonalityTest.swift */,
+				A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */,
+				A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */,
+				BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */,
+				BBB2B97B2F50239A002190F2 /* HomeScreen.swift */,
 				A38BAB662F4820EB00E908DB /* SurveyStep5.swift */,
 				A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */,
 				A38BAAD32F47B6B600E908DB /* SurveyStep3.swift */,
@@ -128,6 +182,8 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				BBB2B9992F513510002190F2 /* ErrorToast.swift */,
+				BBB2B97D2F503025002190F2 /* PrimaryButton.swift */,
 				A38BAB682F48215500E908DB /* PromptField.swift */,
 				A38BAB2C2F47E68500E908DB /* HabitSection.swift */,
 				A38BAB2A2F47E16000E908DB /* DualSlider.swift */,
@@ -168,7 +224,9 @@
 			buildPhases = (
 				F10002 /* Sources */,
 				D10001 /* Frameworks */,
+				8F467D0BCFACFAC0E67948D9 /* Firebase Plist Copy */,
 				F10003 /* Resources */,
+				BB45E4D62F59D72B00178889 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -179,6 +237,11 @@
 			);
 			name = WeVibe;
 			packageProductDependencies = (
+				BB45E4A02F59AE1100178889 /* FirebaseAnalytics */,
+				BB45E4A92F59B7FB00178889 /* FirebaseAuth */,
+				BB45E4AC2F59B8B100178889 /* GoogleSignIn */,
+				BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */,
+				BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */,
 			);
 			productName = WeVibe;
 			productReference = C10001 /* WeVibe.app */;
@@ -209,6 +272,8 @@
 			);
 			mainGroup = E10001;
 			packageReferences = (
+				BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			productRefGroup = E10006 /* Products */;
 			projectDirPath = "";
@@ -231,30 +296,87 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		8F467D0BCFACFAC0E67948D9 /* Firebase Plist Copy */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Firebase Plist Copy";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "PLIST_FILENAME=\"GoogleService-Info.plist\"\nFIREBASE_DIR=\"${SRCROOT}/WeVibe/Firebase\"\n\nif [ \"${CONFIGURATION}\" == \"Release\" ]; then\n    SOURCE_PLIST=\"${FIREBASE_DIR}/GoogleService-Info-Prod.plist\"\n    echo \"Firebase: using PROD plist\"\nelse\n    SOURCE_PLIST=\"${FIREBASE_DIR}/GoogleService-Info-Dev.plist\"\n    echo \"Firebase: using DEV plist\"\nfi\n\nif [ ! -f \"${SOURCE_PLIST}\" ]; then\n    echo \"error: ${SOURCE_PLIST} not found. Download it from Firebase console and place it in WeVibe/Firebase/.\"\n    exit 1\nfi\n\ncp \"${SOURCE_PLIST}\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/${PLIST_FILENAME}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		BB45E4D62F59D72B00178889 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}.debug.dylib",
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		F10002 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				A38BAB2B2F47E16200E908DB /* DualSlider.swift in Sources */,
+				C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */,
 				A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */,
+				A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
+				BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */,
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
+				A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */,
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
+				BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,
+				A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */,
 				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,
 				A38BAB272F47E10500E908DB /* GenderCheckbox.swift in Sources */,
 				A38BAAC02F45432900E908DB /* TextFieldView.swift in Sources */,
 				A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
+				BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */,
+				BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */,
 				A38BAAD42F47B6BB00E908DB /* SurveyStep3.swift in Sources */,
+				A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */,
+				BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */,
 				A38BAAC62F46E00900E908DB /* RegisterScreen.swift in Sources */,
 				A38BAAEA2F47CE9900E908DB /* FlowLayout.swift in Sources */,
+				BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */,
 				A10004 /* Theme.swift in Sources */,
 				A38BAB2D2F47E68D00E908DB /* HabitSection.swift in Sources */,
+				A351B54F2F5A5F36007C6412 /* DataModel.swift in Sources */,
 				A10005 /* LogoView.swift in Sources */,
 				A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,
@@ -325,11 +447,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WeVibe/WeVibe.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"WeVibe/Preview Content\"";
-				DEVELOPMENT_TEAM = 9JMK2ZH93W;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;
@@ -344,14 +468,20 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.app;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -360,11 +490,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WeVibe/WeVibe.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"WeVibe/Preview Content\"";
-				DEVELOPMENT_TEAM = 9JMK2ZH93W;
+				DEVELOPMENT_TEAM = 55X7CQGG3N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;
@@ -379,14 +510,20 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -412,6 +549,53 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.10.0;
+			};
+		};
+		BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BB45E4A02F59AE1100178889 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		BB45E4A92F59B7FB00178889 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		BB45E4AC2F59B8B100178889 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+		BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = H10001 /* Project object */;
 }

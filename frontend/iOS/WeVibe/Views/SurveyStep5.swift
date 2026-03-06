@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SurveyStep5: View {
     
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
+    @Environment(AuthManager.self) private var authManager
     
     @State private var prompt1: String = ""
     @State private var prompt2: String = ""
@@ -76,21 +77,20 @@ struct SurveyStep5: View {
                    
                     HStack {
                         Button {
-                            router.navigateSurveyStep4()
+                            onboardingRouter.pop()
                         } label: {
-                            Text("Previous step")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(AppTheme.primaryBackground)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 16)
-                                .background(.white)
-                                .clipShape(Capsule())
+                            Image(systemName: "chevron.left")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primaryBackground)
+                                        .frame(width: 48, height: 48)
+                                        .background(.white)
+                                        .clipShape(Circle())
                         }
                         
                         Spacer()
                         
                         Button {
-                        
+                            authManager.completeOnboarding()
                         } label: {
                             Text("Finish")
                                 .font(.system(size: 16, weight: .bold))

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SurveyStep3: View {
     
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
     
     @State private var drinks: String = ""
     @State private var smoking: String = ""
@@ -68,29 +68,27 @@ struct SurveyStep3: View {
                     // Navigation buttons
                     HStack {
                         Button {
-                            router.navigateSurveyStep2()
+                            onboardingRouter.pop()
                         } label: {
-                            Text("Last step")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(AppTheme.primaryBackground)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 16)
-                                .background(.white)
-                                .clipShape(Capsule())
+                            Image(systemName: "chevron.left")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primaryBackground)
+                                        .frame(width: 48, height: 48)
+                                        .background(.white)
+                                        .clipShape(Circle())
                         }
                         
                         Spacer()
                         
                         Button {
-                            router.navigateSurveyStep4()
+                            onboardingRouter.navigate(to: .step4)
                         } label: {
-                            Text("Next step")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(AppTheme.primaryBackground)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 16)
-                                .background(.white)
-                                .clipShape(Capsule())
+                            Image(systemName: "chevron.right")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primaryBackground)
+                                        .frame(width: 48, height: 48)
+                                        .background(.white)
+                                        .clipShape(Circle())
                         }
                     }
                     .padding(.top, 16)

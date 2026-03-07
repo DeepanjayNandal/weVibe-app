@@ -1,1 +1,8 @@
+.planning/
+.vscode/
 .DS_Store
+
+# Firebase config — never commit real plist files
+**/GoogleService-Info-Dev.plist
+**/GoogleService-Info-Prod.plist
+**/GoogleService-Info.plist

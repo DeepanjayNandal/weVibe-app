@@ -2,42 +2,47 @@ import SwiftUI
 
 struct ThankAndBegin: View {
 
-    @Environment(Router.self) private var router
+    @Environment(OnboardingRouter.self) private var onboardingRouter
 
     var body: some View {
         ZStack {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                Text("Welcome To")
-                    .foregroundStyle(.white)
-                    .font(.system(size: 28, weight: .bold))
-                    .padding(.bottom, 10)
+            VStack(spacing: 0) {
+                Spacer()
 
-                LogoView(size: 130)
+                VStack(spacing: 16) {
+                    Text("Welcome To")
+                        .foregroundStyle(.white)
+                        .font(.system(size: 28, weight: .bold))
 
-                Text("Complete your profile so that you can begin your dating journey.")
-                    .foregroundStyle(.white.opacity(0.8))
-                    .font(.system(size: 16, weight: .regular))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
+                    LogoView(size: 170)
 
-                Button {
-                        router.navigateSurveyStep1()
-                } label: {
-                        Text("Begin")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(AppTheme.primaryBackground)
-                            .padding(.horizontal, 32)
-                            .padding(.vertical, 16)
-                            .background(.white)
-                            .clipShape(Capsule())
+                    Text("Complete your profile so that you can begin your dating journey.")
+                        .foregroundStyle(.white.opacity(0.7))
+                        .font(.system(size: 16, weight: .regular))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
                 }
-                .padding(.top, 40)
-            }
 
-            .padding(.horizontal, 24)
+                Spacer()
+                Spacer()
+
+                PrimaryButton(
+                    title: "Begin",
+                    background: AppTheme.primaryButton,
+                    foreground: Color.white,
+                    height: 54,
+                    width: 220,
+                    cornerRadius: 22
+                ) {
+                    onboardingRouter.navigate(to: .step1)
+                }
+                .padding(.horizontal, 60)
+                .padding(.bottom, 136)
+            }
         }
+        .navigationBarBackButtonHidden(true)
     }
 }

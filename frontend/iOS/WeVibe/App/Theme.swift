@@ -23,7 +23,7 @@ struct AppTheme {
 
     // MARK: - Primary Colors
     static let primaryBackground = Color(hex: "#0D2329")
-    static let primaryButton     = Color(hex: "#4DC778")
+    static let primaryButton     = Color(hex: "#05664F")
     static let primaryText       = Color.white
     static let smallText     = Color(hex: "#05664F")
 

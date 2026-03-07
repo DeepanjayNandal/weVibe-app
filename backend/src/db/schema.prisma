@@ -17,6 +17,10 @@ model matches {
   status                         enum_match_status? @default(active)
   last_message_content           String?            @db.VarChar(255)
   last_message_at                DateTime?          @db.Timestamp(6)
+  expires_at                     DateTime?          @db.Timestamp(6)
+  message_count                  Int?               @default(0)
+  user_a_decision                enum_decision?     @default(pending)
+  user_b_decision                enum_decision?     @default(pending)
   users_matches_user_a_idTousers users?             @relation("matches_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users_matches_user_b_idTousers users?             @relation("matches_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   messages                       messages[]
@@ -44,12 +48,25 @@ model profiles {
   display_name          String?                   @db.VarChar(100)
   birth_date            DateTime?                 @db.Date
   gender                String?                   @db.VarChar(50)
-  location_point        Unsupported("geography")?
+  sex                   enum_sex?
+  ethnicity             String?                   @db.VarChar(100)
+  height_cm             Int?
+  location_point        Unsupported("geography(Point,4326)")?
+  state                 String?                   @db.VarChar(100)
+  zip_code              String?                   @db.VarChar(20)
+  education             enum_education?
+  career_field          String?                   @db.VarChar(100)
+  languages             Json?
+  relationship_intent   enum_intent?
   personality_primary   String?                   @db.VarChar(100)
   personality_secondary String?                   @db.VarChar(100)
-  details               Json?
-  tags                  Json?
-  negative_tags         Json?
+  lifestyle_drinks      enum_frequency?
+  lifestyle_smoking     enum_frequency?
+  lifestyle_workout     enum_frequency?
+  lifestyle_pets        enum_preference_level?
+  lifestyle_children    enum_preference_level?
+  lifestyle_sleep       enum_sleep_schedule?
+  prompts               Json?
   photos                Json?
   social_integrations   Json?
   likes_received_count  Int?                      @default(0)
@@ -66,8 +83,47 @@ model speed_dating_sessions {
   started_at                                   DateTime? @default(now()) @db.Timestamp(6)
   expires_at                                   DateTime? @db.Timestamp(6)
   status                                       String?   @db.VarChar(50)
+  user_a_decision                              enum_decision? @default(pending)
+  user_b_decision                              enum_decision? @default(pending)
   users_speed_dating_sessions_user_a_idTousers users?    @relation("speed_dating_sessions_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users_speed_dating_sessions_user_b_idTousers users?    @relation("speed_dating_sessions_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  speed_dating_messages                        speed_dating_messages[]
+}
+
+model speed_dating_messages {
+  id                    BigInt                 @id @default(autoincrement())
+  session_id            String?                @db.Uuid
+  sender_id             String?                @db.Uuid
+  content               String
+  type                  enum_msg_type?         @default(text)
+  created_at            DateTime?              @default(now()) @db.Timestamp(6)
+  speed_dating_sessions speed_dating_sessions? @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                 users?                 @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id, created_at], map: "idx_sd_messages_session_id")
+}
+
+model matching_queue {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id   String   @unique @db.Uuid
+  joined_at DateTime @default(now()) @db.Timestamp(6)
+  users     users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([joined_at], map: "idx_matching_queue_joined_at")
+}
+
+model user_blocks {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blocker_user_id  String   @db.Uuid
+  blocked_user_id  String   @db.Uuid
+  reason           String?  @db.VarChar(255)
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+  users_user_blocks_blocked users @relation("user_blocks_blocked", fields: [blocked_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_blocks_blocker users @relation("user_blocks_blocker", fields: [blocker_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([blocker_user_id, blocked_user_id], map: "uq_user_blocks_pair")
+  @@index([blocker_user_id], map: "idx_user_blocks_blocker")
+  @@index([blocked_user_id], map: "idx_user_blocks_blocked")
 }
 
 model users {
@@ -84,19 +140,27 @@ model users {
   search_radius_km                                             Int?                    @default(50)
   search_age_min                                               Int?                    @default(18)
   search_age_max                                               Int?                    @default(35)
+  search_gender                                                enum_meet_gender?       @default(both)
   preferences                                                  Json?
   matches_matches_user_a_idTousers                             matches[]               @relation("matches_user_a_idTousers")
   matches_matches_user_b_idTousers                             matches[]               @relation("matches_user_b_idTousers")
   messages                                                     messages[]
+  matching_queue                                               matching_queue?
   profiles                                                     profiles?
+  speed_dating_messages                                        speed_dating_messages[]
   speed_dating_sessions_speed_dating_sessions_user_a_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_a_idTousers")
   speed_dating_sessions_speed_dating_sessions_user_b_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_b_idTousers")
+  user_blocks_user_blocks_blocked                              user_blocks[]          @relation("user_blocks_blocked")
+  user_blocks_user_blocks_blocker                              user_blocks[]          @relation("user_blocks_blocker")
 }
 
 enum enum_match_status {
   active
   unmatched
   reported
+  trial
+  waiting_decision
+  expired
 }
 
 enum enum_msg_type {
@@ -119,4 +183,56 @@ enum enum_user_status {
   offline
   in_speed_date
   banned
+}
+
+enum enum_decision {
+  pending
+  yes
+  no
+}
+
+enum enum_sex {
+  male
+  female
+}
+
+enum enum_meet_gender {
+  men
+  women
+  both
+}
+
+enum enum_intent {
+  short_term
+  long_term
+  marriage
+  figuring_out
+}
+
+enum enum_education {
+  high_school
+  in_college
+  bachelors
+  masters
+  phd
+  other
+}
+
+enum enum_frequency {
+  never
+  sometimes
+  often
+}
+
+enum enum_preference_level {
+  dont_want
+  unsure
+  want
+  have
+}
+
+enum enum_sleep_schedule {
+  night_owl
+  early_bird
+  flexible
 }

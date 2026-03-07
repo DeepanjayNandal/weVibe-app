@@ -16,8 +16,10 @@ export function authenticate(authVerifier: AuthVerifier) {
       }
 
       const identity = await authVerifier.verifyIdToken(idToken);
-      (req as any).auth = identity;
-      (req as any).idToken = idToken;
+      // Attach verified identity and raw token to request.
+      // Types are declared in src/types/express.d.ts — no (req as any) needed.
+      req.auth = identity;
+      req.idToken = idToken;
       next();
     } catch (error) {
       next(error);

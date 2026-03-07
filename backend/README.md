@@ -14,23 +14,25 @@ Single Express API serving all clients (Next.js web, Swift iOS).
 Routes delegate to controllers, which call services for business logic.
 Repositories handle all direct database queries via pg.
 
-## Auth API (Firebase-ready with Mock Verifier)
+## API Overview
 
 Current implementation supports three providers: `google`, `apple`, `email`.
 
+- `GET /health`
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout` (requires `Authorization: Bearer <idToken>`, returns `204`)
+- `POST /api/v1/auth/logout` (requires bearer token)
 - `GET /api/v1/auth/me` (requires bearer token)
+- `POST /api/v1/users/profile` (requires bearer token)
+- `POST /api/v1/matching/queue/join` (requires bearer token)
+- `POST /api/v1/matching/queue/leave` (requires bearer token)
+- `GET /api/v1/matching/queue/status` (requires bearer token)
 
-### Request Body for register/login
+Detailed endpoint contracts, request/response examples, and auth notes:
 
-```json
-{
-   "provider": "google",
-   "idToken": "mock:google:uid-123:user@example.com"
-}
-```
+- `docs/api-contract.md`
+
+
 
 ### Mock Token Rules (Local Development)
 
@@ -57,9 +59,9 @@ Examples:
    ```
 
 3. **Apply Schema to Database**
-   Push the schema defined in `src/db/schema.prisma` to the database:
+   This will drop the existing database (if any) and recreate it using `src/db/schema.sql`:
    ```bash
-   npm run db:push
+   node src/db/setup-db.js
    ```
 
 4. **Generate Prisma Client**
@@ -74,6 +76,7 @@ Examples:
 
 6. **Run Tests**
    ```bash
+   npm install firebase-admin
    npm test
    ```
    > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
@@ -86,6 +89,12 @@ Examples:
 8. **Run API Server**
    ```bash
    npm start
+   ```
+
+9. **Inspect Database (Prisma Studio)**
+   Launch a visual editor to view and edit your data:
+   ```bash
+   npx prisma studio
    ```
 
 ## Folder Structure

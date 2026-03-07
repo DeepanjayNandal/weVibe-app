@@ -6,8 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "typeRoots": ["./node_modules/@types"],
-    "types": ["jest", "node"]
+    "typeRoots": ["./node_modules/@types"]
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["src/**/*", "tests/**/*"],
+  "ts-node": {
+    "files": true
+  }
 }

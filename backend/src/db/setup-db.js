@@ -53,6 +53,9 @@ async function runSetup() {
     console.log('Executing schema.sql...');
     await targetClient.query(schemaSQL);
     
+    console.log('✅ Schema applied successfully.');
+    // Seeding is now handled by "npm run db:seed" (src/db/prisma/seed.ts)
+
     console.log('Success! Database architecture is fully deployed in Docker.');
     await targetClient.end();
   } catch (err) {

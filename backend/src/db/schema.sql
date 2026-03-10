@@ -43,6 +43,8 @@ CREATE TABLE users (
     
     -- Status Management
     is_banned BOOLEAN DEFAULT FALSE,
+    is_registration_complete BOOLEAN DEFAULT FALSE,
+    is_personality_test_complete BOOLEAN DEFAULT FALSE,
     current_status enum_user_status DEFAULT 'offline',
 
     -- Search Preferences

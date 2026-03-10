@@ -94,7 +94,7 @@ Examples:
 9. **Inspect Database (Prisma Studio)**
    Launch a visual editor to view and edit your data:
    ```bash
-   npx prisma studio
+   npx prisma studio --schema=src/db/schema.prisma
    ```
 
 ## Folder Structure

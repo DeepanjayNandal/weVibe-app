@@ -136,6 +136,8 @@ model users {
   created_at                                                   DateTime?               @default(now()) @db.Timestamp(6)
   last_active_at                                               DateTime?               @db.Timestamp(6)
   is_banned                                                    Boolean?                @default(false)
+  is_registration_complete                                     Boolean?                @default(false)
+  is_personality_test_complete                                 Boolean?                @default(false)
   current_status                                               enum_user_status?       @default(offline)
   search_radius_km                                             Int?                    @default(50)
   search_age_min                                               Int?                    @default(18)

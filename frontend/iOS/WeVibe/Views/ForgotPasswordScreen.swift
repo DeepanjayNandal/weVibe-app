@@ -43,6 +43,9 @@ struct ForgotPasswordScreen: View {
             }
             .padding(.horizontal, 19)
         }
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
     }
 
     // MARK: - Form View

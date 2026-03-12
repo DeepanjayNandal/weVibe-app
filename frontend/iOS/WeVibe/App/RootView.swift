@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
 
     @Environment(AuthManager.self) private var authManager
+    @EnvironmentObject private var locationManager: LocationManager
 
     var body: some View {
         ZStack {
@@ -20,6 +21,15 @@ struct RootView: View {
                 OnboardingFlowView()
             case .authenticated:
                 HomeScreen()
+            }
+
+            // Block the entire app when location permission is denied/restricted.
+            // Dismissed automatically when the user grants permission in Settings and returns.
+            if locationManager.authStatus == .denied || locationManager.authStatus == .restricted {
+                LocationPermissionScreen()
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: locationManager.authStatus)
+                    .zIndex(100)
             }
         }
         .overlay(alignment: .top) {
@@ -83,11 +93,13 @@ struct AuthFlowView: View {
         .environment(authRouter)
     }
 }
+
 // MARK: - Onboarding Flow
 
 // Onboarding flow: welcome screen → survey steps
 struct OnboardingFlowView: View {
     @State private var onboardingRouter = OnboardingRouter()
+    @State private var onboardingData = OnboardingData()
 
     var body: some View {
         NavigationStack(path: $onboardingRouter.path) {
@@ -103,6 +115,6 @@ struct OnboardingFlowView: View {
                 }
         }
         .environment(onboardingRouter)
+        .environment(onboardingData)
     }
 }
-

@@ -205,9 +205,10 @@ final class AuthManager {
 
     // MARK: - Onboarding Completion
 
-    /// Called by SurveyStep5 "Finish" button after profile data is submitted.
-    func completeOnboarding() {
-        // TODO: POST /users/profile to backend to mark isProfileComplete = true.
+    /// Called by SurveyStep5 "Finish" — saves profile locally and routes to main app.
+    /// TODO: POST profile to backend once API is ready.
+    func completeOnboarding(_ data: OnboardingData) {
+        data.clear()
         appState = .authenticated
     }
 
@@ -221,24 +222,20 @@ final class AuthManager {
 
     // MARK: - Private Helpers
 
-    /// After sign-in, asks the backend if the user's profile is done and picks the right state.
+    /// After sign-in: verify email first, then route to onboarding.
+    /// TODO: Once backend is ready, call GET /users/profile to check if profile exists
+    /// and route to .authenticated if it does, .onboarding if not.
     private func resolvePostAuthState() async {
         guard let user = Auth.auth().currentUser else {
             appState = .unauthenticated
             return
         }
-        do {
-            let token = try await user.getIDToken()
-            // TODO: POST to /auth/session with Bearer token to get isProfileComplete.
-            // let response = try await apiClient.post("/auth/session", bearer: token)
-            // appState = response.isProfileComplete ? .authenticated : .onboarding
-            // Stub: always route to onboarding until backend /auth/session is ready.
-            _ = token
-            appState = .onboarding
-        } catch {
-            globalError = "Session error. Please sign in again."
-            appState = .unauthenticated
+        if !user.isEmailVerified {
+            pendingVerificationEmail = user.email ?? ""
+            appState = .pendingVerification
+            return
         }
+        appState = .onboarding
     }
 
     /// Maps Firebase AuthErrorCode to user-friendly strings.

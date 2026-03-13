@@ -1,5 +1,10 @@
 import Foundation
 
+private struct ErrorResponse: Decodable {
+    struct ErrorBody: Decodable { let code: String }
+    let error: ErrorBody
+}
+
 enum APIError: LocalizedError {
     case noProfile          // 404 — user has no profile yet
     case unauthorized       // 401
@@ -29,15 +34,21 @@ struct APIClient {
 
     // MARK: - Auth
 
-    /// GET /users/me — returns true if profile is complete, throws .noProfile if 404.
+    /// GET /users/profile — returns true if profile exists, throws .noProfile if not yet created.
     func checkProfile(token: String) async throws -> Bool {
-        let req = request(path: "/users/me", method: "GET", token: token)
-        let (_, response) = try await perform(req)
+        let req = request(path: "/users/profile", method: "GET", token: token)
+        let (data, response) = try await perform(req)
         let status = (response as! HTTPURLResponse).statusCode
-        if status == 404 { throw APIError.noProfile }
-        if status == 401 { throw APIError.unauthorized }
-        if !(200..<300).contains(status) { throw APIError.serverError(status) }
-        return true
+        if status == 200 { return true }
+        if status == 401 {
+            // PROFILE_NOT_FOUND means user exists but has no profile yet → send to onboarding
+            if let body = try? JSONDecoder().decode(ErrorResponse.self, from: data),
+               body.error.code == "PROFILE_NOT_FOUND" {
+                throw APIError.noProfile
+            }
+            throw APIError.unauthorized
+        }
+        throw APIError.serverError(status)
     }
 
     /// POST /users/profile — submits onboarding data to create the user profile.
@@ -47,6 +58,34 @@ struct APIClient {
         req.httpBody = try JSONEncoder().encode(payload)
         let (_, response) = try await perform(req)
         let status = (response as! HTTPURLResponse).statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// POST /auth/login — creates or finds the backend user record for SSO and email login.
+    func loginUser(idToken: String, provider: String) async throws {
+        var req = URLRequest(url: base.appendingPathComponent("/auth/login"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: String] = ["provider": provider, "idToken": idToken]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await perform(req)
+        let status = (response as! HTTPURLResponse).statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// POST /auth/register — creates the backend user record after Firebase registration.
+    /// Silently ignores 409 (already registered — safe to retry).
+    func registerUser(idToken: String, provider: String) async throws {
+        var req = URLRequest(url: base.appendingPathComponent("/auth/register"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: String] = ["provider": provider, "idToken": idToken]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await perform(req)
+        let status = (response as! HTTPURLResponse).statusCode
+        if status == 409 { return }
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
@@ -72,82 +111,132 @@ struct APIClient {
 // MARK: - Profile Payload
 
 struct UserProfilePayload: Encodable {
-    // Step 1
-    let dobDay: String
-    let dobMonth: String
-    let dobYear: String
-    let sex: String
-    let isSexHidden: Bool
-    let ethnicities: [String]
+
+    struct PromptEntry: Encodable {
+        let question: String
+        let answer: String
+        let isCustom: Bool
+        enum CodingKeys: String, CodingKey {
+            case question, answer
+            case isCustom = "is_custom"
+        }
+    }
+
+    // Required
+    let firstName: String?
+    let lastName: String?
+    let birthDate: String           // ISO: "1995-03-15"
+    let gender: String
+    let ethnicity: String?
+    let heightUnit: String?         // "imperial" or "metric"
+    let heightFt: Int?
+    let heightIn: Int?
+    let heightCm: Int?
     let locationCity: String
     let locationState: String
     let locationZip: String
-    // Step 2
+    let latitude: Double
+    let longitude: Double
     let meetPreference: String
-    let minAge: Int
-    let maxAge: Int
-    let distanceMiles: Int
     let relationshipGoals: [String]
-    // Step 3
-    let drinks: String
-    let smoking: String
-    let pets: String
-    let children: String
-    let workout: String
-    let sleepSchedule: String
-    // Step 4
-    let education: String
-    let career: String
-    let heightFt: String
-    let heightIn: String
-    let heightCm: String
-    let heightUnit: String
-    let languages: [String]
-    // Step 5
-    let prompt1Question: String
-    let prompt1Answer: String
-    let prompt2Question: String
-    let prompt2Answer: String
-    let prompt3Question: String
-    let prompt3Answer: String
-    let ownPrompt: String
-    let ownPromptAnswer: String
+    let minAgePreference: Int
+    let maxAgePreference: Int
+    let distancePreferenceMiles: Int
+    // Optional
+    let drinks: String?
+    let smoking: String?
+    let pets: String?
+    let children: String?
+    let workout: String?
+    let sleepSchedule: String?
+    let education: String?
+    let prompts: [PromptEntry]?
 
-    init(from data: OnboardingData) {
-        dobDay = data.dobDay
-        dobMonth = data.dobMonth
-        dobYear = data.dobYear
-        sex = data.sex
-        isSexHidden = data.isSexHidden
-        ethnicities = Array(data.ethnicities)
+    enum CodingKeys: String, CodingKey {
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case birthDate = "birth_date"
+        case gender
+        case ethnicity
+        case heightUnit = "height_unit"
+        case heightFt = "height_ft"
+        case heightIn = "height_in"
+        case heightCm = "height_cm"
+        case locationCity = "location_city"
+        case locationState = "location_state"
+        case locationZip = "location_zip"
+        case latitude, longitude
+        case meetPreference = "meet_preference"
+        case relationshipGoals = "relationship_goals"
+        case minAgePreference = "min_age_preference"
+        case maxAgePreference = "max_age_preference"
+        case distancePreferenceMiles = "distance_preference_miles"
+        case drinks, smoking, pets, children, workout
+        case sleepSchedule = "sleep_schedule"
+        case education
+        case prompts
+    }
+
+    init(from data: OnboardingData, firstName: String, lastName: String) {
+        self.firstName = firstName.isEmpty ? nil : firstName
+        self.lastName = lastName.isEmpty ? nil : lastName
+
+        // Combine separate dob fields into ISO date string
+        let monthMap = ["Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06",
+                        "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"]
+        let monthNum = monthMap[data.dobMonth] ?? "01"
+        let day = data.dobDay.count == 1 ? "0\(data.dobDay)" : data.dobDay
+        birthDate = "\(data.dobYear)-\(monthNum)-\(day)"
+
+        gender = data.sex
+        ethnicity = data.ethnicities.isEmpty ? nil : data.ethnicities.sorted().joined(separator: ", ")
+
+        // Map height unit: "FT" → "imperial", "CM" → "metric"
+        let hasHeight = !data.heightFt.isEmpty || !data.heightCm.isEmpty
+        if hasHeight {
+            let isImperial = data.heightUnit == "FT"
+            heightUnit = isImperial ? "imperial" : "metric"
+            heightFt = isImperial ? Int(data.heightFt) : nil
+            heightIn = isImperial ? (Int(data.heightIn) ?? 0) : nil
+            heightCm = isImperial ? nil : Int(data.heightCm)
+        } else {
+            heightUnit = nil; heightFt = nil; heightIn = nil; heightCm = nil
+        }
+
         locationCity = data.locationCity
         locationState = data.locationState
         locationZip = data.locationZip
+        latitude = data.latitude
+        longitude = data.longitude
+
         meetPreference = data.meetPreference
-        minAge = Int(data.minAge)
-        maxAge = Int(data.maxAge)
-        distanceMiles = Int(data.distance)
         relationshipGoals = Array(data.relationshipGoals)
-        drinks = data.drinks
-        smoking = data.smoking
-        pets = data.pets
-        children = data.children
-        workout = data.workout
-        sleepSchedule = data.sleepSchedule
-        education = data.education
-        career = data.career
-        heightFt = data.heightFt
-        heightIn = data.heightIn
-        heightCm = data.heightCm
-        heightUnit = data.heightUnit
-        languages = Array(data.languages)
-        prompt1Question = data.prompt1Question
-        prompt1Answer = data.prompt1Answer
-        prompt2Question = data.prompt2Question
-        prompt2Answer = data.prompt2Answer
-        prompt3Question = data.prompt3Question
-        prompt3Answer = data.prompt3Answer
-        ownPrompt = data.ownPrompt
-        ownPromptAnswer = data.ownPromptAnswer
+        minAgePreference = Int(data.minAge)
+        maxAgePreference = Int(data.maxAge)
+        distancePreferenceMiles = Int(data.distance)
+
+        drinks = data.drinks.isEmpty ? nil : data.drinks
+        smoking = data.smoking.isEmpty ? nil : data.smoking
+        pets = data.pets.isEmpty ? nil : data.pets
+        children = data.children.isEmpty ? nil : data.children
+        workout = data.workout.isEmpty ? nil : data.workout
+        sleepSchedule = data.sleepSchedule.isEmpty ? nil : data.sleepSchedule
+        education = data.education.isEmpty ? nil : data.education
+
+        // Build prompts array from individual prompt fields
+        var promptList: [PromptEntry] = []
+        if !data.prompt1Question.isEmpty && !data.prompt1Answer.isEmpty {
+            promptList.append(PromptEntry(question: data.prompt1Question, answer: data.prompt1Answer, isCustom: false))
+        }
+        if !data.prompt2Question.isEmpty && !data.prompt2Answer.isEmpty {
+            promptList.append(PromptEntry(question: data.prompt2Question, answer: data.prompt2Answer, isCustom: false))
+        }
+        if !data.prompt3Question.isEmpty && !data.prompt3Answer.isEmpty {
+            promptList.append(PromptEntry(question: data.prompt3Question, answer: data.prompt3Answer, isCustom: false))
+        }
+        if !data.ownPrompt.isEmpty && !data.ownPromptAnswer.isEmpty {
+            promptList.append(PromptEntry(question: data.ownPrompt, answer: data.ownPromptAnswer, isCustom: true))
+        }
+        prompts = promptList.isEmpty ? nil : promptList
     }
 }

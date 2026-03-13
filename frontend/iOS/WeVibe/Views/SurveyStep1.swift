@@ -296,6 +296,8 @@ struct SurveyStep1: View {
             onboardingData.locationCity = city
             onboardingData.locationState = locationManager.state
             onboardingData.locationZip = locationManager.zip
+            onboardingData.latitude = locationManager.latitude
+            onboardingData.longitude = locationManager.longitude
         }
         .onChange(of: onboardingData.dobMonth) { _, _ in
             if !onboardingData.dobDay.isEmpty && !days.contains(onboardingData.dobDay) {

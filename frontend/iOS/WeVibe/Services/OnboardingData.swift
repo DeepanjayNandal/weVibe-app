@@ -14,6 +14,8 @@ final class OnboardingData {
     var locationCity: String = ""
     var locationState: String = ""
     var locationZip: String = ""
+    var latitude: Double = 0
+    var longitude: Double = 0
 
     // MARK: - Step 2
     var meetPreference: String = ""      // "Men", "Women", "Open to both"
@@ -63,6 +65,7 @@ final class OnboardingData {
             sex: sex, isSexHidden: isSexHidden,
             ethnicities: Array(ethnicities),
             locationCity: locationCity, locationState: locationState, locationZip: locationZip,
+            latitude: latitude, longitude: longitude,
             meetPreference: meetPreference, minAge: minAge, maxAge: maxAge, distance: distance,
             relationshipGoals: Array(relationshipGoals),
             drinks: drinks, smoking: smoking, pets: pets, children: children,
@@ -92,6 +95,7 @@ final class OnboardingData {
         sex = draft.sex; isSexHidden = draft.isSexHidden
         ethnicities = Set(draft.ethnicities)
         locationCity = draft.locationCity; locationState = draft.locationState; locationZip = draft.locationZip
+        latitude = draft.latitude; longitude = draft.longitude
         meetPreference = draft.meetPreference
         minAge = draft.minAge; maxAge = draft.maxAge; distance = draft.distance
         relationshipGoals = Set(draft.relationshipGoals)
@@ -114,6 +118,7 @@ final class OnboardingData {
         var sex: String; var isSexHidden: Bool
         var ethnicities: [String]
         var locationCity, locationState, locationZip: String
+        var latitude, longitude: Double
         var meetPreference: String
         var minAge, maxAge, distance: Double
         var relationshipGoals: [String]

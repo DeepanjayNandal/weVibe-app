@@ -288,8 +288,16 @@ struct SurveyStep1: View {
             if locationManager.authStatus == .notDetermined {
                 locationManager.requestPermission()
             } else if locationManager.authStatus == .authorizedWhenInUse || locationManager.authStatus == .authorizedAlways {
-                // Always fetch fresh location — covers first visit and re-entry after logout.
                 locationManager.refreshLocation()
+                // Sync immediately — onChange only fires on value changes, so if LocationManager
+                // already has a city from a previous session it won't trigger again.
+                if !locationManager.city.isEmpty && onboardingData.locationCity.isEmpty {
+                    onboardingData.locationCity = locationManager.city
+                    onboardingData.locationState = locationManager.state
+                    onboardingData.locationZip = locationManager.zip
+                    onboardingData.latitude = locationManager.latitude
+                    onboardingData.longitude = locationManager.longitude
+                }
             }
         }
         .onChange(of: locationManager.city) { _, city in

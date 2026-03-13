@@ -19,6 +19,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var latitude: Double = 0
     @Published var longitude: Double = 0
 
+    /// Set this from AuthManager after login to push location updates to the backend.
+    /// Called on every significant location change (500 m distanceFilter) while app is active.
+    var onLocationUpdated: ((_ lat: Double, _ lng: Double, _ city: String, _ state: String, _ zip: String) -> Void)?
+
     override init() {
         super.init()
         clManager.delegate = self
@@ -129,6 +133,9 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                     self.zip   = placemark.postalCode ?? self.zip
                 }
                 self.isLoading = false
+                if !self.city.isEmpty {
+                    self.onLocationUpdated?(self.latitude, self.longitude, self.city, self.state, self.zip)
+                }
             }
         }
     }

@@ -53,7 +53,8 @@ model profiles {
   birth_date            DateTime?                 @db.Date
   gender                String?                   @db.VarChar(50)
   sex                   enum_sex?
-  ethnicity             String?                   @db.VarChar(100)
+  // ethnicity stored as JSON array — users can select multiple (e.g. ["White", "Asian"])
+  ethnicity             Json?
 
   // Height — unit determines which fields are used
   // imperial: height_ft + height_in | metric: height_cm
@@ -71,7 +72,8 @@ model profiles {
   state                 String?                   @db.VarChar(100)   // exposed as location_state in API responses
   zip_code              String?                   @db.VarChar(20)    // exposed as location_zip in API responses
 
-  education             enum_education?
+  // education stored as plain string — enum dropped to support new values from iOS
+  education             String?                   @db.VarChar(100)
   career_field          String?                   @db.VarChar(100)
   languages             Json?
 

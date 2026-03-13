@@ -5,16 +5,18 @@ import { prisma } from '../db/prisma-client';
 export interface CreateProfileData {
   userId: string;
 
-  // Basic info
-  firstName: string;
-  lastName: string;
-  displayName: string;
+  // Basic info (first_name, last_name, ethnicity optional)
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
   birthDate: Date;
   gender: string;
-  ethnicity: string;
+  // ethnicity is a JSON array of strings (multi-select)
+  ethnicity?: string[] | null;
+  education?: string | null;
 
-  // Height
-  heightUnit: string;
+  // Height (optional — only provided when height_unit is present)
+  heightUnit?: string | null;
   heightFt?: number | null;
   heightIn?: number | null;
   heightCm?: number | null;
@@ -50,12 +52,13 @@ export interface CreateProfileData {
 
 // Data allowed for partial profile updates (all fields optional)
 export interface UpdateProfileData {
-  firstName?: string;
-  lastName?: string;
-  displayName?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
   birthDate?: Date;
   gender?: string;
-  ethnicity?: string;
+  ethnicity?: string[] | null;
+  education?: string | null;
   heightUnit?: string;
   heightFt?: number | null;
   heightIn?: number | null;
@@ -91,10 +94,11 @@ export class ProfileRepository {
         user_id:                   data.userId,
         first_name:                data.firstName,
         last_name:                 data.lastName,
-        display_name:              data.displayName,
+        display_name:              data.displayName ?? null,
         birth_date:                data.birthDate,
         gender:                    data.gender,
-        ethnicity:                 data.ethnicity,
+        ethnicity:                 data.ethnicity ?? null,
+        education:                 data.education ?? null,
 
         // Height
         height_unit:               data.heightUnit,
@@ -143,6 +147,7 @@ export class ProfileRepository {
     if (data.birthDate       !== undefined) updatePayload.birth_date                = data.birthDate;
     if (data.gender          !== undefined) updatePayload.gender                    = data.gender;
     if (data.ethnicity       !== undefined) updatePayload.ethnicity                 = data.ethnicity;
+    if (data.education       !== undefined) updatePayload.education                 = data.education;
     if (data.heightUnit      !== undefined) updatePayload.height_unit               = data.heightUnit;
     if (data.heightFt        !== undefined) updatePayload.height_ft                 = data.heightFt;
     if (data.heightIn        !== undefined) updatePayload.height_in                 = data.heightIn;

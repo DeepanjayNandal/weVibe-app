@@ -6,15 +6,16 @@ import { conflict } from '../utils/errors';
 export interface CreateProfileInput {
   userId: string;
 
-  // Basic info
-  firstName: string;
-  lastName: string;
+  // Basic info (first_name, last_name, ethnicity optional)
+  firstName?: string | null;
+  lastName?: string | null;
   birthDate: Date;
   gender: string;
-  ethnicity: string;
+  ethnicity?: string[] | null;
+  education?: string | null;
 
-  // Height
-  heightUnit: string;
+  // Height (all optional — only required when height_unit is provided)
+  heightUnit?: string | null;
   heightFt?: number | null;
   heightIn?: number | null;
   heightCm?: number | null;
@@ -67,13 +68,14 @@ export class ProfileService {
 
     return this.profileRepository.create({
       userId:                  input.userId,
-      firstName:               input.firstName,
-      lastName:                input.lastName,
-      displayName:             `${input.firstName} ${input.lastName}`.trim(),
+      firstName:               input.firstName ?? null,
+      lastName:                input.lastName ?? null,
+      displayName:             input.firstName && input.lastName ? `${input.firstName} ${input.lastName}`.trim() : null,
       birthDate:               input.birthDate,
       gender:                  input.gender,
-      ethnicity:               input.ethnicity,
-      heightUnit:              input.heightUnit,
+      ethnicity:               input.ethnicity ?? null,
+      education:               input.education ?? null,
+      heightUnit:              input.heightUnit ?? null,
       heightFt:                input.heightFt,
       heightIn:                input.heightIn,
       heightCm:                input.heightCm,

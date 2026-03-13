@@ -5,38 +5,50 @@ import { UserRepository } from '../repositories/user-repository';
 import { unauthorized } from '../utils/errors';
 
 // ─── Allowed values ────────────────────────────────────────────────────────────
-// These are the string values the iOS app sends.
-// The DB stores equivalent enum values — see ENUM_REFERENCE.md for the mapping.
+// Frontend sends raw DB enum values directly (e.g. "never", "dont_want", "night_owl")
 
 const VALID_GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
+// Ethnicity values accepted from iOS (sent as JSON array, multiple allowed)
 const VALID_ETHNICITIES = [
   'White',
-  'Black or African American',
-  'Hispanic or Latino',
   'Asian',
-  'Native American',
+  'Other+',
+  'Hispanic/Latino',
+  'Black/African American',
   'Native Hawaiian',
-  'Middle Eastern',
-  'Two or more',
-  'Prefer not to say',
+  'Pacific Islander',
 ];
 
 const VALID_HEIGHT_UNITS = ['imperial', 'metric'];
 
-const VALID_MEET_PREFERENCES = ['Men', 'Women', 'Open to both'];
+// meet_preference — raw DB enum values
+const VALID_MEET_PREFERENCES = ['men', 'women', 'both'];
 
-const VALID_RELATIONSHIP_GOALS = ['Short Term', 'Long Term', 'Marriage', 'Still figuring out'];
+// relationship_goals — raw DB enum values
+const VALID_RELATIONSHIP_GOALS = ['short_term', 'long_term', 'marriage', 'figuring_out'];
 
-const VALID_FREQUENCY = ['Never', 'Sometimes', 'Often'];
+// drinks / smoking / workout — raw DB enum values
+const VALID_FREQUENCY = ['never', 'sometimes', 'often'];
 
-const VALID_PREFERENCE_LEVEL = ["Don't want", 'Unsure', 'Want', 'Have'];
+// pets / children — raw DB enum values
+const VALID_PREFERENCE_LEVEL = ['dont_want', 'unsure', 'want', 'have'];
 
-const VALID_SLEEP_SCHEDULES = ['Night Owl', 'Early Bird', 'Flexible'];
+// sleep_schedule — raw DB enum values
+const VALID_SLEEP_SCHEDULES = ['night_owl', 'early_bird', 'flexible'];
+
+// education — plain string values from iOS
+const VALID_EDUCATION = [
+  'High School Diploma',
+  "Bachelor's Degree",
+  "Master's Degree",
+  'Doctorate / PhD',
+  'Trade / Vocational School',
+  'Other',
+];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
-// Each helper returns the validated value or adds an error to the errors map.
-// This approach collects all field errors at once instead of throwing on the first.
+// Collect all field errors at once instead of throwing on first failure.
 
 type ErrorMap = Record<string, string>;
 
@@ -96,6 +108,42 @@ function requireFloat(
   return value;
 }
 
+// Optional string — skip if null/undefined, validate if present
+function optionalString(
+  errors: ErrorMap,
+  value: unknown,
+  field: string,
+  message: string,
+): string | null {
+  if (value === undefined || value === null) return null;
+  return requireString(errors, value, field, message);
+}
+
+// Optional enum — skip if null/undefined, validate if present
+function optionalEnum(
+  errors: ErrorMap,
+  value: unknown,
+  field: string,
+  allowed: string[],
+  message: string,
+): string | null {
+  if (value === undefined || value === null) return null;
+  return requireEnum(errors, value, field, allowed, message);
+}
+
+// Optional int — skip if null/undefined, validate range if present
+function optionalInt(
+  errors: ErrorMap,
+  value: unknown,
+  field: string,
+  min: number,
+  max: number,
+  message: string,
+): number | null {
+  if (value === undefined || value === null) return null;
+  return requireInt(errors, value, field, min, max, message);
+}
+
 // Validates birth_date string and enforces 18+ age rule
 function validateBirthDate(errors: ErrorMap, value: unknown): Date | null {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -109,7 +157,6 @@ function validateBirthDate(errors: ErrorMap, value: unknown): Date | null {
     return null;
   }
 
-  // Check 18+ age requirement
   const today = new Date();
   let age = today.getFullYear() - date.getFullYear();
   const monthDiff = today.getMonth() - date.getMonth();
@@ -124,7 +171,7 @@ function validateBirthDate(errors: ErrorMap, value: unknown): Date | null {
   return date;
 }
 
-// Validates height fields based on the chosen unit
+// Validates height fields — only required when height_unit is provided
 function validateHeight(
   errors: ErrorMap,
   heightUnit: string | null,
@@ -142,6 +189,23 @@ function validateHeight(
   }
 
   return { heightFt, heightIn, heightCm };
+}
+
+// Validates ethnicity as a JSON array of allowed values (optional, multi-select)
+function validateEthnicity(errors: ErrorMap, value: unknown): string[] | null {
+  if (value === undefined || value === null) return null;
+
+  if (!Array.isArray(value) || value.length === 0) {
+    errors['ethnicity'] = 'ethnicity must be a non-empty array';
+    return null;
+  }
+  for (const item of value) {
+    if (!VALID_ETHNICITIES.includes(item)) {
+      errors['ethnicity'] = `Each ethnicity must be one of: ${VALID_ETHNICITIES.join(', ')}`;
+      return null;
+    }
+  }
+  return value as string[];
 }
 
 // Validates relationship_goals array (1–2 items, each from allowed list)
@@ -163,7 +227,7 @@ function validateRelationshipGoals(errors: ErrorMap, value: unknown): string[] |
   return value as string[];
 }
 
-// Validates prompts array (0–3 items, each with question, answer, is_custom)
+// Validates prompts array (0–3 items)
 function validatePrompts(
   errors: ErrorMap,
   value: unknown,
@@ -191,21 +255,9 @@ function validatePrompts(
   return value as Array<{ question: string; answer: string; is_custom: boolean }>;
 }
 
-// Optional string enum — returns null if value is null/undefined, validates if present
-function optionalEnum(
-  errors: ErrorMap,
-  value: unknown,
-  field: string,
-  allowed: string[],
-  message: string,
-): string | null {
-  if (value === undefined || value === null) return null;
-  return requireEnum(errors, value, field, allowed, message);
-}
-
 // ─── Serializer ────────────────────────────────────────────────────────────────
-// Converts a DB profiles row to the API response shape defined in API_SPEC.md §2.1
-// DB column names are mapped to API field names here (e.g. state → location_state)
+// Converts a DB profiles row to the API response shape.
+// DB column names mapped to API field names where they differ (state → location_state etc.)
 
 function serializeProfile(profile: profiles): Record<string, unknown> {
   return {
@@ -215,6 +267,7 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     birth_date:                profile.birth_date ?? null,
     gender:                    profile.gender ?? null,
     ethnicity:                 profile.ethnicity ?? null,
+    education:                 profile.education ?? null,
     height_unit:               profile.height_unit ?? null,
     height_ft:                 profile.height_ft ?? null,
     height_in:                 profile.height_in ?? null,
@@ -248,7 +301,7 @@ export class ProfileController {
     private readonly userRepository: UserRepository,
   ) {}
 
-  // Helper to resolve the authenticated user's DB record from their Firebase UID
+  // Resolves the authenticated user's DB record from their Firebase UID
   private async resolveUser(req: Request) {
     const firebaseUid = req.auth?.uid;
     if (!firebaseUid) {
@@ -262,8 +315,9 @@ export class ProfileController {
   }
 
   // POST /api/v1/users/profile
-  // Creates the user's profile after they complete the onboarding survey.
-  // All required fields must be present; optional fields default to null.
+  // Creates the user's profile after completing the onboarding survey.
+  // Required: birth_date, gender, meet_preference, relationship_goals, age range, distance, location, lat/lng
+  // Optional: first_name, last_name, ethnicity, height, education, habits, bio, prompts
   // Returns 201 { user_id } on success, 422 with field errors on validation failure.
   createProfile = async (req: Request, res: Response): Promise<void> => {
     const user = await this.resolveUser(req);
@@ -271,14 +325,15 @@ export class ProfileController {
     const errors: ErrorMap = {};
 
     // ── Step 1: Basic Info ──────────────────────────────────────────────────
-    const firstName  = requireString(errors, body.first_name,  'first_name',  'first_name is required');
-    const lastName   = requireString(errors, body.last_name,   'last_name',   'last_name is required');
+    const firstName  = optionalString(errors, body.first_name,  'first_name',  'first_name must be a non-empty string');
+    const lastName   = optionalString(errors, body.last_name,   'last_name',   'last_name must be a non-empty string');
     const birthDate  = validateBirthDate(errors, body.birth_date);
     const gender     = requireEnum(errors, body.gender, 'gender', VALID_GENDERS,
                          `gender must be one of: ${VALID_GENDERS.join(', ')}`);
-    const ethnicity  = requireEnum(errors, body.ethnicity, 'ethnicity', VALID_ETHNICITIES,
-                         `ethnicity must be one of: ${VALID_ETHNICITIES.join(', ')}`);
-    const heightUnit = requireEnum(errors, body.height_unit, 'height_unit', VALID_HEIGHT_UNITS,
+    const ethnicity  = validateEthnicity(errors, body.ethnicity);
+
+    // height_unit is optional — if provided, conditional fields are required
+    const heightUnit = optionalEnum(errors, body.height_unit, 'height_unit', VALID_HEIGHT_UNITS,
                          'height_unit must be "imperial" or "metric"');
     const { heightFt, heightIn, heightCm } = validateHeight(errors, heightUnit, body);
 
@@ -288,9 +343,13 @@ export class ProfileController {
     const latitude      = requireFloat(errors, body.latitude,   'latitude',   'latitude is required and must be a number');
     const longitude     = requireFloat(errors, body.longitude,  'longitude',  'longitude is required and must be a number');
 
+    // education — optional plain string
+    const education = optionalEnum(errors, body.education, 'education', VALID_EDUCATION,
+                        `education must be one of: ${VALID_EDUCATION.join(', ')}`);
+
     // ── Step 2: Preferences ─────────────────────────────────────────────────
-    const meetPreference = requireEnum(errors, body.meet_preference, 'meet_preference', VALID_MEET_PREFERENCES,
-                             `meet_preference must be one of: ${VALID_MEET_PREFERENCES.join(', ')}`);
+    const meetPreference        = requireEnum(errors, body.meet_preference, 'meet_preference', VALID_MEET_PREFERENCES,
+                                    `meet_preference must be one of: ${VALID_MEET_PREFERENCES.join(', ')}`);
     const relationshipGoals     = validateRelationshipGoals(errors, body.relationship_goals);
     const minAgePreference      = requireInt(errors, body.min_age_preference, 'min_age_preference', 18, 80,
                                     'min_age_preference must be between 18 and 80');
@@ -299,18 +358,18 @@ export class ProfileController {
     const distancePreferenceMiles = requireInt(errors, body.distance_preference_miles, 'distance_preference_miles', 1, 100,
                                       'distance_preference_miles must be between 1 and 100');
 
-    // max must be >= min (only check if both values parsed without error)
+    // max must be >= min
     if (minAgePreference !== null && maxAgePreference !== null && maxAgePreference < minAgePreference) {
       errors['max_age_preference'] = 'max_age_preference must be greater than or equal to min_age_preference';
     }
 
     // ── Step 3: Lifestyle Habits (all optional) ─────────────────────────────
-    const drinks       = optionalEnum(errors, body.drinks,          'drinks',          VALID_FREQUENCY,         `drinks must be one of: ${VALID_FREQUENCY.join(', ')}`);
-    const smoking      = optionalEnum(errors, body.smoking,         'smoking',         VALID_FREQUENCY,         `smoking must be one of: ${VALID_FREQUENCY.join(', ')}`);
-    const pets         = optionalEnum(errors, body.pets,            'pets',            VALID_PREFERENCE_LEVEL,  `pets must be one of: ${VALID_PREFERENCE_LEVEL.join(', ')}`);
-    const children     = optionalEnum(errors, body.children,        'children',        VALID_PREFERENCE_LEVEL,  `children must be one of: ${VALID_PREFERENCE_LEVEL.join(', ')}`);
-    const workout      = optionalEnum(errors, body.workout,         'workout',         VALID_FREQUENCY,         `workout must be one of: ${VALID_FREQUENCY.join(', ')}`);
-    const sleepSchedule = optionalEnum(errors, body.sleep_schedule, 'sleep_schedule',  VALID_SLEEP_SCHEDULES,   `sleep_schedule must be one of: ${VALID_SLEEP_SCHEDULES.join(', ')}`);
+    const drinks        = optionalEnum(errors, body.drinks,         'drinks',         VALID_FREQUENCY,        `drinks must be one of: ${VALID_FREQUENCY.join(', ')}`);
+    const smoking       = optionalEnum(errors, body.smoking,        'smoking',        VALID_FREQUENCY,        `smoking must be one of: ${VALID_FREQUENCY.join(', ')}`);
+    const pets          = optionalEnum(errors, body.pets,           'pets',           VALID_PREFERENCE_LEVEL, `pets must be one of: ${VALID_PREFERENCE_LEVEL.join(', ')}`);
+    const children      = optionalEnum(errors, body.children,       'children',       VALID_PREFERENCE_LEVEL, `children must be one of: ${VALID_PREFERENCE_LEVEL.join(', ')}`);
+    const workout       = optionalEnum(errors, body.workout,        'workout',        VALID_FREQUENCY,        `workout must be one of: ${VALID_FREQUENCY.join(', ')}`);
+    const sleepSchedule = optionalEnum(errors, body.sleep_schedule, 'sleep_schedule', VALID_SLEEP_SCHEDULES,  `sleep_schedule must be one of: ${VALID_SLEEP_SCHEDULES.join(', ')}`);
 
     // ── Step 4: Bio (optional) ──────────────────────────────────────────────
     let bio: string | null = null;
@@ -333,15 +392,15 @@ export class ProfileController {
       return;
     }
 
-    // All validations passed — create the profile
     const profile = await this.profileService.createProfile({
       userId:                  user!.id,
-      firstName:               firstName!,
-      lastName:                lastName!,
+      firstName,
+      lastName,
       birthDate:               birthDate!,
       gender:                  gender!,
-      ethnicity:               ethnicity!,
-      heightUnit:              heightUnit!,
+      ethnicity,
+      education,
+      heightUnit,
       heightFt,
       heightIn,
       heightCm,
@@ -365,7 +424,6 @@ export class ProfileController {
       prompts,
     });
 
-    // Return just the user_id as per API spec §2.2
     res.status(201).json({ user_id: profile.user_id });
   };
 

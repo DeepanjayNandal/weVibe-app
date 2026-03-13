@@ -6,11 +6,11 @@ struct SurveyStep4: View {
     @Environment(OnboardingData.self) private var onboardingData
 
     let educationOptions = [
-        "High School Diploma",
+        "High School",
+        "In College",
         "Bachelor's Degree",
         "Master's Degree",
-        "Doctorate / PhD",
-        "Trade / Vocational School",
+        "PhD / Doctorate",
         "Other"
     ]
 

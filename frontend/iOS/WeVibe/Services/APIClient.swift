@@ -127,7 +127,7 @@ struct UserProfilePayload: Encodable {
     let lastName: String?
     let birthDate: String           // ISO: "1995-03-15"
     let gender: String
-    let ethnicity: String?
+    let ethnicity: [String]?
     let heightUnit: String?         // "imperial" or "metric"
     let heightFt: Int?
     let heightIn: Int?
@@ -150,6 +150,8 @@ struct UserProfilePayload: Encodable {
     let workout: String?
     let sleepSchedule: String?
     let education: String?
+    let careerField: String?
+    let languages: [String]?
     let prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -174,6 +176,8 @@ struct UserProfilePayload: Encodable {
         case drinks, smoking, pets, children, workout
         case sleepSchedule = "sleep_schedule"
         case education
+        case careerField = "career_field"
+        case languages
         case prompts
     }
 
@@ -189,7 +193,7 @@ struct UserProfilePayload: Encodable {
         birthDate = "\(data.dobYear)-\(monthNum)-\(day)"
 
         gender = data.sex
-        ethnicity = data.ethnicities.isEmpty ? nil : data.ethnicities.sorted().joined(separator: ", ")
+        ethnicity = data.ethnicities.isEmpty ? nil : data.ethnicities.sorted()
 
         // Map height unit: "FT" → "imperial", "CM" → "metric"
         let hasHeight = !data.heightFt.isEmpty || !data.heightCm.isEmpty
@@ -221,7 +225,17 @@ struct UserProfilePayload: Encodable {
         children = data.children.isEmpty ? nil : data.children
         workout = data.workout.isEmpty ? nil : data.workout
         sleepSchedule = data.sleepSchedule.isEmpty ? nil : data.sleepSchedule
-        education = data.education.isEmpty ? nil : data.education
+        let educationMap: [String: String] = [
+            "High School": "high_school",
+            "In College": "in_college",
+            "Bachelor's Degree": "bachelors",
+            "Master's Degree": "masters",
+            "PhD / Doctorate": "phd",
+            "Other": "other"
+        ]
+        education = data.education.isEmpty ? nil : (educationMap[data.education] ?? data.education)
+        careerField = data.career.isEmpty ? nil : data.career
+        languages = data.languages.isEmpty ? nil : data.languages.sorted()
 
         // Build prompts array from individual prompt fields
         var promptList: [PromptEntry] = []

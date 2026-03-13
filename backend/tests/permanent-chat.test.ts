@@ -1,0 +1,234 @@
+import request from 'supertest';
+import { PrismaClient, enum_meet_gender, enum_match_status } from '@prisma/client';
+import { createApp } from '../src/app';
+
+const prisma = new PrismaClient();
+const app = createApp();
+
+type TestUserSetup = {
+  token: string;
+  birthDate: string;
+  gender: string;
+  searchGender: enum_meet_gender;
+  latitude: number;
+  longitude: number;
+};
+
+async function registerUser(token: string): Promise<void> {
+  await request(app)
+    .post('/api/v1/auth/register')
+    .send({ provider: 'google', idToken: token });
+}
+
+async function setupUser(config: TestUserSetup): Promise<{ userId: string }> {
+  await registerUser(config.token);
+
+  const uid = config.token.split(':')[2];
+  const user = await prisma.users.findUnique({ where: { firebase_uid: uid } });
+  if (!user) {
+    throw new Error('User not found after registration');
+  }
+
+  await prisma.users.update({
+    where: { id: user.id },
+    data: {
+      search_gender: config.searchGender,
+      search_age_min: 18,
+      search_age_max: 35,
+      search_radius_km: 50,
+      current_status: 'active',
+    },
+  });
+
+  await prisma.profiles.upsert({
+    where: { user_id: user.id },
+    update: {
+      display_name: uid,
+      birth_date: new Date(config.birthDate),
+      gender: config.gender,
+      personality_primary: 'A',
+    },
+    create: {
+      user_id: user.id,
+      display_name: uid,
+      birth_date: new Date(config.birthDate),
+      gender: config.gender,
+      personality_primary: 'A',
+    },
+  });
+
+  await prisma.$executeRaw`
+    UPDATE profiles
+    SET location_point = ST_SetSRID(ST_MakePoint(${config.longitude}, ${config.latitude}), 4326)::geography
+    WHERE user_id = ${user.id}::uuid
+  `;
+
+  return { userId: user.id };
+}
+
+async function createMatch(
+  userAId: string,
+  userBId: string,
+  status: enum_match_status = 'active',
+): Promise<string> {
+  const row = await prisma.matches.create({
+    data: {
+      user_a_id: userAId,
+      user_b_id: userBId,
+      status,
+      created_at: new Date(),
+      message_count: 0,
+    },
+  });
+
+  return row.id;
+}
+
+describe('Permanent Chat API', () => {
+  beforeAll(async () => {
+    await prisma.$connect();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRaw`DELETE FROM messages`;
+    await prisma.$executeRaw`DELETE FROM matches`;
+    await prisma.$executeRaw`DELETE FROM speed_dating_messages`;
+    await prisma.$executeRaw`DELETE FROM speed_dating_sessions`;
+    await prisma.$executeRaw`DELETE FROM matching_queue`;
+    await prisma.$executeRaw`DELETE FROM user_blocks`;
+    await prisma.$executeRaw`DELETE FROM profiles WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@permanent-chat.test')`;
+    await prisma.$executeRaw`DELETE FROM users WHERE email LIKE '%@permanent-chat.test'`;
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  test('lists matches and supports permanent message send/read', async () => {
+    const tokenA = 'mock:google:pc-a-001:pc-a-001@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-001:pc-b-001@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    const listResponse = await request(app)
+      .get('/api/v1/matching/matches')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(Array.isArray(listResponse.body.data.matches)).toBe(true);
+    expect(listResponse.body.data.matches[0].matchId).toBe(matchId);
+    expect(listResponse.body.data.matches[0].canSendMessage).toBe(true);
+
+    const sendResponse = await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ content: 'hello permanent' });
+
+    expect(sendResponse.status).toBe(201);
+    expect(sendResponse.body.data.match.matchId).toBe(matchId);
+    expect(sendResponse.body.data.match.lastMessageContent).toBe('hello permanent');
+    expect(sendResponse.body.data.match.messageCount).toBe(1);
+
+    const messagesResponse = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(messagesResponse.status).toBe(200);
+    expect(messagesResponse.body.data.match.matchId).toBe(matchId);
+    expect(messagesResponse.body.data.messages.length).toBe(1);
+    expect(messagesResponse.body.data.messages[0].content).toBe('hello permanent');
+  });
+
+  test('blocks non-participants from accessing match messages', async () => {
+    const tokenA = 'mock:google:pc-a-002:pc-a-002@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-002:pc-b-002@permanent-chat.test';
+    const tokenC = 'mock:google:pc-c-002:pc-c-002@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    await setupUser({
+      token: tokenC,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    const response = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenC}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('CHAT_FORBIDDEN');
+  });
+
+  test('blocks messaging for non-active matches', async () => {
+    const tokenA = 'mock:google:pc-a-003:pc-a-003@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-003:pc-b-003@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'expired');
+
+    const response = await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ content: 'should fail' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('MATCH_NOT_ACTIVE');
+  });
+});

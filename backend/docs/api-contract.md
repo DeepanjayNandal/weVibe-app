@@ -402,6 +402,199 @@ Authorization: Bearer <firebase-id-token>
 
 ---
 
+### 10. List Permanent Matches
+
+Returns all permanent chat matches for the authenticated user.
+
+```
+GET /api/v1/matching/matches
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "matches": [
+      {
+        "matchId": "uuid",
+        "status": "active",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "lastMessageAt": "2026-01-01T00:10:00.000Z",
+        "lastMessageContent": "Hello",
+        "messageCount": 24,
+        "canOpen": true,
+        "canSendMessage": true,
+        "counterpart": {
+          "userId": "uuid",
+          "displayName": "Alice Smith",
+          "photoUrl": "https://..."
+        }
+      }
+    ]
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
+### 11. Get Permanent Match Detail
+
+Returns one permanent match conversation summary.
+
+```
+GET /api/v1/matching/matches/:matchId
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "match": {
+      "matchId": "uuid",
+      "status": "active",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "lastMessageAt": "2026-01-01T00:10:00.000Z",
+      "lastMessageContent": "Hello",
+      "messageCount": 24,
+      "canOpen": true,
+      "canSendMessage": true,
+      "counterpart": {
+        "userId": "uuid",
+        "displayName": "Alice Smith",
+        "photoUrl": "https://..."
+      }
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 12. Get Permanent Match Messages
+
+Returns one permanent match plus all messages in chronological order.
+
+```
+GET /api/v1/matching/matches/:matchId/messages
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "match": {
+      "matchId": "uuid",
+      "status": "active",
+      "messageCount": 24
+    },
+    "messages": [
+      {
+        "id": "1",
+        "matchId": "uuid",
+        "senderId": "uuid",
+        "content": "Hello",
+        "createdAt": "2026-01-01T00:00:10.000Z",
+        "readAt": null
+      }
+    ]
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 13. Send Permanent Match Message
+
+Sends one message in an active permanent match.
+
+```
+POST /api/v1/matching/matches/:matchId/messages
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "content": "Hello"
+}
+```
+
+**Response 201 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "message": {
+      "id": "1",
+      "matchId": "uuid",
+      "senderId": "uuid",
+      "content": "Hello",
+      "createdAt": "2026-01-01T00:00:10.000Z",
+      "readAt": null
+    },
+    "match": {
+      "matchId": "uuid",
+      "status": "active",
+      "lastMessageContent": "Hello",
+      "messageCount": 25,
+      "canSendMessage": true
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 400 | `MISSING_MESSAGE_CONTENT` | `content` missing, not a string, or empty after trim |
+| 400 | `MATCH_NOT_ACTIVE` | Match is not in active state for messaging |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

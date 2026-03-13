@@ -115,11 +115,6 @@ struct UserProfilePayload: Encodable {
     struct PromptEntry: Encodable {
         let question: String
         let answer: String
-        let isCustom: Bool
-        enum CodingKeys: String, CodingKey {
-            case question, answer
-            case isCustom = "is_custom"
-        }
     }
 
     // Required
@@ -240,16 +235,16 @@ struct UserProfilePayload: Encodable {
         // Build prompts array from individual prompt fields
         var promptList: [PromptEntry] = []
         if !data.prompt1Question.isEmpty && !data.prompt1Answer.isEmpty {
-            promptList.append(PromptEntry(question: data.prompt1Question, answer: data.prompt1Answer, isCustom: false))
+            promptList.append(PromptEntry(question: data.prompt1Question, answer: data.prompt1Answer))
         }
         if !data.prompt2Question.isEmpty && !data.prompt2Answer.isEmpty {
-            promptList.append(PromptEntry(question: data.prompt2Question, answer: data.prompt2Answer, isCustom: false))
+            promptList.append(PromptEntry(question: data.prompt2Question, answer: data.prompt2Answer))
         }
         if !data.prompt3Question.isEmpty && !data.prompt3Answer.isEmpty {
-            promptList.append(PromptEntry(question: data.prompt3Question, answer: data.prompt3Answer, isCustom: false))
+            promptList.append(PromptEntry(question: data.prompt3Question, answer: data.prompt3Answer))
         }
         if !data.ownPrompt.isEmpty && !data.ownPromptAnswer.isEmpty {
-            promptList.append(PromptEntry(question: data.ownPrompt, answer: data.ownPromptAnswer, isCustom: true))
+            promptList.append(PromptEntry(question: data.ownPrompt, answer: data.ownPromptAnswer))
         }
         prompts = promptList.isEmpty ? nil : promptList
     }

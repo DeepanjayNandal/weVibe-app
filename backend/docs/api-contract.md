@@ -595,6 +595,207 @@ Content-Type: application/json
 
 ---
 
+### 14. List Speed Dating Sessions
+
+Returns speed dating sessions for the authenticated user with message progress and anonymous counterpart summary.
+
+```
+GET /api/v1/matching/sessions
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "sessionId": "uuid",
+        "status": "active",
+        "startedAt": "2026-01-01T00:00:00.000Z",
+        "expiresAt": "2026-01-02T00:00:00.000Z",
+        "remainingSeconds": 3600,
+        "canOpen": true,
+        "canSendMessage": true,
+        "myMessageCount": 3,
+        "otherMessageCount": 5,
+        "messageLimit": 20,
+        "counterpart": {
+          "userId": "uuid",
+          "firstName": "Alice",
+          "initials": "AS",
+          "blurredPhotoUrl": "https://..."
+        }
+      }
+    ]
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
+### 15. Get Speed Dating Session Detail
+
+Returns one speed dating session for the authenticated participant.
+
+```
+GET /api/v1/matching/sessions/:sessionId
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "status": "active",
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "expiresAt": "2026-01-02T00:00:00.000Z",
+      "remainingSeconds": 3590,
+      "canOpen": true,
+      "canSendMessage": true,
+      "myMessageCount": 4,
+      "otherMessageCount": 6,
+      "messageLimit": 20,
+      "counterpart": {
+        "userId": "uuid",
+        "firstName": "Alice",
+        "initials": "AS",
+        "blurredPhotoUrl": "https://..."
+      }
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_SESSION_ID` | `sessionId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
+| 404 | `SESSION_NOT_FOUND` | Session does not exist |
+
+---
+
+### 16. Get Speed Dating Session Messages
+
+Returns one session plus all messages in chronological order.
+
+```
+GET /api/v1/matching/sessions/:sessionId/messages
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "status": "active",
+      "myMessageCount": 4,
+      "otherMessageCount": 6,
+      "messageLimit": 20
+    },
+    "messages": [
+      {
+        "id": "1",
+        "sessionId": "uuid",
+        "senderId": "uuid",
+        "content": "Hello",
+        "createdAt": "2026-01-01T00:00:10.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_SESSION_ID` | `sessionId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
+| 404 | `SESSION_NOT_FOUND` | Session does not exist |
+
+---
+
+### 17. Send Speed Dating Message
+
+Sends one message in an active speed dating session.
+
+```
+POST /api/v1/matching/sessions/:sessionId/messages
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "content": "Hello"
+}
+```
+
+**Response 201 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "message": {
+      "id": "1",
+      "sessionId": "uuid",
+      "senderId": "uuid",
+      "content": "Hello",
+      "createdAt": "2026-01-01T00:00:10.000Z"
+    },
+    "session": {
+      "sessionId": "uuid",
+      "status": "active",
+      "myMessageCount": 5,
+      "otherMessageCount": 6,
+      "messageLimit": 20,
+      "canSendMessage": true
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_SESSION_ID` | `sessionId` path param is missing or empty |
+| 400 | `MISSING_MESSAGE_CONTENT` | `content` missing, not a string, or empty after trim |
+| 400 | `MESSAGE_LIMIT_REACHED` | Sender already sent 20 messages in this session |
+| 400 | `SESSION_NOT_ACTIVE` | Session is not in active state for sending messages |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
+| 404 | `SESSION_NOT_FOUND` | Session does not exist |
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

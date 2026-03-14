@@ -183,6 +183,9 @@ struct LoginScreen: View {
             .padding(.horizontal, 24)
         }
         .navigationBarBackButtonHidden(false)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
     }
 
     // MARK: - Validation

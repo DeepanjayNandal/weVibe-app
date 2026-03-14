@@ -42,6 +42,8 @@ final class AuthManager {
     /// Nonce used for Apple Sign-In — must be stored for Firebase credential creation.
     private var currentNonce: String?
 
+    private let apiClient = APIClient()
+
     // MARK: - Launch
 
     /// Registers a persistent Firebase Auth state listener. Fires immediately with current state.
@@ -68,6 +70,8 @@ final class AuthManager {
     func login(email: String, password: String) async throws {
         do {
             try await Auth.auth().signIn(withEmail: email, password: password)
+            let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
+            try await apiClient.loginUser(idToken: token, provider: "email")
             await resolvePostAuthState()
         } catch {
             throw AuthError.unknown(mapAuthError(error))
@@ -77,12 +81,15 @@ final class AuthManager {
     func register(email: String, password: String, firstName: String, lastName: String) async throws {
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
+
+            let changeRequest = result.user.createProfileChangeRequest()
+            changeRequest.displayName = "\(firstName) \(lastName)"
+            try await changeRequest.commitChanges()
+
             try await result.user.sendEmailVerification()
 
-            // TODO: POST user record to backend (firstName, lastName, Firebase UID)
-            // so the backend can create the user profile row.
-            // let token = try await result.user.getIDToken()
-            // await apiClient.post("/users", bearer: token, body: { firstName, lastName, uid: result.user.uid })
+            let token = try await result.user.getIDToken()
+            try await apiClient.registerUser(idToken: token, provider: "email")
 
             pendingVerificationEmail = email
             appState = .pendingVerification
@@ -134,6 +141,8 @@ final class AuthManager {
                 accessToken: result.user.accessToken.tokenString
             )
             try await Auth.auth().signIn(with: credential)
+            let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
+            try await apiClient.loginUser(idToken: token, provider: "google")
             await resolvePostAuthState()
         } catch {
             throw AuthError.unknown(mapAuthError(error))
@@ -173,6 +182,8 @@ final class AuthManager {
                 fullName: appleCredential.fullName
             )
             try await Auth.auth().signIn(with: firebaseCredential)
+            let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
+            try await apiClient.loginUser(idToken: token, provider: "apple")
             await resolvePostAuthState()
         } catch {
             throw AuthError.unknown(mapAuthError(error))
@@ -205,10 +216,29 @@ final class AuthManager {
 
     // MARK: - Onboarding Completion
 
-    /// Called by SurveyStep5 "Finish" button after profile data is submitted.
-    func completeOnboarding() {
-        // TODO: POST /users/profile to backend to mark isProfileComplete = true.
-        appState = .authenticated
+    /// Called by SurveyStep5 "Finish" — POSTs full profile to backend then routes to main app.
+    func completeOnboarding(_ data: OnboardingData) {
+        Task {
+            guard let user = Auth.auth().currentUser else {
+                appState = .unauthenticated
+                return
+            }
+            do {
+                let token = try await user.getIDToken()
+
+                // Split Firebase displayName into first / last name
+                let parts = (user.displayName ?? "").split(separator: " ", maxSplits: 1)
+                let firstName = parts.first.map(String.init) ?? ""
+                let lastName = parts.count > 1 ? String(parts[1]) : ""
+
+                let payload = UserProfilePayload(from: data, firstName: firstName, lastName: lastName)
+                try await apiClient.submitProfile(token: token, payload: payload)
+                data.clear()
+                appState = .authenticated
+            } catch {
+                globalError = error.localizedDescription
+            }
+        }
     }
 
     // MARK: - Sign Out
@@ -221,23 +251,28 @@ final class AuthManager {
 
     // MARK: - Private Helpers
 
-    /// After sign-in, asks the backend if the user's profile is done and picks the right state.
+    /// After sign-in: verify email, then check backend for an existing profile.
+    /// Routes to .authenticated (returning user) or .onboarding (new user).
     private func resolvePostAuthState() async {
         guard let user = Auth.auth().currentUser else {
             appState = .unauthenticated
             return
         }
+        if !user.isEmailVerified {
+            pendingVerificationEmail = user.email ?? ""
+            appState = .pendingVerification
+            return
+        }
         do {
             let token = try await user.getIDToken()
-            // TODO: POST to /auth/session with Bearer token to get isProfileComplete.
-            // let response = try await apiClient.post("/auth/session", bearer: token)
-            // appState = response.isProfileComplete ? .authenticated : .onboarding
-            // Stub: always route to onboarding until backend /auth/session is ready.
-            _ = token
+            let hasProfile = try await apiClient.checkProfile(token: token)
+            appState = hasProfile ? .authenticated : .onboarding
+        } catch APIError.noProfile {
             appState = .onboarding
-        } catch {
-            globalError = "Session error. Please sign in again."
+        } catch APIError.unauthorized {
             appState = .unauthenticated
+        } catch {
+            appState = .onboarding
         }
     }
 

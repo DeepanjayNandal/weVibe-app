@@ -1,238 +1,183 @@
 import SwiftUI
 
 struct SurveyStep4: View {
-    
+
     @Environment(OnboardingRouter.self) private var onboardingRouter
-    
-    // Education
-    @State private var education: String = ""
-    let educationOptions = ["High School", "Some College", "Bachelor's", "Master's", "PhD", "Other"]
-    
-    // Career
-    @State private var career: String = ""
+    @Environment(OnboardingData.self) private var onboardingData
+
+    let educationOptions = [
+        "High School",
+        "In College",
+        "Bachelor's Degree",
+        "Master's Degree",
+        "PhD / Doctorate",
+        "Other"
+    ]
+
     let careerOptions = ["Technology", "Healthcare", "Education", "Finance", "Arts", "Other"]
-    
-    // Height
-    @State private var heightValue: String = ""
-    @State private var heightUnit: String = "FT"
-    
-    // Languages
-    @State private var selectedLanguages: Set<String> = ["English"]
-    let languages = ["English", "Hindi", "Other+", "Vietnamese", "Mandarin/Chinese", "Spanish", "Japanese"]
-    
+
+    let languages = [
+        "English", "Spanish", "Mandarin/Chinese", "Hindi", "Arabic",
+        "French", "Portuguese", "Russian", "Japanese", "Korean",
+        "German", "Vietnamese", "Italian", "Other+"
+    ]
+
     var body: some View {
         ZStack {
-            AppTheme.primaryBackground
-                .ignoresSafeArea()
-            
+            AppTheme.primaryBackground.ignoresSafeArea()
+
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
-                    
+
                     ProgressBarView(current: 4, total: 5)
-                    
-                    // Education
+
+                    // MARK: Education
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Education")
                             .foregroundStyle(.white)
                             .font(.system(size: 18, weight: .bold))
-                        
-                        Menu {
-                            ForEach(educationOptions, id: \.self) { option in
-                                Button(option) { education = option }
-                            }
-                        } label: {
-                            HStack {
-                                Text(education.isEmpty ? "Dropdown" : education)
-                                    .foregroundStyle(education.isEmpty ? .white.opacity(0.5) : .white)
-                                    .font(.system(size: 16))
-                                Spacer()
-                                Button {
-                                    education = ""
-                                } label: {
-                                    Text("X")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 50, height: 30)
-                                        .background(Color.pink.opacity(0.7))
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, 16)
-                            .frame(height: 52)
-                            .background(.white.opacity(0.1))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(.white.opacity(0.3), lineWidth: 1)
-                            )
-                        }
+
+                        DropdownPicker(
+                            placeholder: "Select your education level",
+                            selection: Bindable(onboardingData).education,
+                            options: educationOptions
+                        )
                     }
-                    
-                    // Career
+
+                    // MARK: Career
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Career")
                             .foregroundStyle(.white)
                             .font(.system(size: 18, weight: .bold))
-                        
-                        Menu {
-                            ForEach(careerOptions, id: \.self) { option in
-                                Button(option) { career = option }
-                            }
-                        } label: {
-                            HStack {
-                                Text(career.isEmpty ? "Select your career field" : career)
-                                    .foregroundStyle(career.isEmpty ? .white.opacity(0.5) : .white)
-                                    .font(.system(size: 16))
-                                Spacer()
-                                Button {
-                                    career = ""
-                                } label: {
-                                    Text("X")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 50, height: 30)
-                                        .background(Color.pink.opacity(0.7))
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, 16)
-                            .frame(height: 52)
-                            .background(.white.opacity(0.1))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(.white.opacity(0.3), lineWidth: 1)
-                            )
-                        }
+
+                        DropdownPicker(
+                            placeholder: "Select your career field",
+                            selection: Bindable(onboardingData).career,
+                            options: careerOptions
+                        )
                     }
-                    
-                    // Height
+
+                    // MARK: Height
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Height")
                             .foregroundStyle(.white)
                             .font(.system(size: 18, weight: .bold))
-                        
-                        HStack(spacing: 12) {
-                           
-                            TextField("", text: $heightValue)
-                                .foregroundStyle(.white)
-                                .keyboardType(.decimalPad)
-                                .padding(.horizontal, 16)
-                                .frame(height: 48)
-                                .background(.white.opacity(0.1))
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(.white.opacity(0.3), lineWidth: 1)
-                                )
-                                .frame(maxWidth: 180)
-                            
-                            //toggle
-                            HStack(spacing: 8) {
+
+                        HStack(spacing: 10) {
+                            // FT / CM toggle
+                            HStack(spacing: 6) {
                                 ForEach(["FT", "CM"], id: \.self) { unit in
                                     Button {
-                                        heightUnit = unit
+                                        onboardingData.heightUnit = unit
                                     } label: {
                                         Text(unit)
                                             .font(.system(size: 14, weight: .bold))
-                                            .foregroundStyle(heightUnit == unit ? .black : .white)
+                                            .foregroundStyle(onboardingData.heightUnit == unit ? .black : .white)
                                             .frame(width: 52, height: 48)
-                                            .background(heightUnit == unit ? Color.green : .white.opacity(0.1))
+                                            .background(onboardingData.heightUnit == unit ? Color.green : .white.opacity(0.1))
                                             .cornerRadius(12)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .stroke(.white.opacity(0.3), lineWidth: 1)
-                                            )
+                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.3), lineWidth: 1))
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
+
+                            if onboardingData.heightUnit == "FT" {
+                                HeightDropdown(
+                                    placeholder: "ft",
+                                    selection: Bindable(onboardingData).heightFt,
+                                    options: (3...8).map { String($0) },
+                                    width: 75
+                                )
+                                Text("ft")
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .font(.system(size: 14))
+                                HeightDropdown(
+                                    placeholder: "in",
+                                    selection: Bindable(onboardingData).heightIn,
+                                    options: (0...11).map { String($0) },
+                                    width: 75
+                                )
+                                Text("in")
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .font(.system(size: 14))
+                            } else {
+                                HeightDropdown(
+                                    placeholder: "cm",
+                                    selection: Bindable(onboardingData).heightCm,
+                                    options: (91...272).map { String($0) },
+                                    width: 90
+                                )
+                                Text("cm")
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .font(.system(size: 14))
+                            }
                         }
                     }
-                    
-                    // Languages
+
+                    // MARK: Languages
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Languages")
                             .foregroundStyle(.white)
                             .font(.system(size: 18, weight: .bold))
-                        
+
                         Text("Select as many as you'd like")
                             .foregroundStyle(.white.opacity(0.6))
                             .font(.system(size: 14))
-                        
+
                         FlowLayout(spacing: 10) {
                             ForEach(languages, id: \.self) { language in
                                 Button {
-                                    if selectedLanguages.contains(language) {
-                                        selectedLanguages.remove(language)
+                                    if onboardingData.languages.contains(language) {
+                                        onboardingData.languages.remove(language)
                                     } else {
-                                        selectedLanguages.insert(language)
+                                        onboardingData.languages.insert(language)
                                     }
                                 } label: {
                                     Text(language)
                                         .font(.system(size: 14, weight: .medium))
-                                        .foregroundStyle(selectedLanguages.contains(language) ? .black : .white)
+                                        .foregroundStyle(onboardingData.languages.contains(language) ? .black : .white)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 10)
-                                        .background(selectedLanguages.contains(language) ? Color.green : .clear)
+                                        .background(onboardingData.languages.contains(language) ? Color.green : .clear)
                                         .cornerRadius(20)
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(.white.opacity(0.5), lineWidth: 1)
-                                        )
+                                        .overlay(Capsule().stroke(.white.opacity(0.5), lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
                             }
-                            
-                            // + button
-                            Button {
-                                // add custom language
-                            } label: {
-                                Text("+")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 40, height: 40)
-                                    .background(.white.opacity(0.1))
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(.white.opacity(0.5), lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
                         }
                     }
-                    
-                    // Navigation buttons
+
+                    // MARK: Navigation
                     HStack {
                         Button {
+                            onboardingData.save()
                             onboardingRouter.pop()
                         } label: {
                             Image(systemName: "chevron.left")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primaryBackground)
-                                        .frame(width: 48, height: 48)
-                                        .background(.white)
-                                        .clipShape(Circle())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                                .frame(width: 48, height: 48)
+                                .background(.white)
+                                .clipShape(Circle())
                         }
-                        
+
                         Spacer()
-                        
+
                         Button {
+                            onboardingData.save()
                             onboardingRouter.navigate(to: .step5)
                         } label: {
                             Image(systemName: "chevron.right")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primaryBackground)
-                                        .frame(width: 48, height: 48)
-                                        .background(.white)
-                                        .clipShape(Circle())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                                .frame(width: 48, height: 48)
+                                .background(.white)
+                                .clipShape(Circle())
                         }
                     }
                     .padding(.top, 16)
-                    
+
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal, 24)
@@ -240,5 +185,73 @@ struct SurveyStep4: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+}
+
+// MARK: - HeightDropdown
+
+private struct HeightDropdown: View {
+    let placeholder: String
+    @Binding var selection: String
+    let options: [String]
+    let width: CGFloat
+
+    var body: some View {
+        Menu {
+            ForEach(options, id: \.self) { option in
+                Button(option) { selection = option }
+            }
+        } label: {
+            HStack {
+                Text(selection.isEmpty ? placeholder : selection)
+                    .foregroundStyle(selection.isEmpty ? .white.opacity(0.5) : .white)
+                    .font(.system(size: 15))
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 11))
+            }
+            .padding(.horizontal, 12)
+            .frame(width: width, height: 48)
+            .background(.white.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.3), lineWidth: 1))
+        }
+    }
+}
+
+// MARK: - DropdownPicker
+
+private struct DropdownPicker: View {
+    let placeholder: String
+    @Binding var selection: String
+    let options: [String]
+
+    var body: some View {
+        Menu {
+            ForEach(options, id: \.self) { option in
+                Button(option) { selection = option }
+            }
+        } label: {
+            HStack {
+                Text(selection.isEmpty ? placeholder : selection)
+                    .foregroundStyle(selection.isEmpty ? .white.opacity(0.5) : .white)
+                    .font(.system(size: 16))
+                    .multilineTextAlignment(.leading)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(.white.opacity(0.5))
+                    .font(.system(size: 13))
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 52)
+            .background(.white.opacity(0.1))
+            .cornerRadius(14)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.3), lineWidth: 1))
+        }
     }
 }

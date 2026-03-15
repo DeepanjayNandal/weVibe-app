@@ -99,7 +99,7 @@ struct AuthFlowView: View {
 // Onboarding flow: welcome screen → survey steps
 struct OnboardingFlowView: View {
     @State private var onboardingRouter = OnboardingRouter()
-    @State private var onboardingData = OnboardingData()
+    // OnboardingData is injected from WeVibeApp at app level
 
     var body: some View {
         NavigationStack(path: $onboardingRouter.path) {
@@ -115,6 +115,5 @@ struct OnboardingFlowView: View {
                 }
         }
         .environment(onboardingRouter)
-        .environment(onboardingData)
     }
 }

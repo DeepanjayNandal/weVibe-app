@@ -8,7 +8,6 @@ struct HabitSection: View {
     let title: String
     @Binding var selection: String
     let options: [HabitOption]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)

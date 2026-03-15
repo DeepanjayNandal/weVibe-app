@@ -38,6 +38,7 @@
 		A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */; };
 		A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB662F4820EB00E908DB /* SurveyStep5.swift */; };
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
+		A3AEC0DF2F663F9500F7E31D /* JoinQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */; };
 		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
 		BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A02F59AE1100178889 /* FirebaseAnalytics */; };
 		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
@@ -77,6 +78,7 @@
 		A38BAB2E2F47E70E00E908DB /* SurveyStep4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep4.swift; sourceTree = "<group>"; };
 		A38BAB662F4820EB00E908DB /* SurveyStep5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurveyStep5.swift; sourceTree = "<group>"; };
 		A38BAB682F48215500E908DB /* PromptField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptField.swift; sourceTree = "<group>"; };
+		A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueue.swift; sourceTree = "<group>"; };
 		A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationPermissionScreen.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */,
 				A351B54C2F5A591C007C6412 /* PersonalityTest.swift */,
 				A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */,
 				A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */,
@@ -363,6 +366,7 @@
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
 				BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,
+				A3AEC0DF2F663F9500F7E31D /* JoinQueue.swift in Sources */,
 				A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */,
 				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,

@@ -13,6 +13,8 @@ struct PersonalityTestView: View {
    
     @State private var contentOpacity: Double = 1
     @State private var contentOffset: CGFloat = 0
+    
+    @Environment(SpeedDatingRouter.self) private var speedDatingRouter
 
     private var current: PersonalityQuestion {
         StaticConfig.personalityQuestions[currentIndex]
@@ -127,6 +129,10 @@ struct PersonalityTestView: View {
 
         if isLastQuestion {
             let results = selectedAnswers.compactMap { $0 }
+            if results.count == 6 {
+                speedDatingRouter.navigate(to: .joinQueue)
+            }
+            print("Is last question results", results)
             onComplete?(results)
         } else {
             transition {

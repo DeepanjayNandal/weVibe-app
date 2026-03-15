@@ -2,7 +2,7 @@ import Foundation
 
 enum AppConfig {
     // MARK: - Backend
-    static let apiBaseURL = "http://localhost:3000/api/v1"
+    static let apiBaseURL = "http://172.16.77.167:3000/api/v1"
 
     // MARK: - Firebase
     /// Firebase Hosting domain used in ActionCodeSettings for email verification deep links.

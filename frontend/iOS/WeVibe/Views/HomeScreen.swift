@@ -53,8 +53,10 @@ private struct SpeedDatingTab: View {
                 .navigationDestination(for: SpeedDatingRoute.self) { route in
                     switch(route) {
                     case .rules: SpeedDatingRules()
-                    case .q1: PersonalityTestView()
-
+                    case .tests: PersonalityTestView()
+                    case .joinQueue: JoinQueueView(answers: [2, 2, 2, 3, 1, 3])
+//                    case .findingMatch
+//                    case .matchResult
                     }
                 }
         }

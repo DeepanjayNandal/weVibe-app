@@ -132,8 +132,7 @@ final class UserProfileStore {
     var pronouns: String = ""
 
     // MARK: - Family
-    var hasKids: String = ""        // "Yes" / "No"
-    var wantsKids: String = ""      // "Yes" / "No" / "Not for a while" / "Maybe"
+    var children: String = ""       // "Don't want" / "Unsure" / "Want" / "Have"
 
     // MARK: - Background
     var birthCountry: String = ""
@@ -253,7 +252,7 @@ final class UserProfileStore {
         var bio, jobTitle, school, instagramHandle, tiktokHandle: String
         var orientation: String; var showOrientation: Bool
         var identity: String; var showIdentity: Bool
-        var pronouns, hasKids, wantsKids, birthCountry: String
+        var pronouns, children, birthCountry: String
         var ethnicities, languages: [String]
         var career, education: String
         var heightFt, heightIn, heightCm, heightUnit: String
@@ -280,7 +279,7 @@ final class UserProfileStore {
             instagramHandle = s.instagramHandle; tiktokHandle = s.tiktokHandle
             orientation = s.orientation; showOrientation = s.showOrientation
             identity = s.identity; showIdentity = s.showIdentity
-            pronouns = s.pronouns; hasKids = s.hasKids; wantsKids = s.wantsKids
+            pronouns = s.pronouns; children = s.children
             birthCountry = s.birthCountry
             ethnicities = s.ethnicities; languages = s.languages
             career = s.career; education = s.education
@@ -315,7 +314,7 @@ final class UserProfileStore {
             s.instagramHandle = instagramHandle; s.tiktokHandle = tiktokHandle
             s.orientation = orientation; s.showOrientation = showOrientation
             s.identity = identity; s.showIdentity = showIdentity
-            s.pronouns = pronouns; s.hasKids = hasKids; s.wantsKids = wantsKids
+            s.pronouns = pronouns; s.children = children
             s.birthCountry = birthCountry
             s.ethnicities = ethnicities; s.languages = languages
             s.career = career; s.education = education
@@ -383,8 +382,7 @@ extension UserProfileStore {
         "Something active & adventurous", "Concert", "Hiking", "Cooking together",
         "Picnic", "Art gallery", "Sports game", "Comedy show", "Rooftop bar"
     ]
-    static let hasKidsOptions = ["Yes", "No"]
-    static let wantsKidsOptions = ["Yes", "No", "Not for a while", "Maybe"]
+    static let childrenOptions = ["Don't want", "Unsure", "Want", "Have"]
     static let cannabisOptions = ["Never", "Sometimes", "Often"]
     static let relationshipGoalOptions = ["Short Term", "Long Term", "Marriage", "Still figuring out"]
     static let meetPreferenceOptions = ["Men", "Women", "Open to both"]

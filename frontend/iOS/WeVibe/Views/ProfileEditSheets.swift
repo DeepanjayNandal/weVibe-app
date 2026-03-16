@@ -416,8 +416,7 @@ struct LifestyleEditSheet: View {
     @State private var sleepSchedule = ""
     @State private var pets = ""
     @State private var cannabis = ""
-    @State private var hasKids = ""
-    @State private var wantsKids = ""
+    @State private var children = ""
     @State private var petTypes = ""
     @State private var petsName = ""
     @State private var isDrinksFlexible = false
@@ -449,15 +448,14 @@ struct LifestyleEditSheet: View {
             toggleRow("Flexible on cannabis", isOn: $isCannabisFlexible)
 
             sectionLabel("Kids")
-            pickerRow("Do you have kids?", selection: $hasKids, options: UserProfileStore.hasKidsOptions)
-            pickerRow("Do you want kids?", selection: $wantsKids, options: UserProfileStore.wantsKidsOptions)
+            pickerRow("Children", selection: $children, options: UserProfileStore.childrenOptions)
             toggleRow("Flexible on kids", isOn: $isKidsFlexible)
         }
         .onAppear {
             drinks = store.drinks; smoking = store.smoking
             workout = store.workout; sleepSchedule = store.sleepSchedule
             pets = store.pets; cannabis = store.cannabis
-            hasKids = store.hasKids; wantsKids = store.wantsKids
+            children = store.children
             petTypes = store.petTypes; petsName = store.petsName
             isDrinksFlexible = store.isDrinksFlexible; isSmokingFlexible = store.isSmokingFlexible
             isWorkoutFlexible = store.isWorkoutFlexible; isSleepFlexible = store.isSleepFlexible
@@ -469,7 +467,7 @@ struct LifestyleEditSheet: View {
         store.drinks = drinks; store.smoking = smoking
         store.workout = workout; store.sleepSchedule = sleepSchedule; store.pets = pets
         store.cannabis = cannabis
-        store.hasKids = hasKids; store.wantsKids = wantsKids
+        store.children = children
         store.petTypes = petTypes; store.petsName = petsName
         store.isDrinksFlexible = isDrinksFlexible; store.isSmokingFlexible = isSmokingFlexible
         store.isWorkoutFlexible = isWorkoutFlexible; store.isSleepFlexible = isSleepFlexible

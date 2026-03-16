@@ -331,7 +331,7 @@ struct ProfileCardView: View {
             }
 
             let lifestyleHasContent = !data.drinks.isEmpty || !data.smoking.isEmpty || !data.cannabis.isEmpty
-                || !data.workout.isEmpty || !data.sleepSchedule.isEmpty || !data.pets.isEmpty || !data.wantsKids.isEmpty
+                || !data.workout.isEmpty || !data.sleepSchedule.isEmpty || !data.pets.isEmpty || !data.children.isEmpty
             section(id: .lifestyle, title: "Lifestyle", isVisible: data.showLifestyle, hasContent: lifestyleHasContent) {
                 let anyFilled = lifestyleHasContent
                 if !anyFilled && isOwnProfile {
@@ -346,8 +346,7 @@ struct ProfileCardView: View {
                         if !data.pets.isEmpty        { infoRow("pawprint.fill",  "Pets",     data.pets) }
                         if !data.petTypes.isEmpty    { infoRow("pawprint",       "Pet type", data.petTypes) }
                         if !data.petsName.isEmpty    { infoRow("heart.fill",     "Pet name", data.petsName) }
-                        if !data.wantsKids.isEmpty   { infoRow("person.2.fill",  "Kids",     data.wantsKids) }
-                        if !data.hasKids.isEmpty     { infoRow("figure.2.and.child.holdinghands", "Has kids", data.hasKids) }
+                        if !data.children.isEmpty    { infoRow("person.2.fill",  "Kids",     data.children) }
                     }
                 }
             }

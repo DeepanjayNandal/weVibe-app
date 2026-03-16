@@ -31,8 +31,7 @@ struct ProfileDisplayData {
     var pets: String
     var petTypes: String
     var petsName: String
-    var hasKids: String
-    var wantsKids: String
+    var children: String
     var ethnicities: [String]
     var languages: [String]
     var career: String
@@ -92,8 +91,7 @@ extension ProfileDisplayData {
         pets                 = match.pets
         petTypes             = match.petTypes
         petsName             = ""
-        hasKids              = ""
-        wantsKids            = ""
+        children             = ""
         ethnicities          = match.ethnicities
         languages            = match.languages
         career               = match.career

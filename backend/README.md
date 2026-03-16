@@ -79,7 +79,7 @@ Examples:
    npm install firebase-admin
    npm test
    ```
-   > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
+   > Ensure the database is running on (`npm run db:start`) to pass connectivity tests.
 
 7. **Check Connection (Optional)**
    ```bash

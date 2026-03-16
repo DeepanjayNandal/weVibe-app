@@ -137,6 +137,23 @@ final class UserProfileStore {
 
     // MARK: - Background
     var birthCountry: String = ""
+    var ethnicities: [String] = []
+    var languages: [String] = []
+
+    // MARK: - Career & Education
+    var career: String = ""
+    var education: String = ""
+    var heightFt: String = ""
+    var heightIn: String = ""
+    var heightCm: String = ""
+    var heightUnit: String = "FT"
+
+    // MARK: - Lifestyle (from onboarding)
+    var drinks: String = ""
+    var smoking: String = ""
+    var workout: String = ""
+    var sleepSchedule: String = ""
+    var pets: String = ""
 
     // MARK: - Lifestyle (additional)
     var cannabis: String = ""       // "Never" / "Sometimes" / "Often"
@@ -163,12 +180,24 @@ final class UserProfileStore {
     var preferredDateActivities: [String] = []
     var wouldNotDoActivities: [String] = []
 
+    // MARK: - Dating Preferences
+    var relationshipGoals: [String] = []
+    var meetPreference: String = ""
+    var minAge: Double = 18
+    var maxAge: Double = 50
+    var distance: Double = 25
+
+    // MARK: - Name
+    var firstName: String = ""
+    var lastName: String = ""
+
     // MARK: - Social Media
     var socialMediaLinks: [String] = ["", "", ""]
     var spotifyPlaylistURL: String = ""
     var photoURLs: [String] = []
 
     // MARK: - Field Visibility (shown to other users)
+    var showSex: Bool = true
     var showLocation: Bool = true
     var showPersonalityTrait: Bool = true
     var showInterests: Bool = true
@@ -179,30 +208,18 @@ final class UserProfileStore {
     // MARK: - Load State
     var isLoading: Bool = false
 
-    private static let storageKey = "wevibe_profile_ext_v1"
+    private static let storageKey = "wevibe_profile_ext_v3"
 
     init() { load() }
 
     // MARK: - Mock API
 
-    /// Mock GET /users/profile — loads from local cache, seeds mock data on first launch.
+    /// Mock GET /users/profile — loads from local cache.
     /// TODO: replace with real network call that decodes UserProfileResponse and applies all fields.
     func fetchProfile() async {
         isLoading = true
         defer { isLoading = false }
         try? await Task.sleep(nanoseconds: 500_000_000)
-        // Seed mock photos on first launch so the carousel is visible during development
-        if photoURLs.isEmpty {
-            photoURLs = [
-                "https://picsum.photos/seed/wv1/400/600",
-                "https://picsum.photos/seed/wv2/400/600",
-                "https://picsum.photos/seed/wv3/400/600",
-                "https://picsum.photos/seed/wv4/400/600",
-                "https://picsum.photos/seed/wv5/400/600",
-                "https://picsum.photos/seed/wv6/400/600",
-            ]
-            save()
-        }
     }
 
     /// Mock PATCH /users/profile — persists locally.
@@ -232,10 +249,15 @@ final class UserProfileStore {
     // MARK: - Codable Mirror
 
     private struct Draft: Codable {
+        var firstName, lastName: String
         var bio, jobTitle, school, instagramHandle, tiktokHandle: String
         var orientation: String; var showOrientation: Bool
         var identity: String; var showIdentity: Bool
         var pronouns, hasKids, wantsKids, birthCountry: String
+        var ethnicities, languages: [String]
+        var career, education: String
+        var heightFt, heightIn, heightCm, heightUnit: String
+        var drinks, smoking, workout, sleepSchedule, pets: String
         var cannabis: String; var isCannabisFlexible: Bool
         var petTypes, petsName: String
         var isDrinksFlexible, isSmokingFlexible, isWorkoutFlexible, isSleepFlexible, isKidsFlexible: Bool
@@ -243,18 +265,28 @@ final class UserProfileStore {
         var communicationStyle, conflictStyle: String
         var personalityType: String
         var interests, preferredDateActivities, wouldNotDoActivities: [String]
+        var relationshipGoals: [String]
+        var meetPreference: String
+        var minAge, maxAge, distance: Double
         var socialMediaLinks: [String]; var spotifyPlaylistURL: String
         var photoURLs: [String]
+        var showSex: Bool
         var showLocation, showPersonalityTrait, showInterests: Bool
         var showLifestyle, showCareer, showPets: Bool
 
         init(from s: UserProfileStore) {
+            firstName = s.firstName; lastName = s.lastName
             bio = s.bio; jobTitle = s.jobTitle; school = s.school
             instagramHandle = s.instagramHandle; tiktokHandle = s.tiktokHandle
             orientation = s.orientation; showOrientation = s.showOrientation
             identity = s.identity; showIdentity = s.showIdentity
             pronouns = s.pronouns; hasKids = s.hasKids; wantsKids = s.wantsKids
             birthCountry = s.birthCountry
+            ethnicities = s.ethnicities; languages = s.languages
+            career = s.career; education = s.education
+            heightFt = s.heightFt; heightIn = s.heightIn; heightCm = s.heightCm; heightUnit = s.heightUnit
+            drinks = s.drinks; smoking = s.smoking; workout = s.workout
+            sleepSchedule = s.sleepSchedule; pets = s.pets
             cannabis = s.cannabis; isCannabisFlexible = s.isCannabisFlexible
             petTypes = s.petTypes; petsName = s.petsName
             isDrinksFlexible = s.isDrinksFlexible; isSmokingFlexible = s.isSmokingFlexible
@@ -266,20 +298,30 @@ final class UserProfileStore {
             interests = s.interests
             preferredDateActivities = s.preferredDateActivities
             wouldNotDoActivities = s.wouldNotDoActivities
+            relationshipGoals = s.relationshipGoals
+            meetPreference = s.meetPreference
+            minAge = s.minAge; maxAge = s.maxAge; distance = s.distance
             socialMediaLinks = s.socialMediaLinks; spotifyPlaylistURL = s.spotifyPlaylistURL
             photoURLs = s.photoURLs
+            showSex = s.showSex
             showLocation = s.showLocation; showPersonalityTrait = s.showPersonalityTrait
             showInterests = s.showInterests; showLifestyle = s.showLifestyle
             showCareer = s.showCareer; showPets = s.showPets
         }
 
         func apply(to s: UserProfileStore) {
+            s.firstName = firstName; s.lastName = lastName
             s.bio = bio; s.jobTitle = jobTitle; s.school = school
             s.instagramHandle = instagramHandle; s.tiktokHandle = tiktokHandle
             s.orientation = orientation; s.showOrientation = showOrientation
             s.identity = identity; s.showIdentity = showIdentity
             s.pronouns = pronouns; s.hasKids = hasKids; s.wantsKids = wantsKids
             s.birthCountry = birthCountry
+            s.ethnicities = ethnicities; s.languages = languages
+            s.career = career; s.education = education
+            s.heightFt = heightFt; s.heightIn = heightIn; s.heightCm = heightCm; s.heightUnit = heightUnit
+            s.drinks = drinks; s.smoking = smoking; s.workout = workout
+            s.sleepSchedule = sleepSchedule; s.pets = pets
             s.cannabis = cannabis; s.isCannabisFlexible = isCannabisFlexible
             s.petTypes = petTypes; s.petsName = petsName
             s.isDrinksFlexible = isDrinksFlexible; s.isSmokingFlexible = isSmokingFlexible
@@ -291,8 +333,12 @@ final class UserProfileStore {
             s.interests = interests
             s.preferredDateActivities = preferredDateActivities
             s.wouldNotDoActivities = wouldNotDoActivities
+            s.relationshipGoals = relationshipGoals
+            s.meetPreference = meetPreference
+            s.minAge = minAge; s.maxAge = maxAge; s.distance = distance
             s.socialMediaLinks = socialMediaLinks; s.spotifyPlaylistURL = spotifyPlaylistURL
             s.photoURLs = photoURLs
+            s.showSex = showSex
             s.showLocation = showLocation; s.showPersonalityTrait = showPersonalityTrait
             s.showInterests = showInterests; s.showLifestyle = showLifestyle
             s.showCareer = showCareer; s.showPets = showPets
@@ -340,4 +386,6 @@ extension UserProfileStore {
     static let hasKidsOptions = ["Yes", "No"]
     static let wantsKidsOptions = ["Yes", "No", "Not for a while", "Maybe"]
     static let cannabisOptions = ["Never", "Sometimes", "Often"]
+    static let relationshipGoalOptions = ["Short Term", "Long Term", "Marriage", "Still figuring out"]
+    static let meetPreferenceOptions = ["Men", "Women", "Open to both"]
 }

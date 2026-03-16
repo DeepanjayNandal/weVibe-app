@@ -141,20 +141,58 @@ struct PhotosEditSheet: View {
 struct AboutEditSheet: View {
     @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var firstName = ""
+    @State private var lastName  = ""
     @State private var bio = ""
+    @State private var instagram = ""
+    @State private var tiktok = ""
+    @State private var spotify = ""
+    @State private var showValidation = false
 
     var body: some View {
         editNav(title: "About Me", onSave: save) {
-            editField("Bio", "Tell people about yourself...", text: $bio, multiline: true)
+            sectionLabel("Name")
+            requiredLabel("First Name")
+            editField("", "First name", text: $firstName)
+            if showValidation && firstName.trimmingCharacters(in: .whitespaces).isEmpty {
+                validationError("First name is required")
+            }
+            requiredLabel("Last Name")
+            editField("", "Last name", text: $lastName)
+            if showValidation && lastName.trimmingCharacters(in: .whitespaces).isEmpty {
+                validationError("Last name is required")
+            }
+            sectionLabel("Bio")
+            editField("", "Tell people about yourself...", text: $bio, multiline: true)
+            sectionLabel("Social")
+            handleField("Instagram", text: $instagram, maxLength: 30)
+            handleField("TikTok",    text: $tiktok,    maxLength: 24)
+            editField("Spotify / Apple Music Playlist", "https://open.spotify.com/playlist/...", text: $spotify, keyboardType: .URL)
         }
-        .onAppear { bio = store.bio }
+        .onAppear {
+            firstName = store.firstName
+            lastName  = store.lastName
+            bio       = store.bio
+            instagram = store.instagramHandle
+            tiktok    = store.tiktokHandle
+            spotify   = store.spotifyPlaylistURL
+        }
     }
 
     private func save() {
-        store.bio = bio
+        let fn = firstName.trimmingCharacters(in: .whitespaces)
+        let ln = lastName.trimmingCharacters(in: .whitespaces)
+        guard !fn.isEmpty && !ln.isEmpty else { showValidation = true; return }
+        store.firstName          = fn
+        store.lastName           = ln
+        store.bio                = bio
+        store.instagramHandle    = instagram
+        store.tiktokHandle       = tiktok
+        store.spotifyPlaylistURL = spotify
         Task { await store.patchProfile() }; dismiss()
     }
 }
+
 
 // MARK: - Identity Edit Sheet
 
@@ -166,24 +204,29 @@ struct IdentityEditSheet: View {
     @State private var identity = ""
     @State private var showIdentity = true
     @State private var pronouns = ""
+    @State private var showSex = true
 
     var body: some View {
         editNav(title: "Identity", onSave: save) {
-            pickerRow("Orientation", selection: $orientation, options: UserProfileStore.orientationOptions)
+            sectionLabel("Gender")
+            toggleRow("Show gender on my profile", isOn: $showSex)
+            editField("Pronouns", "e.g. she/her, he/him, they/them", text: $pronouns)
+            pickerRow("Sexual Orientation", selection: $orientation, options: UserProfileStore.orientationOptions)
             toggleRow("Show orientation on my profile", isOn: $showOrientation)
             pickerRow("Gender Identity", selection: $identity, options: UserProfileStore.identityOptions)
             toggleRow("Show identity on my profile", isOn: $showIdentity)
-            editField("Pronouns", "e.g. she/her, he/him, they/them", text: $pronouns)
         }
         .onAppear {
             orientation = store.orientation; showOrientation = store.showOrientation
-            identity = store.identity; showIdentity = store.showIdentity; pronouns = store.pronouns
+            identity = store.identity; showIdentity = store.showIdentity
+            pronouns = store.pronouns; showSex = store.showSex
         }
     }
 
     private func save() {
         store.orientation = orientation; store.showOrientation = showOrientation
-        store.identity = identity; store.showIdentity = showIdentity; store.pronouns = pronouns
+        store.identity = identity; store.showIdentity = showIdentity
+        store.pronouns = pronouns; store.showSex = showSex
         Task { await store.patchProfile() }; dismiss()
     }
 }
@@ -365,7 +408,6 @@ struct DateActivitiesEditSheet: View {
 
 struct LifestyleEditSheet: View {
     @Environment(UserProfileStore.self) private var store
-    @Environment(OnboardingData.self) private var onboarding
     @Environment(\.dismiss) private var dismiss
 
     @State private var drinks = ""
@@ -396,22 +438,25 @@ struct LifestyleEditSheet: View {
             toggleRow("Flexible on workout", isOn: $isWorkoutFlexible)
             pickerRow("Sleep Schedule", selection: $sleepSchedule, options: ["Night Owl", "Early Bird", "Flexible"])
             toggleRow("Flexible on sleep schedule", isOn: $isSleepFlexible)
-            pickerRow("Cannabis", selection: $cannabis, options: UserProfileStore.cannabisOptions)
-            toggleRow("Flexible on cannabis", isOn: $isCannabisFlexible)
             pickerRow("Pets", selection: $pets, options: ["Don't want", "Unsure", "Want", "Have"])
+
             sectionLabel("More about pets")
             editField("What type of pets?", "e.g. Dog, Cat, Fish", text: $petTypes)
             editField("Pet's name", "e.g. Max, Luna", text: $petsName)
+
+            sectionLabel("Cannabis")
+            pickerRow("", selection: $cannabis, options: UserProfileStore.cannabisOptions)
+            toggleRow("Flexible on cannabis", isOn: $isCannabisFlexible)
+
             sectionLabel("Kids")
             pickerRow("Do you have kids?", selection: $hasKids, options: UserProfileStore.hasKidsOptions)
             pickerRow("Do you want kids?", selection: $wantsKids, options: UserProfileStore.wantsKidsOptions)
             toggleRow("Flexible on kids", isOn: $isKidsFlexible)
         }
         .onAppear {
-            drinks = onboarding.drinks; smoking = onboarding.smoking
-            workout = onboarding.workout; sleepSchedule = onboarding.sleepSchedule
-            pets = onboarding.pets
-            cannabis = store.cannabis
+            drinks = store.drinks; smoking = store.smoking
+            workout = store.workout; sleepSchedule = store.sleepSchedule
+            pets = store.pets; cannabis = store.cannabis
             hasKids = store.hasKids; wantsKids = store.wantsKids
             petTypes = store.petTypes; petsName = store.petsName
             isDrinksFlexible = store.isDrinksFlexible; isSmokingFlexible = store.isSmokingFlexible
@@ -421,9 +466,8 @@ struct LifestyleEditSheet: View {
     }
 
     private func save() {
-        onboarding.drinks = drinks; onboarding.smoking = smoking
-        onboarding.workout = workout; onboarding.sleepSchedule = sleepSchedule
-        onboarding.pets = pets; onboarding.save()
+        store.drinks = drinks; store.smoking = smoking
+        store.workout = workout; store.sleepSchedule = sleepSchedule; store.pets = pets
         store.cannabis = cannabis
         store.hasKids = hasKids; store.wantsKids = wantsKids
         store.petTypes = petTypes; store.petsName = petsName
@@ -438,7 +482,6 @@ struct LifestyleEditSheet: View {
 
 struct BackgroundEditSheet: View {
     @Environment(UserProfileStore.self) private var store
-    @Environment(OnboardingData.self) private var onboarding
     @Environment(\.dismiss) private var dismiss
 
     @State private var ethnicities: Set<String> = []
@@ -472,6 +515,7 @@ struct BackgroundEditSheet: View {
                     }
                 }
             }
+
             sectionLabel("Languages")
             FlowLayout(spacing: 8) {
                 ForEach(Self.languageOptions, id: \.self) { item in
@@ -481,11 +525,12 @@ struct BackgroundEditSheet: View {
                     }
                 }
             }
+
             pickerRow("Where were you born?", selection: $birthCountry, options: Self.countries)
         }
         .onAppear {
-            ethnicities = onboarding.ethnicities
-            languages = onboarding.languages
+            ethnicities = Set(store.ethnicities)
+            languages = Set(store.languages)
             birthCountry = store.birthCountry
         }
     }
@@ -504,9 +549,8 @@ struct BackgroundEditSheet: View {
     }
 
     private func save() {
-        onboarding.ethnicities = ethnicities
-        onboarding.languages = languages
-        onboarding.save()
+        store.ethnicities = ethnicities.sorted()
+        store.languages = languages.sorted()
         store.birthCountry = birthCountry
         Task { await store.patchProfile() }; dismiss()
     }
@@ -516,18 +560,14 @@ struct BackgroundEditSheet: View {
 
 struct CareerEditSheet: View {
     @Environment(UserProfileStore.self) private var store
-    @Environment(OnboardingData.self) private var onboarding
     @Environment(\.dismiss) private var dismiss
 
-    // From OnboardingData (mandatory)
     @State private var career = ""
     @State private var education = ""
     @State private var heightFt = ""
     @State private var heightIn = ""
     @State private var heightCm = ""
     @State private var heightUnit = "FT"
-
-    // From store
     @State private var jobTitle = ""
     @State private var school = ""
 
@@ -553,9 +593,9 @@ struct CareerEditSheet: View {
             heightPicker
         }
         .onAppear {
-            career = onboarding.career; education = onboarding.education
-            heightFt = onboarding.heightFt; heightIn = onboarding.heightIn
-            heightCm = onboarding.heightCm; heightUnit = onboarding.heightUnit
+            career = store.career; education = store.education
+            heightFt = store.heightFt; heightIn = store.heightIn
+            heightCm = store.heightCm; heightUnit = store.heightUnit
             jobTitle = store.jobTitle; school = store.school
         }
     }
@@ -639,10 +679,9 @@ struct CareerEditSheet: View {
     private func save() {
         showValidation = true
         guard isMandatoryFilled else { return }
-        onboarding.career = career; onboarding.education = education
-        onboarding.heightFt = heightFt; onboarding.heightIn = heightIn
-        onboarding.heightCm = heightCm; onboarding.heightUnit = heightUnit
-        onboarding.save()
+        store.career = career; store.education = education
+        store.heightFt = heightFt; store.heightIn = heightIn
+        store.heightCm = heightCm; store.heightUnit = heightUnit
         store.jobTitle = jobTitle; store.school = school
         Task { await store.patchProfile() }; dismiss()
     }
@@ -730,34 +769,93 @@ struct PromptsEditSheet: View {
     }
 }
 
-// MARK: - Social Edit Sheet
+// MARK: - Preferences Edit Sheet (Looking For + Discovery Settings combined)
 
-struct SocialEditSheet: View {
+struct PreferencesEditSheet: View {
     @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var instagram = ""
-    @State private var tiktok = ""
-    @State private var spotify = ""
+
+    @State private var goals: Set<String> = []
+    @State private var meetPref  = ""
+    @State private var minAge: Double = 18
+    @State private var maxAge: Double = 50
+    @State private var distance: Double = 25
+    @State private var showValidation = false
 
     var body: some View {
-        editNav(title: "Social Media", onSave: save) {
-            sectionLabel("Handles")
-            handleField("Instagram", text: $instagram, maxLength: 30)
-            handleField("TikTok",    text: $tiktok,    maxLength: 24)
-            sectionLabel("Music")
-            editField("Spotify / Apple Music Playlist", "Paste playlist URL", text: $spotify)
+        editNav(title: "Preferences", onSave: save) {
+            // I'm looking for
+            requiredLabel("I'm looking for")
+            FlowLayout(spacing: 8) {
+                ForEach(UserProfileStore.relationshipGoalOptions, id: \.self) { opt in
+                    let on = goals.contains(opt)
+                    let atMax = goals.count >= 2 && !on
+                    Button {
+                        if on { goals.remove(opt) } else if !atMax { goals.insert(opt) }
+                    } label: {
+                        Text(opt)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(on ? AppTheme.iconColor : atMax ? .white.opacity(0.2) : .white.opacity(0.7))
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(on ? AppTheme.iconColor.opacity(0.15) : Color.white.opacity(0.07))
+                            .overlay(RoundedRectangle(cornerRadius: 20)
+                                .stroke(on ? AppTheme.iconColor.opacity(0.5) : Color.white.opacity(0.15), lineWidth: 1))
+                            .clipShape(Capsule())
+                    }
+                    .disabled(atMax)
+                }
+            }
+            if showValidation && goals.isEmpty {
+                validationError("Please select at least one")
+            }
+
+            // Open to meeting
+            requiredLabel("Open to meeting")
+            pickerRow("", selection: $meetPref, options: UserProfileStore.meetPreferenceOptions)
+            if showValidation && meetPref.isEmpty {
+                validationError("Please select who you'd like to meet")
+            }
+
+            // Age Range
+            requiredLabel("Age Preference", required: true)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Spacer()
+                    Text("\(Int(minAge)) – \(Int(maxAge))")
+                        .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                }
+                DualSlider(minValue: $minAge, maxValue: $maxAge, bounds: 18...80)
+            }
+            .padding(14).background(Color.white.opacity(0.07)).cornerRadius(12)
+
+            // Distance
+            requiredLabel("Distance Preference", required: true)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Spacer()
+                    Text("Within \(Int(distance)) mi")
+                        .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                }
+                Slider(value: $distance, in: 1...100, step: 1).tint(AppTheme.primaryButton)
+            }
+            .padding(14).background(Color.white.opacity(0.07)).cornerRadius(12)
         }
         .onAppear {
-            instagram = store.instagramHandle
-            tiktok    = store.tiktokHandle
-            spotify   = store.spotifyPlaylistURL
+            goals    = Set(store.relationshipGoals)
+            meetPref = store.meetPreference
+            minAge   = store.minAge
+            maxAge   = store.maxAge
+            distance = store.distance
         }
     }
 
     private func save() {
-        store.instagramHandle    = instagram
-        store.tiktokHandle       = tiktok
-        store.spotifyPlaylistURL = spotify
+        guard !goals.isEmpty && !meetPref.isEmpty else { showValidation = true; return }
+        store.relationshipGoals = goals.sorted()
+        store.meetPreference    = meetPref
+        store.minAge            = minAge
+        store.maxAge            = maxAge
+        store.distance          = distance
         Task { await store.patchProfile() }; dismiss()
     }
 }

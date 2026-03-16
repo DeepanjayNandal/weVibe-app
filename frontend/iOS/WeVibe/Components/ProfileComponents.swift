@@ -101,22 +101,37 @@ struct SocialBadge: View {
     enum Platform {
         case instagram(String)
         case tiktok(String)
+        case spotify(String)   // full URL
 
-        var handle: String {
-            switch self { case .instagram(let h), .tiktok(let h): return h }
+        var displayHandle: String {
+            switch self {
+            case .instagram(let h): return "@\(h)"
+            case .tiktok(let h):    return "@\(h)"
+            case .spotify:          return "My Playlist"
+            }
         }
-        var displayHandle: String { "@\(handle)" }
 
         var appURL: URL? {
             switch self {
             case .instagram(let h): return URL(string: "instagram://user?username=\(h)")
             case .tiktok(let h):    return URL(string: "tiktok://user?name=\(h)")
+            case .spotify(let url):
+                // Convert https://open.spotify.com/playlist/ID → spotify:playlist:ID
+                if let u = URL(string: url),
+                   let host = u.host, host.contains("spotify"),
+                   u.pathComponents.count >= 3 {
+                    let type = u.pathComponents[1]
+                    let id   = u.pathComponents[2].components(separatedBy: "?").first ?? u.pathComponents[2]
+                    return URL(string: "spotify:\(type):\(id)")
+                }
+                return nil
             }
         }
         var webURL: URL {
             switch self {
             case .instagram(let h): return URL(string: "https://www.instagram.com/\(h)")!
             case .tiktok(let h):    return URL(string: "https://www.tiktok.com/@\(h)")!
+            case .spotify(let url): return URL(string: url) ?? URL(string: "https://open.spotify.com")!
             }
         }
     }
@@ -124,11 +139,12 @@ struct SocialBadge: View {
     let platform: Platform
 
     @AppStorage("profileCardLightTheme") private var isLightTheme: Bool = false
-    private var labelColor: Color  { isLightTheme ? Color(hex: "#1C1C1E") : .white }
-    private var arrowColor: Color  { isLightTheme ? Color(hex: "#6C6C70") : .white.opacity(0.45) }
+    private var labelColor: Color   { isLightTheme ? Color(hex: "#1C1C1E") : .white }
+    private var arrowColor: Color   { isLightTheme ? Color(hex: "#6C6C70") : .white.opacity(0.45) }
     private var tiktokCenter: Color { isLightTheme ? Color(hex: "#1C1C1E") : .white }
-    private var tiktokBg: Color    { isLightTheme ? Color(hex: "#E5E5EA") : .white.opacity(0.08) }
+    private var tiktokBg: Color     { isLightTheme ? Color(hex: "#E5E5EA") : .white.opacity(0.08) }
     private var igBgOpacity: Double { isLightTheme ? 0.18 : 0.25 }
+    private static let spotifyGreen = Color(hex: "#1DB954")
 
     var body: some View {
         Button {
@@ -180,6 +196,10 @@ struct SocialBadge: View {
                     .foregroundStyle(tiktokCenter)
             }
             .frame(width: 16)
+        case .spotify:
+            Image(systemName: "music.note.list")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Self.spotifyGreen)
         }
     }
 
@@ -197,6 +217,8 @@ struct SocialBadge: View {
             )
         case .tiktok:
             tiktokBg
+        case .spotify:
+            Self.spotifyGreen.opacity(isLightTheme ? 0.12 : 0.15)
         }
     }
 }

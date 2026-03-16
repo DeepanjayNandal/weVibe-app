@@ -43,6 +43,13 @@ struct ProfileDisplayData {
     var prompts: [(question: String, answer: String)]
     var socialLinks: [String]
     var spotifyURL: String
+    var sex: String
+    var showSex: Bool
+    var relationshipGoals: [String]
+    var meetPreference: String
+    var minAge: Int
+    var maxAge: Int
+    var distance: Double
 
     // Visibility flags (own profile = user's own settings; match = what they've shared)
     var showLocation: Bool
@@ -97,6 +104,13 @@ extension ProfileDisplayData {
         prompts              = match.prompts.map { ($0.question, $0.answer) }
         socialLinks          = match.socialMediaLinks
         spotifyURL           = ""
+        sex                  = ""
+        showSex              = true
+        relationshipGoals    = []
+        meetPreference       = ""
+        minAge               = 18
+        maxAge               = 50
+        distance             = 25
         showLocation         = match.showLocation
         showOrientation      = match.showOrientation
         showPersonalityTrait = match.showPersonalityTrait
@@ -112,7 +126,7 @@ extension ProfileDisplayData {
 enum ProfileCardSection: String, CaseIterable, Identifiable {
     case photos
     case about, identity, personality, interests
-    case dateActivities, lifestyle, background, career, prompts, social
+    case dateActivities, lifestyle, background, career, prompts, preferences
     var id: Self { self }
 }
 

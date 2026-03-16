@@ -28,7 +28,7 @@ func editNav<Content: View>(
 // MARK: - Form field helpers
 
 @ViewBuilder
-func editField(_ title: String, _ placeholder: String, text: Binding<String>, multiline: Bool = false) -> some View {
+func editField(_ title: String, _ placeholder: String, text: Binding<String>, multiline: Bool = false, keyboardType: UIKeyboardType = .default) -> some View {
     VStack(alignment: .leading, spacing: 8) {
         Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
         if multiline {
@@ -45,6 +45,9 @@ func editField(_ title: String, _ placeholder: String, text: Binding<String>, mu
         } else {
             TextField(placeholder, text: text)
                 .font(.system(size: 15)).foregroundStyle(.white).tint(AppTheme.iconColor)
+                .keyboardType(keyboardType)
+                .autocorrectionDisabled(keyboardType == .URL)
+                .textInputAutocapitalization(keyboardType == .URL ? .never : .sentences)
                 .padding(14).background(Color.white.opacity(0.07)).cornerRadius(12)
         }
     }
@@ -92,6 +95,29 @@ func infoNote(_ text: String) -> some View {
     Text(text).font(.system(size: 13)).foregroundStyle(.white.opacity(0.7))
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.04)).cornerRadius(10)
+}
+
+/// Section label with optional required asterisk
+@ViewBuilder
+func requiredLabel(_ title: String, required: Bool = true) -> some View {
+    HStack(spacing: 2) {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.6)).tracking(0.8)
+        if required {
+            Text("*").font(.system(size: 11, weight: .bold)).foregroundStyle(.red)
+        }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+}
+
+/// Inline validation error shown below a field
+@ViewBuilder
+func validationError(_ message: String) -> some View {
+    HStack(spacing: 4) {
+        Image(systemName: "exclamationmark.circle.fill").font(.system(size: 12))
+        Text(message).font(.system(size: 12))
+    }
+    .foregroundStyle(.red)
 }
 
 // MARK: - Handle field (Instagram / TikTok)

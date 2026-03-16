@@ -15,19 +15,29 @@ struct ProfileView: View {
     // MARK: - Build display data from environments
 
     private var displayData: ProfileDisplayData {
-        let name = Auth.auth().currentUser?.displayName ?? "Your Name"
+        let name: String = {
+            let stored = [store.firstName, store.lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            return stored.isEmpty ? (Auth.auth().currentUser?.displayName ?? "Your Name") : stored
+        }()
         let age: Int = {
             guard let d = Int(onboarding.dobDay),
-                  let m = Int(onboarding.dobMonth),
                   let y = Int(onboarding.dobYear) else { return 0 }
+            let monthInt: Int? = Int(onboarding.dobMonth) ?? {
+                let fmt = DateFormatter()
+                fmt.dateFormat = "MMM"
+                return fmt.date(from: onboarding.dobMonth).map {
+                    Calendar.current.component(.month, from: $0)
+                }
+            }()
+            guard let m = monthInt else { return 0 }
             let dob = Calendar.current.date(from: DateComponents(year: y, month: m, day: d)) ?? Date()
             return Calendar.current.dateComponents([.year], from: dob, to: .now).year ?? 0
         }()
         let height: String = {
-            if onboarding.heightUnit == "FT", !onboarding.heightFt.isEmpty {
-                return "\(onboarding.heightFt)'\(onboarding.heightIn.isEmpty ? "0" : onboarding.heightIn)\""
-            } else if !onboarding.heightCm.isEmpty {
-                return "\(onboarding.heightCm) cm"
+            if store.heightUnit == "FT", !store.heightFt.isEmpty {
+                return "\(store.heightFt)'\(store.heightIn.isEmpty ? "0" : store.heightIn)\""
+            } else if !store.heightCm.isEmpty {
+                return "\(store.heightCm) cm"
             }
             return ""
         }()
@@ -60,31 +70,38 @@ struct ProfileView: View {
             interests:               store.interests,
             preferredDateActivities: store.preferredDateActivities,
             wouldNotDoActivities:    store.wouldNotDoActivities,
-            drinks:                  onboarding.drinks,
+            drinks:                  store.drinks,
             isDrinksFlexible:        store.isDrinksFlexible,
-            smoking:                 onboarding.smoking,
+            smoking:                 store.smoking,
             isSmokingFlexible:       store.isSmokingFlexible,
             cannabis:                store.cannabis,
             isCannabisFlexible:      store.isCannabisFlexible,
-            workout:                 onboarding.workout,
+            workout:                 store.workout,
             isWorkoutFlexible:       store.isWorkoutFlexible,
-            sleepSchedule:           onboarding.sleepSchedule,
+            sleepSchedule:           store.sleepSchedule,
             isSleepFlexible:         store.isSleepFlexible,
-            pets:                    onboarding.pets,
+            pets:                    store.pets,
             petTypes:                store.petTypes,
             petsName:                store.petsName,
             hasKids:                 store.hasKids,
             wantsKids:               store.wantsKids,
-            ethnicities:             Array(onboarding.ethnicities).sorted(),
-            languages:               Array(onboarding.languages).sorted(),
-            career:                  onboarding.career,
+            ethnicities:             store.ethnicities,
+            languages:               store.languages,
+            career:                  store.career,
             school:                  store.school,
-            education:               onboarding.education,
+            education:               store.education,
             heightDisplay:           height,
             photoURLs:               store.photoURLs,
             prompts:                 prompts,
             socialLinks:             store.socialMediaLinks,
             spotifyURL:              store.spotifyPlaylistURL,
+            sex:                     onboarding.sex,
+            showSex:                 store.showSex,
+            relationshipGoals:       store.relationshipGoals.sorted(),
+            meetPreference:          store.meetPreference,
+            minAge:                  Int(store.minAge),
+            maxAge:                  Int(store.maxAge),
+            distance:                store.distance,
             showLocation:            store.showLocation,
             showOrientation:         store.showOrientation,
             showPersonalityTrait:    store.showPersonalityTrait,
@@ -138,7 +155,7 @@ struct ProfileView: View {
         case .background:     BackgroundEditSheet()
         case .career:         CareerEditSheet()
         case .prompts:        PromptsEditSheet()
-        case .social:         SocialEditSheet()
+        case .preferences:    PreferencesEditSheet()
         }
     }
 }

@@ -191,14 +191,9 @@ struct ProfileCardView: View {
     private var nameHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(data.displayName)
+                Text(data.age > 0 ? "\(data.displayName), \(data.age)" : data.displayName)
                     .font(.system(size: 27, weight: .bold))
                     .foregroundStyle(t.primary)
-                if data.age > 0 {
-                    Text("\(data.age)")
-                        .font(.system(size: 27, weight: .bold))
-                        .foregroundStyle(t.primary)
-                }
                 Spacer()
                 headerButton
             }
@@ -215,13 +210,17 @@ struct ProfileCardView: View {
                     .background(t.accent.opacity(0.12))
                     .clipShape(Capsule())
             }
-            if !data.instagramHandle.isEmpty || !data.tiktokHandle.isEmpty {
-                HStack(spacing: 12) {
+            let hasSocial = !data.instagramHandle.isEmpty || !data.tiktokHandle.isEmpty || !data.spotifyURL.isEmpty
+            if hasSocial {
+                FlowLayout(spacing: 8) {
                     if !data.instagramHandle.isEmpty {
                         SocialBadge(platform: .instagram(data.instagramHandle))
                     }
                     if !data.tiktokHandle.isEmpty {
                         SocialBadge(platform: .tiktok(data.tiktokHandle))
+                    }
+                    if !data.spotifyURL.isEmpty {
+                        SocialBadge(platform: .spotify(data.spotifyURL))
                     }
                 }
                 .padding(.top, 4)
@@ -235,34 +234,38 @@ struct ProfileCardView: View {
 
     private var sectionsBody: some View {
         VStack(spacing: 12) {
-            section(id: .about, title: "About Me", isVisible: true) {
-                if data.bio.isEmpty && isOwnProfile {
-                    emptyHint("Add a bio to tell people about yourself")
-                } else {
-                    Text(data.bio.isEmpty ? "No bio added yet." : data.bio)
-                        .font(.system(size: 15))
-                        .foregroundStyle(data.bio.isEmpty ? t.tertiary : t.primary)
-                        .lineSpacing(4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-
-            if !data.locationDisplay.isEmpty {
-                section(id: nil, title: "Location", isVisible: data.showLocation) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "location.fill")
-                            .font(.system(size: 13)).foregroundStyle(AppTheme.primaryButton)
-                        Text(data.locationDisplay)
-                            .font(.system(size: 15)).foregroundStyle(t.primary)
-                        if !data.birthCountry.isEmpty {
-                            Text("· Born in \(data.birthCountry)")
-                                .font(.system(size: 14)).foregroundStyle(t.secondary)
+            let aboutHasContent = (data.showSex && !data.sex.isEmpty)
+                || (data.showLocation && !data.locationDisplay.isEmpty)
+                || !data.bio.isEmpty
+            section(id: .about, title: "About Me", isVisible: true, hasContent: aboutHasContent) {
+                VStack(alignment: .leading, spacing: 12) {
+                    let hasGender = data.showSex && !data.sex.isEmpty
+                    let hasLocation = data.showLocation && !data.locationDisplay.isEmpty
+                    if hasGender || hasLocation {
+                        rowGrid {
+                            if hasGender {
+                                infoRow("person.fill", "Gender", data.sex)
+                            }
+                            if hasLocation {
+                                infoRow("location.fill", "Location", data.locationDisplay)
+                            }
                         }
+                        if !data.bio.isEmpty { Divider().overlay(t.separator) }
+                    }
+                    if data.bio.isEmpty && isOwnProfile {
+                        emptyHint("Add a bio to tell people about yourself")
+                    } else if !data.bio.isEmpty {
+                        Text(data.bio)
+                            .font(.system(size: 15))
+                            .foregroundStyle(t.primary)
+                            .lineSpacing(4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
 
-            section(id: .identity, title: "Identity", isVisible: data.showOrientation) {
+            let identityHasContent = (!data.orientation.isEmpty && data.showOrientation) || !data.identity.isEmpty
+            section(id: .identity, title: "Identity", isVisible: data.showOrientation, hasContent: identityHasContent) {
                 if data.orientation.isEmpty && data.identity.isEmpty && isOwnProfile {
                     emptyHint("Add your orientation and identity")
                 } else {
@@ -277,7 +280,9 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .personality, title: "Personality", isVisible: data.showPersonalityTrait) {
+            let personalityHasContent = !data.personalityType.isEmpty || !data.loveLanguage.isEmpty
+                || !data.zodiacSign.isEmpty || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
+            section(id: .personality, title: "Personality", isVisible: data.showPersonalityTrait, hasContent: personalityHasContent) {
                 if data.personalityType.isEmpty && data.loveLanguage.isEmpty && data.zodiacSign.isEmpty
                     && data.communicationStyle.isEmpty && data.conflictStyle.isEmpty && isOwnProfile {
                     emptyHint("Add your personality details")
@@ -296,7 +301,7 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .interests, title: "Interests & Hobbies", isVisible: data.showInterests) {
+            section(id: .interests, title: "Interests & Hobbies", isVisible: data.showInterests, hasContent: !data.interests.isEmpty) {
                 if data.interests.isEmpty && isOwnProfile {
                     emptyHint("Add your interests and hobbies")
                 } else if !data.interests.isEmpty {
@@ -308,7 +313,8 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .dateActivities, title: "Date Activities", isVisible: true) {
+            let dateHasContent = !data.preferredDateActivities.isEmpty || !data.wouldNotDoActivities.isEmpty
+            section(id: .dateActivities, title: "Date Activities", isVisible: true, hasContent: dateHasContent) {
                 VStack(alignment: .leading, spacing: 10) {
                     if !data.preferredDateActivities.isEmpty {
                         activityGroup(title: "Would love to:", items: data.preferredDateActivities,
@@ -324,9 +330,10 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .lifestyle, title: "Lifestyle", isVisible: data.showLifestyle) {
-                let anyFilled = !data.drinks.isEmpty || !data.smoking.isEmpty || !data.cannabis.isEmpty
-                    || !data.workout.isEmpty || !data.sleepSchedule.isEmpty || !data.pets.isEmpty || !data.wantsKids.isEmpty
+            let lifestyleHasContent = !data.drinks.isEmpty || !data.smoking.isEmpty || !data.cannabis.isEmpty
+                || !data.workout.isEmpty || !data.sleepSchedule.isEmpty || !data.pets.isEmpty || !data.wantsKids.isEmpty
+            section(id: .lifestyle, title: "Lifestyle", isVisible: data.showLifestyle, hasContent: lifestyleHasContent) {
+                let anyFilled = lifestyleHasContent
                 if !anyFilled && isOwnProfile {
                     emptyHint("Add your lifestyle details")
                 } else {
@@ -345,7 +352,8 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .background, title: "Background", isVisible: true) {
+            let bgHasContent = !data.ethnicities.isEmpty || !data.birthCountry.isEmpty || !data.languages.isEmpty
+            section(id: .background, title: "Background", isVisible: true, hasContent: bgHasContent) {
                 if data.ethnicities.isEmpty && data.birthCountry.isEmpty && data.languages.isEmpty && isOwnProfile {
                     emptyHint("Add your background details")
                 } else {
@@ -359,25 +367,24 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .career, title: "Career & Education", isVisible: data.showCareer) {
-                let rows: [(String, String, String)] = [
-                    ("briefcase.fill",        "Career",    data.career),
-                    ("tag.fill",              "Job title", data.jobTitle),
-                    ("building.columns.fill", "School",    data.school),
-                    ("graduationcap.fill",    "Education", data.education),
-                    ("ruler.fill",            "Height",    data.heightDisplay),
-                ].filter { !$2.isEmpty }
-
-                if rows.isEmpty && isOwnProfile {
+            let careerRows: [(String, String, String)] = [
+                ("briefcase.fill",        "Career",    data.career),
+                ("tag.fill",              "Job title", data.jobTitle),
+                ("building.columns.fill", "School",    data.school),
+                ("graduationcap.fill",    "Education", data.education),
+                ("ruler.fill",            "Height",    data.heightDisplay),
+            ].filter { !$2.isEmpty }
+            section(id: .career, title: "Career & Education", isVisible: data.showCareer, hasContent: !careerRows.isEmpty) {
+                if careerRows.isEmpty && isOwnProfile {
                     emptyHint("Add your career and education")
                 } else {
                     rowGrid {
-                        ForEach(rows, id: \.1) { icon, label, value in infoRow(icon, label, value) }
+                        ForEach(careerRows, id: \.1) { icon, label, value in infoRow(icon, label, value) }
                     }
                 }
             }
 
-            section(id: .prompts, title: "Prompts", isVisible: true) {
+            section(id: .prompts, title: "Prompts", isVisible: true, hasContent: !data.prompts.isEmpty) {
                 if data.prompts.isEmpty && isOwnProfile {
                     emptyHint("Add prompts to show your personality")
                 } else if !data.prompts.isEmpty {
@@ -401,15 +408,38 @@ struct ProfileCardView: View {
                 }
             }
 
-            section(id: .social, title: "Social Media", isVisible: true) {
-                if !data.spotifyURL.isEmpty {
-                    rowGrid {
-                        infoRow("music.note", "Playlist", "Spotify / Apple Music")
+            if isOwnProfile { section(id: .preferences, title: "Preferences", isVisible: true) {
+                let hasContent = !data.relationshipGoals.isEmpty || !data.meetPreference.isEmpty || data.minAge > 0
+                if hasContent {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if !data.relationshipGoals.isEmpty {
+                            FlowLayout(spacing: 6) {
+                                ForEach(data.relationshipGoals, id: \.self) { goal in
+                                    Text(goal)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(t.accent)
+                                        .padding(.horizontal, 12).padding(.vertical, 6)
+                                        .background(t.accent.opacity(0.12))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+                        rowGrid {
+                            if !data.meetPreference.isEmpty {
+                                infoRow("figure.2.arms.open", "Open to", data.meetPreference)
+                            }
+                            if data.minAge > 0 {
+                                infoRow("calendar", "Age", "\(data.minAge) – \(data.maxAge)")
+                            }
+                            if data.distance > 0 && isOwnProfile {
+                                infoRow("location.circle", "Distance", "Within \(Int(data.distance)) mi")
+                            }
+                        }
                     }
                 } else if isOwnProfile {
-                    emptyHint("Add your Spotify or Apple Music playlist")
+                    emptyHint("Add your preferences")
                 }
-            }
+            } } // end if isOwnProfile + section
 
             footerActions
         }
@@ -440,8 +470,11 @@ struct ProfileCardView: View {
         id: ProfileCardSection?,
         title: String,
         isVisible: Bool,
+        hasContent: Bool = true,
         @ViewBuilder content: () -> Content
     ) -> some View {
+        // In matchProfile mode, skip rendering the card entirely if there's nothing to show
+        if isOwnProfile || hasContent {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(title.uppercased())
@@ -473,6 +506,7 @@ struct ProfileCardView: View {
         .background(t.sectionBg)
         .cornerRadius(16)
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(t.separator, lineWidth: 1))
+        } // end if isOwnProfile || hasContent
     }
 
     // MARK: - Row grid wrapper

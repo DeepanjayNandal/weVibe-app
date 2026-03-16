@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1C1E9F39616A67BD53125AE2 /* ProfileComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */; };
+		233EC3DE1C3D0CCC83EF18F2 /* OtherUserProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F6470CFCFB088B036213EDC /* OtherUserProfileView.swift */; };
+		26CADD8D269DBEA4FEED322A /* ProfileEditHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7CEC33B9EA10106862070FE /* ProfileEditHelpers.swift */; };
+		58749CD0FF32C7442D53C46D /* ProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD4CA119702C199A729F6C5 /* ProfileCard.swift */; };
 		6A2674668955B670DB832C2D /* LocationPermissionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */; };
 		A10001 /* WeVibeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001 /* WeVibeApp.swift */; };
 		A10002 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002 /* SplashScreen.swift */; };
@@ -51,10 +55,15 @@
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
 		BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9962F5134E5002190F2 /* RootView.swift */; };
 		BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9992F513510002190F2 /* ErrorToast.swift */; };
+		BC0EAC226082C5EBF535945C /* ProfileEditSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F92B7A3FD14EC5E8A83765 /* ProfileEditSheets.swift */; };
 		C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A84C032F57A7250060DFD1 /* AppConfig.swift */; };
+		E8B15669B6C798425208C3EE /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE30F494E5F588BCCED4BF27 /* ProfileView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0AD4CA119702C199A729F6C5 /* ProfileCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileCard.swift; sourceTree = "<group>"; };
+		7F6470CFCFB088B036213EDC /* OtherUserProfileView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OtherUserProfileView.swift; sourceTree = "<group>"; };
+		905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileComponents.swift; sourceTree = "<group>"; };
 		A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingMainScreen.swift; sourceTree = "<group>"; };
 		A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingRules.swift; sourceTree = "<group>"; };
 		A351B54C2F5A591C007C6412 /* PersonalityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityTest.swift; sourceTree = "<group>"; };
@@ -96,11 +105,24 @@
 		BBB2B9962F5134E5002190F2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BBB2B9992F513510002190F2 /* ErrorToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToast.swift; sourceTree = "<group>"; };
 		C10001 /* WeVibe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WeVibe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5F92B7A3FD14EC5E8A83765 /* ProfileEditSheets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileEditSheets.swift; sourceTree = "<group>"; };
 		C6A84C032F57A7250060DFD1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		C7CEC33B9EA10106862070FE /* ProfileEditHelpers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileEditHelpers.swift; sourceTree = "<group>"; };
+		DE30F494E5F588BCCED4BF27 /* ProfileView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A38BAAB62F45367000E908DB /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
+		A38BAAB62F45367000E908DB /* Services */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,6 +206,11 @@
 				A38BAAB22F45314900E908DB /* LoginScreen.swift */,
 				B10002 /* SplashScreen.swift */,
 				A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */,
+				DE30F494E5F588BCCED4BF27 /* ProfileView.swift */,
+				0AD4CA119702C199A729F6C5 /* ProfileCard.swift */,
+				7F6470CFCFB088B036213EDC /* OtherUserProfileView.swift */,
+				C7CEC33B9EA10106862070FE /* ProfileEditHelpers.swift */,
+				C5F92B7A3FD14EC5E8A83765 /* ProfileEditSheets.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -204,6 +231,7 @@
 				A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */,
 				A38BAABF2F45432500E908DB /* TextFieldView.swift */,
 				B10005 /* LogoView.swift */,
+				905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -393,6 +421,12 @@
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,
 				A38BAB292F47E13100E908DB /* GoalCheckbox.swift in Sources */,
 				6A2674668955B670DB832C2D /* LocationPermissionScreen.swift in Sources */,
+				E8B15669B6C798425208C3EE /* ProfileView.swift in Sources */,
+				58749CD0FF32C7442D53C46D /* ProfileCard.swift in Sources */,
+				233EC3DE1C3D0CCC83EF18F2 /* OtherUserProfileView.swift in Sources */,
+				26CADD8D269DBEA4FEED322A /* ProfileEditHelpers.swift in Sources */,
+				BC0EAC226082C5EBF535945C /* ProfileEditSheets.swift in Sources */,
+				1C1E9F39616A67BD53125AE2 /* ProfileComponents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

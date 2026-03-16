@@ -6,15 +6,19 @@ import { conflict } from '../utils/errors';
 export interface CreateProfileInput {
   userId: string;
 
-  // Basic info (first_name, last_name, ethnicity optional)
+  // Basic info
   firstName?: string | null;
   lastName?: string | null;
   birthDate: Date;
   gender: string;
   ethnicity?: string[] | null;
-  education?: string | null;
 
-  // Height (all optional — only required when height_unit is provided)
+  // Career & education — collected during onboarding Step 4
+  education?: string | null;
+  careerField?: string | null;
+  languages?: string[] | null;
+
+  // Height (all optional — conditional on height_unit)
   heightUnit?: string | null;
   heightFt?: number | null;
   heightIn?: number | null;
@@ -27,7 +31,7 @@ export interface CreateProfileInput {
   locationState: string;
   locationZip: string;
 
-  // Preferences
+  // Dating preferences
   meetPreference: string;
   relationshipGoals: string[];
   minAgePreference: number;
@@ -45,8 +49,8 @@ export interface CreateProfileInput {
   // Bio (optional)
   bio?: string | null;
 
-  // Prompts (optional)
-  prompts?: Array<{ question: string; answer: string; is_custom: boolean }> | null;
+  // Prompts (optional, max 4, shape: { question, answer })
+  prompts?: Array<{ question: string; answer: string }> | null;
 }
 
 // Re-export so controllers can import from one place
@@ -75,6 +79,8 @@ export class ProfileService {
       gender:                  input.gender,
       ethnicity:               input.ethnicity ?? null,
       education:               input.education ?? null,
+      careerField:             input.careerField ?? null,
+      languages:               input.languages ?? null,
       heightUnit:              input.heightUnit ?? null,
       heightFt:                input.heightFt,
       heightIn:                input.heightIn,

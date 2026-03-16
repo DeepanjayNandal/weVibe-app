@@ -27,7 +27,7 @@ Current implementation supports three providers: `google`, `apple`, `email`.
 | GET | `/api/v1/auth/me` | Bearer | Get current user |
 | POST | `/api/v1/users/profile` | Bearer | Submit full onboarding survey — creates profile |
 | GET | `/api/v1/users/profile` | Bearer | Get profile (401 PROFILE_NOT_FOUND if not created yet) |
-| PATCH | `/api/v1/users/profile` | Bearer | Partial profile update (Task 2 — not yet implemented) |
+| PATCH | `/api/v1/users/profile` | Bearer | Partial profile update — only fields sent are updated |
 | POST | `/api/v1/matching/queue/join` | Bearer | Join matchmaking queue |
 | POST | `/api/v1/matching/queue/leave` | Bearer | Leave matchmaking queue |
 | GET | `/api/v1/matching/queue/status` | Bearer | Check queue status |

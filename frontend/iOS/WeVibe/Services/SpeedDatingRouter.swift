@@ -5,7 +5,7 @@ enum SpeedDatingRoute: Hashable {
     case rules
     case tests
     case joinQueue
-//    case findingMatch
+    case findingMatch
 //    case matchResult
 }
 

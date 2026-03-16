@@ -54,13 +54,14 @@ private struct SpeedDatingTab: View {
                     switch(route) {
                     case .rules: SpeedDatingRules()
                     case .tests: PersonalityTestView()
-                    case .joinQueue: JoinQueueView(answers: [2, 2, 2, 3, 1, 3])
-//                    case .findingMatch
+                    case .joinQueue: JoinQueueView()
+                    case .findingMatch : FindingMatchView()
 //                    case .matchResult
                     }
                 }
         }
         .environment(speedDatingRouter)
+        .environment(PersonalityTestData())
     }
 }
 

@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Result Logic
 
 struct PersonalityResult {
     let primary: PersonalityMeta
@@ -10,36 +9,45 @@ struct PersonalityResult {
 }
 
 func calculatePersonalityResult(from answers: [Int]) -> PersonalityResult {
-    // Count how many times each answer index (0=A,1=B,2=C,3=D) was chosen
+    let fallback = StaticConfig.personalityMeta.values.first!
+ 
+    guard !answers.isEmpty else {
+        return PersonalityResult(primary: fallback, secondary: nil)
+    }
+ 
     var counts = [0, 0, 0, 0]
     for answer in answers {
-        if answer < 4 { counts[answer] += 1 }
+        if answer >= 0 && answer < 4 { counts[answer] += 1 }
     }
-
+ 
     let max1 = counts.max() ?? 0
-    // Find all types tied at the top
-    let topIndices = counts.enumerated().filter { $0.element == max1 }.map { $0.offset + 1 }
-
-    let primary   = StaticConfig.personalityMeta[topIndices[0]]!
-
+ 
+    let topIndices = counts.enumerated()
+        .filter { $0.element == max1 && $0.element > 0 }
+        .map { $0.offset + 1 }
+ 
+    guard let primary = StaticConfig.personalityMeta[topIndices[0]] else {
+        return PersonalityResult(primary: fallback, secondary: nil)
+    }
+ 
     if topIndices.count >= 2 {
-        // Hybrid — two types share the highest count
-        let secondary = StaticConfig.personalityMeta[topIndices[1]]!
-        return PersonalityResult(primary: primary, secondary: secondary)
+        if let secondary = StaticConfig.personalityMeta[topIndices[1]] {
+            return PersonalityResult(primary: primary, secondary: secondary)
+        }
     } else {
-        // Check if second-highest is close (within 1 answer) → still hybrid
-        var sortedCounts = counts.enumerated().sorted { $0.element > $1.element }
+        let sortedCounts = counts.enumerated().sorted { $0.element > $1.element }
         let max2 = sortedCounts[1].element
         if max1 - max2 <= 1 && max2 > 0 {
             let secondaryIndex = sortedCounts[1].offset + 1
-            let secondary = StaticConfig.personalityMeta[secondaryIndex]!
-            return PersonalityResult(primary: primary, secondary: secondary)
+            if let secondary = StaticConfig.personalityMeta[secondaryIndex] {
+                return PersonalityResult(primary: primary, secondary: secondary)
+            }
         }
-        return PersonalityResult(primary: primary, secondary: nil)
     }
+ 
+    return PersonalityResult(primary: primary, secondary: nil)
 }
 
-// MARK: - Info Tooltip
 
 private struct InfoTooltip: View {
     let text: String
@@ -47,16 +55,6 @@ private struct InfoTooltip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Spacer()
-                Button { isShowing = false } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            .padding(.bottom, 8)
-
             Text(text)
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.85))
@@ -110,19 +108,19 @@ private struct TypeLabelView: View {
             if showTooltip {
                 InfoTooltip(text: meta.description, isShowing: $showTooltip)
                     .offset(x: 20, y: 44)
-                    .zIndex(10)
+                    .zIndex(30)
             }
         }
     }
 }
 
-// MARK: - Confetti (reused from JoinQueueView)
+// MARK: - Confetti
 
 private struct ResultParticle: Identifiable {
     let id = UUID()
     let color: Color
     let size: CGFloat
-    let shape: Int   // 0=circle 1=square 2=line
+    let shape: Int
     var x: CGFloat
     var y: CGFloat
     var finalX: CGFloat
@@ -173,16 +171,16 @@ private struct ResultConfetti: View {
         let cy = size.height * 0.25
 
         let newP: [ResultParticle] = (0..<40).map { _ in
-            let angle  = Double.random(in: 0...(2 * .pi))
-            let speed  = CGFloat.random(in: 80...240)
+            let angle = Double.random(in: 0...(2 * .pi))
+            let speed = CGFloat.random(in: 80...240)
             return ResultParticle(
-                color:     colors.randomElement()!,
-                size:      CGFloat.random(in: 5...12),
-                shape:     Int.random(in: 0...2),
+                color:    colors.randomElement()!,
+                size:     CGFloat.random(in: 5...12),
+                shape:    Int.random(in: 0...2),
                 x: cx, y: cy,
-                finalX:    cx + cos(angle) * speed,
-                finalY:    cy + sin(angle) * speed * CGFloat.random(in: 0.5...1.2),
-                rotation:  Double.random(in: -360...360)
+                finalX:   cx + cos(angle) * speed,
+                finalY:   cy + sin(angle) * speed * CGFloat.random(in: 0.5...1.2),
+                rotation: Double.random(in: -360...360)
             )
         }
         particles = newP
@@ -202,13 +200,11 @@ private struct ResultConfetti: View {
 
 struct JoinQueueView: View {
 
-    let answers: [Int]
-//    var onJoinQueue: () -> Void
-//    var onRetakeTest: () -> Void
+    @Environment(PersonalityTestData.self) private var testData
+    @Environment(SpeedDatingRouter.self) private var speedDatingRouter
 
     @State private var showTraitOnProfile = true
 
-    // Entrance
     @State private var emojiScale: CGFloat   = 0.5
     @State private var emojiOpacity: Double  = 0
     @State private var titleOpacity: Double  = 0
@@ -217,11 +213,10 @@ struct JoinQueueView: View {
     @State private var buttonOpacity: Double = 0
     @State private var buttonOffset: CGFloat = 16
 
-    // Looping emoji bob
     @State private var emojiOffsetY: CGFloat = 0
 
     private var result: PersonalityResult {
-        calculatePersonalityResult(from: answers)
+        testData.result
     }
 
     var body: some View {
@@ -229,14 +224,13 @@ struct JoinQueueView: View {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
 
-            // Confetti on appear
             ResultConfetti()
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
-                    // ── Emoji / celebration icon
+                    
                     Text(result.isHybrid ? "🎭" : result.primary.emoji)
                         .font(.system(size: 80))
                         .scaleEffect(emojiScale)
@@ -245,10 +239,10 @@ struct JoinQueueView: View {
                         .padding(.top, 52)
                         .padding(.bottom, 28)
 
-                    // ── Result text
+                   
                     VStack(spacing: 12) {
                         if result.isHybrid, let secondary = result.secondary {
-                            // ── HYBRID
+                           
                             Text("you are a hybrid of")
                                 .font(.system(size: 17, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.55))
@@ -263,7 +257,7 @@ struct JoinQueueView: View {
                             TypeLabelView(meta: secondary)
 
                         } else {
-                            // ── SINGLE
+                           
                             Text("you are a")
                                 .font(.system(size: 17, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.55))
@@ -277,12 +271,17 @@ struct JoinQueueView: View {
                     .padding(.horizontal, 32)
                     .padding(.bottom, 36)
 
-                    // ── Show on profile toggle
+                    
                     HStack {
-                        Text("show my trait on my profile")
+                        Image(systemName: showTraitOnProfile ? "eye" : "eye.slash")
+                            .foregroundStyle(.gray)
+                            .padding(.trailing, 16)
+                        
+                        Text("Visible on my profile")
                             .font(.system(size: 15))
                             .foregroundStyle(.white.opacity(0.7))
                         Spacer()
+                        
                         Toggle("", isOn: $showTraitOnProfile)
                             .tint(AppTheme.primaryButton)
                             .labelsHidden()
@@ -301,23 +300,27 @@ struct JoinQueueView: View {
                     .opacity(toggleOpacity)
                     .padding(.bottom, 32)
 
-                    // ── Buttons
+                    
                     VStack(spacing: 12) {
                         PrimaryButton(
-                            title: "let's join the queue →",
+                            title: "Join the queue →",
                             background: AppTheme.primaryButton,
                             foreground: .white,
                             height: 52,
                             isLoading: false,
                             isDisabled: false
                         ) {
-//                            onJoinQueue()
+                            
+                            testData.showTraitOnProfile = showTraitOnProfile
+                            testData.save()
+                            speedDatingRouter.navigate(to: .findingMatch)
                         }
 
                         Button {
-//                            onRetakeTest()
+                            testData.reset()
+                            speedDatingRouter.navigate(to: .tests)
                         } label: {
-                            Text("retake the test")
+                            Text("Retake the test")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.45))
                                 .frame(maxWidth: .infinity)
@@ -351,7 +354,6 @@ struct JoinQueueView: View {
             emojiScale   = 1
             emojiOpacity = 1
         }
-        // Emoji bob loop
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
                 emojiOffsetY = -12

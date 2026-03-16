@@ -95,6 +95,7 @@ Examples:
    Launch a visual editor to view and edit your data:
    ```bash
    npx prisma studio --schema=src/db/schema.prisma
+   npx prisma db push --schema=src/db/schema.prisma
    ```
 
 ## Folder Structure

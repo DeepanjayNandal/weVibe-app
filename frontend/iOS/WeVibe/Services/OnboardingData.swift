@@ -91,10 +91,15 @@ final class OnboardingData {
     private func load() {
         guard let data = UserDefaults.standard.data(forKey: Self.storageKey),
               let draft = try? JSONDecoder().decode(Draft.self, from: data) else { return }
-        dobDay = draft.dobDay; dobMonth = draft.dobMonth; dobYear = draft.dobYear
-        sex = draft.sex; isSexHidden = draft.isSexHidden
+        dobDay = draft.dobDay
+        dobMonth = draft.dobMonth
+        dobYear = draft.dobYear
+        sex = draft.sex
+        isSexHidden = draft.isSexHidden
         ethnicities = Set(draft.ethnicities)
-        locationCity = draft.locationCity; locationState = draft.locationState; locationZip = draft.locationZip
+        locationCity = draft.locationCity
+        locationState = draft.locationState
+        locationZip = draft.locationZip
         latitude = draft.latitude; longitude = draft.longitude
         meetPreference = draft.meetPreference
         minAge = draft.minAge; maxAge = draft.maxAge; distance = draft.distance

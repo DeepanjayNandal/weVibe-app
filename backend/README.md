@@ -18,19 +18,22 @@ Repositories handle all direct database queries via pg.
 
 Current implementation supports three providers: `google`, `apple`, `email`.
 
-- `GET /health`
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout` (requires bearer token)
-- `GET /api/v1/auth/me` (requires bearer token)
-- `POST /api/v1/users/profile` (requires bearer token)
-- `POST /api/v1/matching/queue/join` (requires bearer token)
-- `POST /api/v1/matching/queue/leave` (requires bearer token)
-- `GET /api/v1/matching/queue/status` (requires bearer token)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | No | Health check |
+| POST | `/api/v1/auth/register` | Bearer | Create user row from Firebase token |
+| POST | `/api/v1/auth/login` | Bearer | Verify token, return user record |
+| POST | `/api/v1/auth/logout` | Bearer | Logout |
+| GET | `/api/v1/auth/me` | Bearer | Get current user |
+| POST | `/api/v1/users/profile` | Bearer | Submit full onboarding survey — creates profile |
+| GET | `/api/v1/users/profile` | Bearer | Get profile (401 PROFILE_NOT_FOUND if not created yet) |
+| PATCH | `/api/v1/users/profile` | Bearer | Partial profile update (Task 2 — not yet implemented) |
+| POST | `/api/v1/matching/queue/join` | Bearer | Join matchmaking queue |
+| POST | `/api/v1/matching/queue/leave` | Bearer | Leave matchmaking queue |
+| GET | `/api/v1/matching/queue/status` | Bearer | Check queue status |
 
-Detailed endpoint contracts, request/response examples, and auth notes:
-
-- `docs/api-contract.md`
+For full request/response shapes and field-level docs see `API_SPEC.md` (project root).
+For enum values accepted by the API see `ENUM_REFERENCE.md` (project root).
 
 
 
@@ -63,6 +66,18 @@ Examples:
    ```bash
    node src/db/setup-db.js
    ```
+
+   > **Note (schema changes):** The Prisma schema (`src/db/schema.prisma`) has been updated with new
+   > profile columns (first_name, last_name, height_unit, height_ft, height_in, location_city,
+   > latitude, longitude, bio, relationship_goals, meet_preference, min/max_age_preference,
+   > distance_preference_miles). To apply these to your local database run:
+   > ```bash
+   > npx prisma migrate dev
+   > ```
+   > or if you just want to push without creating a migration file:
+   > ```bash
+   > npx prisma db push
+   > ```
 
 4. **Generate Prisma Client**
    ```bash

@@ -45,31 +45,72 @@ model messages {
 
 model profiles {
   user_id               String                    @id @db.Uuid
+
+  // Basic identity — first_name and last_name are stored separately (display_name kept for internal use)
+  first_name            String?                   @db.VarChar(100)
+  last_name             String?                   @db.VarChar(100)
   display_name          String?                   @db.VarChar(100)
   birth_date            DateTime?                 @db.Date
   gender                String?                   @db.VarChar(50)
   sex                   enum_sex?
-  ethnicity             String?                   @db.VarChar(100)
+  // ethnicity stored as JSON array — users can select multiple (e.g. ["White", "Asian"])
+  ethnicity             Json?
+
+  // Height — unit determines which fields are used
+  // imperial: height_ft + height_in | metric: height_cm
+  height_unit           String?                   @db.VarChar(10)
+  height_ft             Int?
+  height_in             Int?
   height_cm             Int?
+
+  // Location — stored as separate lat/lng floats (simpler than PostGIS for onboarding writes)
+  // location_point is kept for matchmaking distance queries (PostGIS)
+  latitude              Float?
+  longitude             Float?
   location_point        Unsupported("geography(Point,4326)")?
-  state                 String?                   @db.VarChar(100)
-  zip_code              String?                   @db.VarChar(20)
-  education             enum_education?
+  location_city         String?                   @db.VarChar(100)
+  state                 String?                   @db.VarChar(100)   // exposed as location_state in API responses
+  zip_code              String?                   @db.VarChar(20)    // exposed as location_zip in API responses
+
+  // education stored as plain string — enum dropped to support new values from iOS
+  education             String?                   @db.VarChar(100)
   career_field          String?                   @db.VarChar(100)
   languages             Json?
-  relationship_intent   enum_intent?
+
+  // Relationship goals — stored as a JSON array (e.g. ["short_term", "long_term"])
+  // Replaces the single relationship_intent enum to allow multi-select (max 2)
+  relationship_goals    Json?
+  relationship_intent   enum_intent?              // kept for legacy/matchmaking use — do not remove
+
   personality_primary   String?                   @db.VarChar(100)
   personality_secondary String?                   @db.VarChar(100)
+
+  // Lifestyle habits (all optional)
   lifestyle_drinks      enum_frequency?
   lifestyle_smoking     enum_frequency?
   lifestyle_workout     enum_frequency?
   lifestyle_pets        enum_preference_level?
   lifestyle_children    enum_preference_level?
   lifestyle_sleep       enum_sleep_schedule?
+
+  // Free-text bio, max 500 characters — enforced in application layer
+  bio                   String?                   @db.VarChar(500)
+
+  // Prompts — JSON array of { question, answer, is_custom }, max 3 items
   prompts               Json?
   photos                Json?
   social_integrations   Json?
   likes_received_count  Int?                      @default(0)
+
+  // User preferences — moved here from users table for cleaner profile ownership
+  // meet_preference: who the user wants to meet ("men" | "women" | "both")
+  meet_preference       enum_meet_gender?
+  // Age preferences for matchmaking
+  min_age_preference    Int?
+  max_age_preference    Int?
+  // Distance preference in miles (not km — matches what the iOS app sends)
+  distance_preference_miles Int?
+
   users                 users                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([location_point], map: "idx_profiles_location", type: Gist)

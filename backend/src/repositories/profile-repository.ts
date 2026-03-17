@@ -1,4 +1,4 @@
-import { profiles } from '@prisma/client';
+import { Prisma, profiles } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
 
 // Data required to create a new profile (full onboarding payload)
@@ -154,12 +154,12 @@ export class ProfileRepository {
         display_name:              data.displayName ?? null,
         birth_date:                data.birthDate,
         gender:                    data.gender,
-        ethnicity:                 data.ethnicity ?? null,
+        ethnicity:                 data.ethnicity ?? Prisma.JsonNull,
 
         // Career & education — saved at onboarding if iOS sends them
         education:                 data.education ?? null,
         career_field:              data.careerField ?? null,
-        languages:                 data.languages ?? null,
+        languages:                 data.languages ?? Prisma.JsonNull,
 
         // Height
         height_unit:               data.heightUnit,
@@ -192,7 +192,7 @@ export class ProfileRepository {
 
         // Bio and prompts
         bio:                       data.bio ?? null,
-        prompts:                   data.prompts ?? null,
+        prompts:                   data.prompts ?? Prisma.JsonNull,
       },
     });
   }

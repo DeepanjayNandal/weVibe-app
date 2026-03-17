@@ -51,66 +51,69 @@ Examples:
 
 ## Database Setup & Testing
 
+Run all commands from the `weVibe-app/` directory using `--prefix backend`.
+
 1. **Install Dependencies**
    ```bash
-   npm ci
+   npm ci --prefix backend
    ```
 
-2. **Start Database (Docker)**
+2. **Open Docker Desktop** (the app on your Mac — must be running before any DB commands)
+
+3. **Start Database (Docker)**
    ```bash
-   npm run db:start
+   npm run db:start --prefix backend
    ```
 
-3. **Apply Schema to Database**
-   This will drop the existing database (if any) and recreate it using `src/db/schema.sql`:
+4. **Create DB and apply schema**
    ```bash
-   node src/db/setup-db.js
+   docker exec -i wevibe_postgres psql -U admin -d template1 -c "CREATE DATABASE wevibe_dev;"
+   docker exec -i wevibe_postgres psql -U admin -d wevibe_dev < backend/src/db/schema.sql
    ```
 
-   > **Note (schema changes):** The Prisma schema (`src/db/schema.prisma`) has been updated with new
-   > profile columns (first_name, last_name, height_unit, height_ft, height_in, location_city,
-   > latitude, longitude, bio, relationship_goals, meet_preference, min/max_age_preference,
-   > distance_preference_miles). To apply these to your local database run:
+   > **Port conflict (Mac only):** If you have a local Postgres already running on port 5432, it will
+   > block the Docker container. Stop it first:
    > ```bash
-   > npx prisma migrate dev
-   > ```
-   > or if you just want to push without creating a migration file:
-   > ```bash
-   > npx prisma db push
+   > launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.postgresql@14.plist
    > ```
 
-4. **Generate Prisma Client**
+5. **Sync Prisma schema → DB** (adds all new columns from `schema.prisma`)
    ```bash
-   npm run db:generate
+   cd backend && npx prisma db push --schema=src/db/schema.prisma
    ```
 
-5. **Seed Fake Data**
-   ```bash
-   npm run db:seed
+6. **Set auth mode for local testing**
+   In `backend/.env`, set:
+   ```
+   AUTH_PROVIDER_MODE=mock
    ```
 
-6. **Run Tests**
+7. **Run API Server**
    ```bash
-   npm install firebase-admin
-   npm test
-   ```
-   > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
-
-7. **Check Connection (Optional)**
-   ```bash
-   npm run db:check
+   npm start --prefix backend
    ```
 
-8. **Run API Server**
+8. **Test with mock auth**
    ```bash
-   npm start
+   # Register a user
+   curl -X POST http://localhost:3000/api/v1/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"provider": "google", "idToken": "mock:google:g-001:alice@gmail.com"}'
+
+   # Get profile (returns PROFILE_NOT_FOUND until onboarding POST is done)
+   curl http://localhost:3000/api/v1/users/profile \
+     -H "Authorization: Bearer mock:google:g-001:alice@gmail.com"
    ```
 
 9. **Inspect Database (Prisma Studio)**
-   Launch a visual editor to view and edit your data:
    ```bash
-   npx prisma studio
+   cd backend && npx prisma studio --schema=src/db/schema.prisma
    ```
+
+10. **Check Connection (Optional)**
+    ```bash
+    npm run db:check --prefix backend
+    ```
 
 ## Folder Structure
 

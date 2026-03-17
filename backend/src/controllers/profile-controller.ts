@@ -578,6 +578,9 @@ export class ProfileController {
       prompts,
     });
 
+    // Mark onboarding as complete so iOS knows to skip onboarding on next login
+    await this.userRepository.setOnboardingComplete(user!.id);
+
     res.status(201).json({ user_id: profile.user_id });
   };
 

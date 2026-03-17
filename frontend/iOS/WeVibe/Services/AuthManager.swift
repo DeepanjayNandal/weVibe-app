@@ -37,6 +37,9 @@ final class AuthManager {
     /// The email address that verification was sent to — displayed on ConfirmScreen.
     var pendingVerificationEmail: String = ""
 
+    /// True while the onboarding POST is in flight — used by SurveyStep5 to show a loader.
+    var isSubmittingOnboarding: Bool = false
+
     // MARK: - Private
 
     /// Nonce used for Apple Sign-In — must be stored for Firebase credential creation.
@@ -219,6 +222,8 @@ final class AuthManager {
     /// Called by SurveyStep5 "Finish" — POSTs full profile to backend then routes to main app.
     func completeOnboarding(_ data: OnboardingData) {
         Task {
+            isSubmittingOnboarding = true
+            defer { isSubmittingOnboarding = false }
             guard let user = Auth.auth().currentUser else {
                 appState = .unauthenticated
                 return
@@ -243,8 +248,16 @@ final class AuthManager {
 
     // MARK: - Sign Out
 
-    func logout() {
+    func logout(profileStore: UserProfileStore, onboardingData: OnboardingData) {
         try? Auth.auth().signOut()
+
+        // MARK: - Store Cleanup on Logout
+        // When adding new stores, clear them here to prevent data leaking between accounts.
+        // Current stores:
+        profileStore.clear()          // UserProfileStore — profile/edit fields
+        onboardingData.clear()        // OnboardingData — clears partial draft if user abandoned onboarding
+        // TODO: chatStore.clear()    — add when chat feature is built
+
         pendingVerificationEmail = ""
         appState = .unauthenticated
     }
@@ -265,10 +278,8 @@ final class AuthManager {
         }
         do {
             let token = try await user.getIDToken()
-            let hasProfile = try await apiClient.checkProfile(token: token)
-            appState = hasProfile ? .authenticated : .onboarding
-        } catch APIError.noProfile {
-            appState = .onboarding
+            let onboardingComplete = try await apiClient.checkProfile(token: token)
+            appState = onboardingComplete ? .authenticated : .onboarding
         } catch APIError.unauthorized {
             appState = .unauthenticated
         } catch {

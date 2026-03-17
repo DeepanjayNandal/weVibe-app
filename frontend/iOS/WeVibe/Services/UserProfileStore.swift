@@ -56,65 +56,12 @@ struct MatchProfile: Identifiable {
         var answer: String
     }
 
-    // MARK: - Mock Data
-    static let mock = MatchProfile(
-        id: "mock-1",
-        firstName: "Jessica",
-        lastName: "Parker",
-        age: 23,
-        jobTitle: "Professional Model",
-        bio: "Adventure seeker, coffee lover, and part-time explorer. Looking for someone who appreciates both deep conversations and spontaneous road trips.",
-        pronouns: "she/her",
-        instagramHandle: "jessicap",
-        tiktokHandle: "jessparker",
-        locationCity: "Chicago",
-        locationState: "IL",
-        orientation: "Straight",
-        identity: nil,
-        personalityType: "Protagonist (ENFJ)",
-        loveLanguage: "Quality Time",
-        zodiacSign: "Leo",
-        interests: ["Travel", "Photography", "Music", "Reading", "Fitness", "Dance"],
-        preferredDateActivities: ["Dinner & a movie", "Exploring the city", "Live music at a bar"],
-        drinks: "Sometimes",
-        smoking: "Never",
-        cannabis: "Never",
-        workout: "Often",
-        sleepSchedule: "Night Owl",
-        pets: "Have",
-        petTypes: "Dog",
-        career: "Arts",
-        school: "Northwestern University",
-        education: "Bachelor's Degree",
-        ethnicities: ["White", "Hispanic/Latino"],
-        languages: ["English", "Spanish"],
-        photoURLs: [
-            "https://picsum.photos/seed/wv1/400/600",
-            "https://picsum.photos/seed/wv2/400/600",
-            "https://picsum.photos/seed/wv3/400/600",
-            "https://picsum.photos/seed/wv4/400/600",
-            "https://picsum.photos/seed/wv5/400/600",
-            "https://picsum.photos/seed/wv6/400/600",
-        ], // mock photos for MatchProfile preview
-        prompts: [
-            .init(question: "A perfect day for me looks like...", answer: "Waking up late, grabbing coffee at a local cafe, exploring a new neighborhood, and ending the evening with great music and company."),
-            .init(question: "The most spontaneous thing I've done is...", answer: "Booked a last-minute flight to Paris with nothing but a backpack and a sense of adventure."),
-        ],
-        socialMediaLinks: [],
-        showLocation: true,
-        showOrientation: true,
-        showPersonalityTrait: true,
-        showInterests: true,
-        showLifestyle: true,
-        showCareer: true,
-        showPets: true
-    )
 }
 
 // MARK: - UserProfileStore
 
-/// Holds all extended profile fields not captured during onboarding.
-/// Provides mock GET/PATCH API and UserDefaults persistence until the real backend is ready.
+/// In-memory store for the authenticated user's full profile.
+/// Data is fetched from the backend on app launch and after every PATCH — no local caching.
 @Observable
 final class UserProfileStore {
 
@@ -191,6 +138,12 @@ final class UserProfileStore {
     var firstName: String = ""
     var lastName: String = ""
 
+    // MARK: - Core (synced from backend, set during onboarding)
+    var birthDate: String = ""      // ISO YYYY-MM-DD
+    var sex: String = ""            // "Male" / "Female" / "Non-binary" etc.
+    var locationCity: String = ""
+    var locationState: String = ""
+
     // MARK: - Prompts
     var prompt1Question: String = ""
     var prompt1Answer: String = ""
@@ -217,50 +170,13 @@ final class UserProfileStore {
 
     // MARK: - Load State
     var isLoading: Bool = false
+    var patchError: String? = nil
 
-    private static let storageKey = "wevibe_profile_ext_v4"
     private let apiClient = APIClient()
-
-    init() { load() }
-
-    // MARK: - Onboarding Seed
-
-    /// Copies onboarding answers into the store the first time the profile tab is shown.
-    /// No-ops once the user has saved any profile edit (UserDefaults key will exist).
-    func seedIfNeeded(from onboarding: OnboardingData) {
-        guard UserDefaults.standard.data(forKey: Self.storageKey) == nil else { return }
-        drinks        = onboarding.drinks
-        smoking       = onboarding.smoking
-        pets          = onboarding.pets
-        children      = onboarding.children
-        workout       = onboarding.workout
-        sleepSchedule = onboarding.sleepSchedule
-        education     = onboarding.education
-        career        = onboarding.career
-        heightFt      = onboarding.heightFt
-        heightIn      = onboarding.heightIn
-        heightCm      = onboarding.heightCm
-        heightUnit    = onboarding.heightUnit
-        meetPreference    = onboarding.meetPreference
-        minAge            = onboarding.minAge
-        maxAge            = onboarding.maxAge
-        distance          = onboarding.distance
-        relationshipGoals     = Array(onboarding.relationshipGoals)
-        prompt1Question       = onboarding.prompt1Question
-        prompt1Answer         = onboarding.prompt1Answer
-        prompt2Question       = onboarding.prompt2Question
-        prompt2Answer         = onboarding.prompt2Answer
-        prompt3Question       = onboarding.prompt3Question
-        prompt3Answer         = onboarding.prompt3Answer
-        customPromptQuestion  = onboarding.ownPrompt
-        customPromptAnswer    = onboarding.ownPromptAnswer
-        save()
-    }
 
     // MARK: - API
 
     /// GET /users/profile — fetches full profile from backend and updates the store.
-    /// Falls back to local cache silently on network or auth errors.
     func fetchProfile() async {
         isLoading = true
         defer { isLoading = false }
@@ -269,22 +185,25 @@ final class UserProfileStore {
             let token = try await user.getIDToken()
             let response = try await apiClient.getProfile(token: token)
             apply(response: response)
-            save()
         } catch {
-            // Keep locally persisted data on failure
+            // Network failure — store retains its current in-memory state
         }
     }
 
-    /// PATCH /users/profile — persists locally first, then syncs to backend.
-    func patchProfile() async {
-        save()
+    /// PATCH /users/profile — sends only the changed fields, then re-fetches to confirm saved state.
+    /// Pass a targeted `ProfileUpdatePayload` to send only the fields that changed.
+    /// Omit the payload to send all non-empty fields (used by onboarding and legacy call sites).
+    func patchProfile(_ payload: ProfileUpdatePayload? = nil) async {
+        patchError = nil
         guard let user = Auth.auth().currentUser else { return }
         do {
             let token = try await user.getIDToken()
-            let payload = ProfileUpdatePayload(from: self)
-            try await apiClient.updateProfile(token: token, payload: payload)
+            let p = payload ?? ProfileUpdatePayload(from: self)
+            try await apiClient.updateProfile(token: token, payload: p)
+            // Re-fetch so the store reflects exactly what the backend saved
+            await fetchProfile()
         } catch {
-            // Local save already succeeded — backend will sync on next fetch
+            patchError = "Failed to save. Please try again."
         }
     }
 
@@ -293,6 +212,10 @@ final class UserProfileStore {
     private func apply(response r: UserProfileResponse) {
         if let v = r.firstName         { firstName        = v }
         if let v = r.lastName          { lastName         = v }
+        if let v = r.birthDate         { birthDate        = v }
+        if let v = r.gender            { sex              = v }
+        if let v = r.locationCity      { locationCity     = v }
+        if let v = r.locationState     { locationState    = v }
         if let v = r.bio               { bio              = v }
         if let v = r.jobTitle          { jobTitle         = v }
         if let v = r.school            { school           = v }
@@ -362,130 +285,28 @@ final class UserProfileStore {
         }
     }
 
-    // MARK: - Persistence
+    // MARK: - Clear (called on logout)
 
-    func save() {
-        guard let data = try? JSONEncoder().encode(Draft(from: self)) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
-    }
-
-    private func load() {
-        guard
-            let data = UserDefaults.standard.data(forKey: Self.storageKey),
-            let draft = try? JSONDecoder().decode(Draft.self, from: data)
-        else { return }
-        draft.apply(to: self)
-    }
-
-    // MARK: - Codable Mirror
-
-    private struct Draft: Codable {
-        var firstName, lastName: String
-        var bio, jobTitle, school, instagramHandle, tiktokHandle: String
-        var orientation: String; var showOrientation: Bool
-        var identity: String; var showIdentity: Bool
-        var pronouns, children, birthCountry: String
-        var ethnicities, languages: [String]
-        var career, education: String
-        var heightFt, heightIn, heightCm, heightUnit: String
-        var drinks, smoking, workout, sleepSchedule, pets: String
-        var cannabis: String; var isCannabisFlexible: Bool
-        var petTypes, petsName: String
-        var isDrinksFlexible, isSmokingFlexible, isWorkoutFlexible, isSleepFlexible, isKidsFlexible: Bool
-        var loveLanguage, zodiacSign: String
-        var communicationStyle, conflictStyle: String
-        var personalityType: String
-        var interests, preferredDateActivities, wouldNotDoActivities: [String]
-        var relationshipGoals: [String]
-        var meetPreference: String
-        var minAge, maxAge, distance: Double
-        var prompt1Question, prompt1Answer: String
-        var prompt2Question, prompt2Answer: String
-        var prompt3Question, prompt3Answer: String
-        var customPromptQuestion, customPromptAnswer: String
-        var socialMediaLinks: [String]; var spotifyPlaylistURL: String
-        var photoURLs: [String]
-        var showSex: Bool
-        var showLocation, showPersonalityTrait, showInterests: Bool
-        var showLifestyle, showCareer, showPets: Bool
-
-        init(from s: UserProfileStore) {
-            firstName = s.firstName; lastName = s.lastName
-            bio = s.bio; jobTitle = s.jobTitle; school = s.school
-            instagramHandle = s.instagramHandle; tiktokHandle = s.tiktokHandle
-            orientation = s.orientation; showOrientation = s.showOrientation
-            identity = s.identity; showIdentity = s.showIdentity
-            pronouns = s.pronouns; children = s.children
-            birthCountry = s.birthCountry
-            ethnicities = s.ethnicities; languages = s.languages
-            career = s.career; education = s.education
-            heightFt = s.heightFt; heightIn = s.heightIn; heightCm = s.heightCm; heightUnit = s.heightUnit
-            drinks = s.drinks; smoking = s.smoking; workout = s.workout
-            sleepSchedule = s.sleepSchedule; pets = s.pets
-            cannabis = s.cannabis; isCannabisFlexible = s.isCannabisFlexible
-            petTypes = s.petTypes; petsName = s.petsName
-            isDrinksFlexible = s.isDrinksFlexible; isSmokingFlexible = s.isSmokingFlexible
-            isWorkoutFlexible = s.isWorkoutFlexible; isSleepFlexible = s.isSleepFlexible
-            isKidsFlexible = s.isKidsFlexible
-            loveLanguage = s.loveLanguage; zodiacSign = s.zodiacSign
-            communicationStyle = s.communicationStyle; conflictStyle = s.conflictStyle
-            personalityType = s.personalityType
-            interests = s.interests
-            preferredDateActivities = s.preferredDateActivities
-            wouldNotDoActivities = s.wouldNotDoActivities
-            relationshipGoals = s.relationshipGoals
-            meetPreference = s.meetPreference
-            minAge = s.minAge; maxAge = s.maxAge; distance = s.distance
-            prompt1Question = s.prompt1Question; prompt1Answer = s.prompt1Answer
-            prompt2Question = s.prompt2Question; prompt2Answer = s.prompt2Answer
-            prompt3Question = s.prompt3Question; prompt3Answer = s.prompt3Answer
-            customPromptQuestion = s.customPromptQuestion; customPromptAnswer = s.customPromptAnswer
-            socialMediaLinks = s.socialMediaLinks; spotifyPlaylistURL = s.spotifyPlaylistURL
-            photoURLs = s.photoURLs
-            showSex = s.showSex
-            showLocation = s.showLocation; showPersonalityTrait = s.showPersonalityTrait
-            showInterests = s.showInterests; showLifestyle = s.showLifestyle
-            showCareer = s.showCareer; showPets = s.showPets
-        }
-
-        func apply(to s: UserProfileStore) {
-            s.firstName = firstName; s.lastName = lastName
-            s.bio = bio; s.jobTitle = jobTitle; s.school = school
-            s.instagramHandle = instagramHandle; s.tiktokHandle = tiktokHandle
-            s.orientation = orientation; s.showOrientation = showOrientation
-            s.identity = identity; s.showIdentity = showIdentity
-            s.pronouns = pronouns; s.children = children
-            s.birthCountry = birthCountry
-            s.ethnicities = ethnicities; s.languages = languages
-            s.career = career; s.education = education
-            s.heightFt = heightFt; s.heightIn = heightIn; s.heightCm = heightCm; s.heightUnit = heightUnit
-            s.drinks = drinks; s.smoking = smoking; s.workout = workout
-            s.sleepSchedule = sleepSchedule; s.pets = pets
-            s.cannabis = cannabis; s.isCannabisFlexible = isCannabisFlexible
-            s.petTypes = petTypes; s.petsName = petsName
-            s.isDrinksFlexible = isDrinksFlexible; s.isSmokingFlexible = isSmokingFlexible
-            s.isWorkoutFlexible = isWorkoutFlexible; s.isSleepFlexible = isSleepFlexible
-            s.isKidsFlexible = isKidsFlexible
-            s.loveLanguage = loveLanguage; s.zodiacSign = zodiacSign
-            s.communicationStyle = communicationStyle; s.conflictStyle = conflictStyle
-            s.personalityType = personalityType
-            s.interests = interests
-            s.preferredDateActivities = preferredDateActivities
-            s.wouldNotDoActivities = wouldNotDoActivities
-            s.relationshipGoals = relationshipGoals
-            s.meetPreference = meetPreference
-            s.minAge = minAge; s.maxAge = maxAge; s.distance = distance
-            s.prompt1Question = prompt1Question; s.prompt1Answer = prompt1Answer
-            s.prompt2Question = prompt2Question; s.prompt2Answer = prompt2Answer
-            s.prompt3Question = prompt3Question; s.prompt3Answer = prompt3Answer
-            s.customPromptQuestion = customPromptQuestion; s.customPromptAnswer = customPromptAnswer
-            s.socialMediaLinks = socialMediaLinks; s.spotifyPlaylistURL = spotifyPlaylistURL
-            s.photoURLs = photoURLs
-            s.showSex = showSex
-            s.showLocation = showLocation; s.showPersonalityTrait = showPersonalityTrait
-            s.showInterests = showInterests; s.showLifestyle = showLifestyle
-            s.showCareer = showCareer; s.showPets = showPets
-        }
+    func clear() {
+        bio = ""; jobTitle = ""; school = ""; instagramHandle = ""; tiktokHandle = ""
+        orientation = ""; showOrientation = true; identity = ""; showIdentity = true; pronouns = ""
+        children = ""; birthCountry = ""; ethnicities = []; languages = []
+        career = ""; education = ""
+        heightFt = ""; heightIn = ""; heightCm = ""; heightUnit = "FT"
+        drinks = ""; smoking = ""; workout = ""; sleepSchedule = ""; pets = ""
+        cannabis = ""; isCannabisFlexible = false; petTypes = ""; petsName = ""
+        isDrinksFlexible = false; isSmokingFlexible = false; isWorkoutFlexible = false
+        isSleepFlexible = false; isKidsFlexible = false
+        loveLanguage = ""; zodiacSign = ""; communicationStyle = ""; conflictStyle = ""; personalityType = ""
+        interests = []; preferredDateActivities = []; wouldNotDoActivities = []
+        relationshipGoals = []; meetPreference = ""; minAge = 18; maxAge = 50; distance = 25
+        firstName = ""; lastName = ""; birthDate = ""; sex = ""; locationCity = ""; locationState = ""
+        prompt1Question = ""; prompt1Answer = ""; prompt2Question = ""; prompt2Answer = ""
+        prompt3Question = ""; prompt3Answer = ""; customPromptQuestion = ""; customPromptAnswer = ""
+        socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photoURLs = []
+        showSex = true; showLocation = true; showPersonalityTrait = true
+        showInterests = true; showLifestyle = true; showCareer = true; showPets = true
+        patchError = nil
     }
 }
 

@@ -107,14 +107,21 @@ struct SurveyStep5: View {
                             onboardingData.save()
                             authManager.completeOnboarding(onboardingData)
                         } label: {
-                            Text("Finish")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 16)
-                                .background(AppTheme.primaryButton)
-                                .clipShape(Capsule())
+                            Group {
+                                if authManager.isSubmittingOnboarding {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Text("Finish").font(.system(size: 16, weight: .bold))
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .frame(width: 100)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 16)
+                            .background(AppTheme.primaryButton)
+                            .clipShape(Capsule())
                         }
+                        .disabled(authManager.isSubmittingOnboarding)
                     }
                     .padding(.top, 8)
 

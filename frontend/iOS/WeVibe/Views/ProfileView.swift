@@ -20,6 +20,20 @@ struct ProfileView: View {
             return stored.isEmpty ? (Auth.auth().currentUser?.displayName ?? "Your Name") : stored
         }()
         let age: Int = {
+            // Prefer ISO date from backend; fall back to onboarding components on first launch
+            if !store.birthDate.isEmpty {
+                let dob: Date? = {
+                    // Try full ISO 8601 first (e.g. "1997-07-14T00:00:00.000Z" from backend)
+                    let iso = ISO8601DateFormatter()
+                    if let d = iso.date(from: store.birthDate) { return d }
+                    // Fallback: plain date string "yyyy-MM-dd"
+                    let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+                    return fmt.date(from: store.birthDate)
+                }()
+                if let dob {
+                    return Calendar.current.dateComponents([.year], from: dob, to: .now).year ?? 0
+                }
+            }
             guard let d = Int(onboarding.dobDay),
                   let y = Int(onboarding.dobYear) else { return 0 }
             let monthInt: Int? = Int(onboarding.dobMonth) ?? {
@@ -41,8 +55,10 @@ struct ProfileView: View {
             }
             return ""
         }()
-        let location = [onboarding.locationCity, onboarding.locationState]
-            .filter { !$0.isEmpty }.joined(separator: ", ")
+        let location = [
+            store.locationCity.isEmpty  ? onboarding.locationCity  : store.locationCity,
+            store.locationState.isEmpty ? onboarding.locationState : store.locationState,
+        ].filter { !$0.isEmpty }.joined(separator: ", ")
         let prompts: [(String, String)] = [
             (store.prompt1Question,      store.prompt1Answer),
             (store.prompt2Question,      store.prompt2Answer),
@@ -94,7 +110,7 @@ struct ProfileView: View {
             prompts:                 prompts,
             socialLinks:             store.socialMediaLinks,
             spotifyURL:              store.spotifyPlaylistURL,
-            sex:                     onboarding.sex,
+            sex:                     store.sex.isEmpty ? onboarding.sex : store.sex,
             showSex:                 store.showSex,
             relationshipGoals:       store.relationshipGoals.sorted(),
             meetPreference:          store.meetPreference,
@@ -114,13 +130,19 @@ struct ProfileView: View {
     // MARK: - Body
 
     var body: some View {
-        ProfileCardView(
-            data: displayData,
-            mode: .ownProfile(
-                onEdit:     { activeEdit = $0 },
-                onSettings: { showSettingsSheet = true }
+        ZStack {
+            ProfileCardView(
+                data: displayData,
+                mode: .ownProfile(
+                    onEdit:     { activeEdit = $0 },
+                    onSettings: { showSettingsSheet = true }
+                )
             )
-        )
+            if store.isLoading {
+                Color.black.opacity(0.4).ignoresSafeArea()
+                ProgressView().tint(.white).scaleEffect(1.4)
+            }
+        }
         .navigationBarHidden(true)
         .sheet(item: $activeEdit) { section in
             editSheet(for: section)
@@ -132,13 +154,20 @@ struct ProfileView: View {
                 .presentationDetents([.medium])
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
-            Button("Log Out", role: .destructive) { authManager.logout() }
+            Button("Log Out", role: .destructive) { authManager.logout(profileStore: store, onboardingData: onboarding) }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to log out?")
         }
+        .alert("Save Failed", isPresented: Binding(
+            get: { store.patchError != nil },
+            set: { if !$0 { store.patchError = nil } }
+        )) {
+            Button("OK") { store.patchError = nil }
+        } message: {
+            Text(store.patchError ?? "")
+        }
         .task {
-            store.seedIfNeeded(from: onboarding)
             await store.fetchProfile()
         }
     }

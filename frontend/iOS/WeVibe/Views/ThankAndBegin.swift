@@ -4,6 +4,8 @@ struct ThankAndBegin: View {
 
     @Environment(OnboardingRouter.self) private var onboardingRouter
     @Environment(AuthManager.self) private var authManager
+    @Environment(UserProfileStore.self) private var profileStore
+    @Environment(OnboardingData.self) private var onboardingData
 
     var body: some View {
         ZStack {
@@ -14,7 +16,7 @@ struct ThankAndBegin: View {
                 HStack {
                     Spacer()
                     Button("Log Out") {
-                        authManager.logout()
+                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))

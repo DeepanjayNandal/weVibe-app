@@ -1,29 +1,39 @@
-# weVibe-app
+# weVibe iOS App
 
-## Prerequisites
+## Requirements
 
-- **Xcode 15** or later
-- **iOS 17.0+** deployment target
-- macOS Ventura or later
+- Xcode 16 or later
+- iOS 17.0+ deployment target
+- macOS Sonoma or later
 
-## Running the App in Xcode
+## Setup
 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/honganhnguyen-lab/weVibe-app.git
-   cd weVibe-app
    ```
 
-2. **Open the project in Xcode**
+2. **Add Firebase config files**
+
+   The real plist files are git-ignored. Copy your downloaded files into:
+   ```
+   frontend/iOS/WeVibe/Firebase/GoogleService-Info-Dev.plist   (Debug builds)
+   frontend/iOS/WeVibe/Firebase/GoogleService-Info-Prod.plist  (Release builds)
+   ```
+
+3. **Open the project**
    ```bash
-   open iOS/WeVibe.xcodeproj
+   open frontend/iOS/WeVibe.xcodeproj
    ```
-
-3. **Select a simulator or device**
-   - In the Xcode toolbar, click the device/simulator dropdown next to the scheme name.
-   - Choose an iPhone simulator running iOS 17.0 or later, or a connected physical device.
 
 4. **Build and run**
-   - Press **Cmd + R** or click the **Run** button (play icon) in the toolbar.
-   - Xcode will compile the project and launch the app on the selected simulator/device.
+   - Select an iPhone simulator running iOS 17.0+ or a connected device
+   - Press **Cmd + R**
 
+## Architecture
+
+- `AppState` enum drives the entire view hierarchy via `RootView`
+- `AuthManager` — handles all Firebase Auth operations (email, Google Sign-In)
+- `UserProfileStore` — holds the user's profile in memory; always fetched from the backend, no local caching
+- `OnboardingData` — holds onboarding flow state
+- `APIClient` — handles all REST calls to the backend

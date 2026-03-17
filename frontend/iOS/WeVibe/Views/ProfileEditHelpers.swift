@@ -4,6 +4,7 @@ import SwiftUI
 
 func editNav<Content: View>(
     title: String,
+    isSaving: Bool = false,
     onCancel: (() -> Void)? = nil,
     onSave: @escaping () -> Void,
     @ViewBuilder body: () -> Content
@@ -20,11 +21,17 @@ func editNav<Content: View>(
         .toolbar {
             if let onCancel {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel).foregroundStyle(.white.opacity(0.6))
+                    Button("Cancel", action: onCancel)
+                        .foregroundStyle(.white.opacity(isSaving ? 0.3 : 0.6))
+                        .disabled(isSaving)
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save", action: onSave).foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                if isSaving {
+                    ProgressView().tint(AppTheme.iconColor)
+                } else {
+                    Button("Save", action: onSave).foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                }
             }
         }
     }

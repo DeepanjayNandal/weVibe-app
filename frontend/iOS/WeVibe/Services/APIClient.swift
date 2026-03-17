@@ -5,6 +5,14 @@ private struct ErrorResponse: Decodable {
     let error: ErrorBody
 }
 
+private struct MeResponse: Decodable {
+    struct DataBody: Decodable {
+        struct UserBody: Decodable { let onboardingComplete: Bool }
+        let user: UserBody
+    }
+    let data: DataBody
+}
+
 enum APIError: LocalizedError {
     case noProfile          // 404 — user has no profile yet
     case unauthorized       // 401
@@ -34,20 +42,16 @@ struct APIClient {
 
     // MARK: - Auth
 
-    /// GET /users/profile — returns true if profile exists, throws .noProfile if not yet created.
+    /// GET /auth/me — returns true if onboarding is complete, false if not yet done.
     func checkProfile(token: String) async throws -> Bool {
-        let req = request(path: "/users/profile", method: "GET", token: token)
+        let req = request(path: "/auth/me", method: "GET", token: token)
         let (data, response) = try await perform(req)
         let status = response.statusCode
-        if status == 200 { return true }
-        if status == 401 {
-            // PROFILE_NOT_FOUND means user exists but has no profile yet → send to onboarding
-            if let body = try? JSONDecoder().decode(ErrorResponse.self, from: data),
-               body.error.code == "PROFILE_NOT_FOUND" {
-                throw APIError.noProfile
-            }
-            throw APIError.unauthorized
+        if status == 200 {
+            let me = try JSONDecoder().decode(MeResponse.self, from: data)
+            return me.data.user.onboardingComplete
         }
+        if status == 401 { throw APIError.unauthorized }
         throw APIError.serverError(status)
     }
 
@@ -339,6 +343,10 @@ struct UserProfileResponse: Decodable {
     let minAgePreference: Int?
     let maxAgePreference: Int?
     let distancePreferenceMiles: Int?
+    let birthDate: String?
+    let gender: String?
+    let locationCity: String?
+    let locationState: String?
     let prompts: [PromptEntry]?
     let photoUrls: [String]?
 
@@ -352,7 +360,7 @@ struct UserProfileResponse: Decodable {
         case spotifyPlaylistUrl = "spotify_playlist_url"
         case pronouns, orientation
         case genderIdentity = "gender_identity"
-        case showGender = "show_gender"
+        case showGender = "show_sex"
         case showOrientation = "show_orientation"
         case showIdentity = "show_identity"
         case careerField = "career_field"
@@ -390,6 +398,10 @@ struct UserProfileResponse: Decodable {
         case distancePreferenceMiles = "distance_preference_miles"
         case prompts
         case photoUrls = "photo_urls"
+        case birthDate = "birth_date"
+        case gender
+        case locationCity = "location_city"
+        case locationState = "location_state"
     }
 }
 
@@ -459,7 +471,7 @@ struct ProfileUpdatePayload: Encodable {
         case tiktokHandle = "tiktok_handle"
         case spotifyPlaylistUrl = "spotify_playlist_url"
         case pronouns, orientation
-        case showGender = "show_gender"
+        case showGender = "show_sex"
         case showOrientation = "show_orientation"
         case genderIdentity = "gender_identity"
         case showIdentity = "show_identity"
@@ -570,4 +582,7 @@ struct ProfileUpdatePayload: Encodable {
         }
         prompts = promptList.isEmpty ? nil : promptList
     }
+
+    /// Empty payload — set only the fields relevant to the calling edit sheet.
+    init() {}
 }

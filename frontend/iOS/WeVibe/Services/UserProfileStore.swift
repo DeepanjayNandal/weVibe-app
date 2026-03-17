@@ -170,6 +170,7 @@ final class UserProfileStore {
 
     // MARK: - Load State
     var isLoading: Bool = false
+    var fetchFailed: Bool = false
     var patchError: String? = nil
 
     private let apiClient = APIClient()
@@ -179,6 +180,7 @@ final class UserProfileStore {
     /// GET /users/profile — fetches full profile from backend and updates the store.
     func fetchProfile() async {
         isLoading = true
+        fetchFailed = false
         defer { isLoading = false }
         guard let user = Auth.auth().currentUser else { return }
         do {
@@ -186,7 +188,7 @@ final class UserProfileStore {
             let response = try await apiClient.getProfile(token: token)
             apply(response: response)
         } catch {
-            // Network failure — store retains its current in-memory state
+            fetchFailed = true
         }
     }
 
@@ -306,6 +308,7 @@ final class UserProfileStore {
         socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photoURLs = []
         showSex = true; showLocation = true; showPersonalityTrait = true
         showInterests = true; showLifestyle = true; showCareer = true; showPets = true
+        fetchFailed = false
         patchError = nil
     }
 }

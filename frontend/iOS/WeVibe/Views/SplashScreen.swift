@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SplashScreen: View {
     @Environment(AuthRouter.self) private var authRouter
-    @Binding var showLogin: Bool
     @State private var chevronOffset: CGFloat = 0
     @State private var chevronOpacity: Double = 1.0
     @State var currentDragOffsetY: CGFloat = 0
@@ -38,7 +37,7 @@ struct SplashScreen: View {
                             }
                             .onEnded { value in
                                 if value.translation.height < -60 {
-                                    showLogin = true
+                                    authRouter.navigate(to: .login)
                                 } else {
                                     withAnimation(.spring()) {
                                         currentDragOffsetY = 0

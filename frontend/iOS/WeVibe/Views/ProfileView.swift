@@ -130,7 +130,7 @@ struct ProfileView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             ProfileCardView(
                 data: displayData,
                 mode: .ownProfile(
@@ -138,11 +138,23 @@ struct ProfileView: View {
                     onSettings: { showSettingsSheet = true }
                 )
             )
+            .refreshable { await store.fetchProfile() }
             if store.isLoading {
                 Color.black.opacity(0.4).ignoresSafeArea()
                 ProgressView().tint(.white).scaleEffect(1.4)
             }
+            if store.fetchFailed {
+                Label("Couldn't refresh. Pull down to try again.", systemImage: "wifi.slash")
+                    .font(.footnote)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.7), in: Capsule())
+                    .padding(.top, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: store.fetchFailed)
         .navigationBarHidden(true)
         .sheet(item: $activeEdit) { section in
             editSheet(for: section)

@@ -128,9 +128,8 @@ struct PhotosEditSheet: View {
     }
 
     private func save() {
-        // Photo upload not yet implemented — persist locally only.
+        // Photo upload not yet implemented — update in-memory only.
         store.photoURLs = urls
-        store.save()
         dismiss()
     }
 }
@@ -197,7 +196,10 @@ struct AboutEditSheet: View {
         p.tiktokHandle      = tiktok.isEmpty       ? nil : tiktok
         p.spotifyPlaylistUrl = spotify.isEmpty     ? nil : spotify
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -244,7 +246,10 @@ struct IdentityEditSheet: View {
         p.genderIdentity  = identity.isEmpty  ? nil : identity
         p.showIdentity    = showIdentity
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -283,7 +288,10 @@ struct PersonalityEditSheet: View {
         p.communicationStyle = comm.isEmpty         ? nil : comm
         p.conflictStyle      = conflict.isEmpty     ? nil : conflict
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -378,7 +386,10 @@ struct InterestsEditSheet: View {
         var p = ProfileUpdatePayload()
         p.interests = store.interests.isEmpty ? nil : store.interests
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -439,7 +450,10 @@ struct DateActivitiesEditSheet: View {
         p.preferredDateActivities = store.preferredDateActivities.isEmpty ? nil : store.preferredDateActivities
         p.wouldNotDoActivities    = store.wouldNotDoActivities.isEmpty    ? nil : store.wouldNotDoActivities
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -529,7 +543,10 @@ struct LifestyleEditSheet: View {
         p.isCannabisFlexible = isCannabisFlexible
         p.isKidsFlexible     = isKidsFlexible
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -613,7 +630,10 @@ struct BackgroundEditSheet: View {
         p.languages    = store.languages.isEmpty   ? nil : store.languages
         p.birthCountry = birthCountry.isEmpty      ? nil : birthCountry
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -691,7 +711,12 @@ struct CareerEditSheet: View {
         HStack(spacing: 8) {
             HStack(spacing: 4) {
                 ForEach(["FT", "CM"], id: \.self) { unit in
-                    Button { heightUnit = unit } label: {
+                    Button {
+                            guard unit != heightUnit else { return }
+                            heightUnit = unit
+                            if unit == "CM" { heightFt = ""; heightIn = "" }
+                            else { heightCm = "" }
+                        } label: {
                         Text(unit)
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(heightUnit == unit ? .black : .white)
@@ -753,7 +778,10 @@ struct CareerEditSheet: View {
             p.heightCm   = isImperial ? nil : Int(heightCm)
         }
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -860,7 +888,10 @@ struct PromptsEditSheet: View {
         var p = ProfileUpdatePayload()
         p.prompts = promptList.isEmpty ? nil : promptList
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -959,6 +990,9 @@ struct PreferencesEditSheet: View {
         p.maxAgePreference       = Int(maxAge)
         p.distancePreferenceMiles = Int(distance)
         isSaving = true
-        Task { await store.patchProfile(p); dismiss() }
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }

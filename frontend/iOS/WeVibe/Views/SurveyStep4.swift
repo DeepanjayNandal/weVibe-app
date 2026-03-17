@@ -60,7 +60,14 @@ struct SurveyStep4: View {
                             HStack(spacing: 6) {
                                 ForEach(["FT", "CM"], id: \.self) { unit in
                                     Button {
+                                        guard unit != onboardingData.heightUnit else { return }
                                         onboardingData.heightUnit = unit
+                                        if unit == "CM" {
+                                            onboardingData.heightFt = ""
+                                            onboardingData.heightIn = ""
+                                        } else {
+                                            onboardingData.heightCm = ""
+                                        }
                                     } label: {
                                         Text(unit)
                                             .font(.system(size: 14, weight: .bold))

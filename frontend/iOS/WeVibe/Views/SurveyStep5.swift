@@ -6,6 +6,8 @@ struct SurveyStep5: View {
     @Environment(OnboardingData.self) private var onboardingData
     @Environment(AuthManager.self) private var authManager
 
+    @State private var showPromptError = false
+
 
     // Prompts selected in the other slots — passed to each PromptField to grey them out.
     private var usedByOthers1: Set<String> {
@@ -81,8 +83,20 @@ struct SurveyStep5: View {
                                 .padding(.vertical, 12)
                                 .background(.white.opacity(0.08))
                                 .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.2), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(
+                                    showPromptError && onboardingData.ownPromptAnswer.isEmpty ? Color.red.opacity(0.7) : .white.opacity(0.2),
+                                    lineWidth: 1
+                                ))
                                 .lineLimit(3...6)
+                                .onChange(of: onboardingData.ownPromptAnswer) { _, _ in showPromptError = false }
+                        }
+
+                        if showPromptError {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.circle.fill").font(.system(size: 12))
+                                Text("Please add an answer for your custom prompt").font(.system(size: 12))
+                            }
+                            .foregroundStyle(.red)
                         }
                     }
                     .padding(.top, 8)
@@ -104,6 +118,10 @@ struct SurveyStep5: View {
                         Spacer()
 
                         Button {
+                            if !onboardingData.ownPrompt.isEmpty && onboardingData.ownPromptAnswer.isEmpty {
+                                showPromptError = true
+                                return
+                            }
                             onboardingData.save()
                             authManager.completeOnboarding(onboardingData)
                         } label: {

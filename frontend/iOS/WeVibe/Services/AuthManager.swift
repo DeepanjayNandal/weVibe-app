@@ -49,22 +49,28 @@ final class AuthManager {
 
     // MARK: - Launch
 
-    /// Registers a persistent Firebase Auth state listener. Fires immediately with current state.
+    /// One-time launch check: routes based on existing Firebase session.
+    /// Also registers a persistent listener to detect external sign-out (e.g. token revoked).
     func checkAuthState() async {
+        // Route immediately based on current session — no listener race possible.
+        let user = Auth.auth().currentUser
+        if let user {
+            if !user.isEmailVerified {
+                appState = .pendingVerification
+                pendingVerificationEmail = user.email ?? ""
+            } else {
+                await resolvePostAuthState()
+            }
+        } else {
+            appState = .unauthenticated
+        }
+
+        // Persistent listener: only handles external sign-out after launch.
+        // All explicit auth operations route themselves — they don't rely on this.
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
-            guard let user else {
-                Task { @MainActor in self.appState = .unauthenticated }
-                return
-            }
-            if !user.isEmailVerified {
-                Task { @MainActor in
-                    self.appState = .pendingVerification
-                    self.pendingVerificationEmail = user.email ?? ""
-                }
-                return
-            }
-            Task { await self.resolvePostAuthState() }
+            guard user == nil else { return }
+            Task { @MainActor in self.appState = .unauthenticated }
         }
     }
 
@@ -97,6 +103,8 @@ final class AuthManager {
             pendingVerificationEmail = email
             appState = .pendingVerification
         } catch {
+            // Roll back the Firebase account so the user can retry registration cleanly.
+            try? await Auth.auth().currentUser?.delete()
             throw AuthError.unknown(mapAuthError(error))
         }
     }
@@ -241,7 +249,7 @@ final class AuthManager {
                 data.clear()
                 appState = .authenticated
             } catch {
-                globalError = error.localizedDescription
+                globalError = "Couldn't save your profile. Please check your connection and try again."
             }
         }
     }
@@ -283,7 +291,9 @@ final class AuthManager {
         } catch APIError.unauthorized {
             appState = .unauthenticated
         } catch {
-            appState = .onboarding
+            // Network failure — assume returning user and let them into the app.
+            // ProfileView will show the fetch error and offer a retry.
+            appState = .authenticated
         }
     }
 

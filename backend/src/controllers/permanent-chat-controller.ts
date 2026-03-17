@@ -45,6 +45,19 @@ export class PermanentChatController {
     });
   };
 
+  markMatchMessagesRead = async (req: Request, res: Response): Promise<void> => {
+    const userId = await this.resolveUserId(req);
+    const matchId = this.readMatchId(req.params.matchId);
+    const match = await this.permanentChatService.markMatchMessagesRead(userId, matchId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        match,
+      },
+    });
+  };
+
   sendMessage = async (req: Request, res: Response): Promise<void> => {
     const userId = await this.resolveUserId(req);
     const matchId = this.readMatchId(req.params.matchId);

@@ -38,8 +38,38 @@ speedDatingRouter.get(
   asyncHandler(speedDatingController.getSessionMessages),
 );
 
+speedDatingRouter.patch(
+  '/sessions/:sessionId/read',
+  authenticate(authVerifier),
+  asyncHandler(speedDatingController.markSessionMessagesRead),
+);
+
 speedDatingRouter.post(
   '/sessions/:sessionId/messages',
   authenticate(authVerifier),
   asyncHandler(speedDatingController.sendMessage),
+);
+
+speedDatingRouter.post(
+  '/sessions/:sessionId/move-to-permanent/request',
+  authenticate(authVerifier),
+  asyncHandler(speedDatingController.requestMoveToPermanent),
+);
+
+speedDatingRouter.post(
+  '/sessions/:sessionId/move-to-permanent/respond',
+  authenticate(authVerifier),
+  asyncHandler(speedDatingController.respondToMoveToPermanent),
+);
+
+speedDatingRouter.post(
+  '/sessions/:sessionId/final-decision',
+  authenticate(authVerifier),
+  asyncHandler(speedDatingController.submitFinalDecision),
+);
+
+speedDatingRouter.post(
+  '/sessions/:sessionId/end',
+  authenticate(authVerifier),
+  asyncHandler(speedDatingController.endSession),
 );

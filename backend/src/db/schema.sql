@@ -161,7 +161,8 @@ CREATE TABLE speed_dating_messages (
     sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     type enum_msg_type DEFAULT 'text',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP
     -- Temporary messages during the 3-minute blind date
 );
 

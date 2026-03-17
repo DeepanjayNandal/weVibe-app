@@ -1,135 +1,123 @@
-# weVibe Frontend
+# weVibe
 
-## Prerequisites
+iOS dating app with a Node.js/Express backend.
 
-- **Xcode 15** or later
-- **iOS 17.0+** deployment target
-- macOS Ventura or later
+---
 
-## Running the App in Xcode
+## iOS App
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/honganhnguyen-lab/weVibe-app.git
-   cd weVibe-app
+### Requirements
+
+- Xcode 16 or later
+- iOS 17.0+ deployment target
+- macOS Sonoma or later
+
+### Setup
+
+1. **Add Firebase config files** (git-ignored — get from team)
+   ```
+   frontend/iOS/WeVibe/Firebase/GoogleService-Info-Dev.plist   ← Debug builds
+   frontend/iOS/WeVibe/Firebase/GoogleService-Info-Prod.plist  ← Release builds
    ```
 
-2. **Open the project in Xcode**
+2. **Open the project**
    ```bash
-   open iOS/WeVibe.xcodeproj
+   open frontend/iOS/WeVibe.xcodeproj
    ```
 
-3. **Select a simulator or device**
-   - In the Xcode toolbar, click the device/simulator dropdown next to the scheme name.
-   - Choose an iPhone simulator running iOS 17.0 or later, or a connected physical device.
+3. **Build and run** — press **Cmd + R**, select an iOS 17+ simulator or device
 
-4. **Build and run**
-   - Press **Cmd + R** or click the **Run** button (play icon) in the toolbar.
-   - Xcode will compile the project and launch the app on the selected simulator/device.
+### Architecture
 
-# WeVibe Backend
+| Layer | Description |
+|-------|-------------|
+| `AppState` | Enum driving the entire view hierarchy via `RootView` |
+| `AuthManager` | Firebase Auth — email/password and Google Sign-In |
+| `UserProfileStore` | In-memory profile state — fetched from backend, no local caching |
+| `OnboardingData` | Onboarding flow state |
+| `APIClient` | All REST calls to the backend |
 
-Unified Node.js backend for WeVibe — serves both the web frontend and iOS app from a single API.
+---
 
-## Runtime Requirements
+## Backend
+
+Node.js/Express API serving the iOS app.
+
+### Requirements
 
 - Node.js v20.x
 - npm v10+
 - PostgreSQL v14+
 
-## Architecture
+### Setup
 
-Single Express API serving all clients (Next.js web, Swift iOS).
-Routes delegate to controllers, which call services for business logic.
-Repositories handle all direct database queries via pg.
-
-## Auth API (Firebase-ready with Mock Verifier)
-
-Current implementation supports three providers: `google`, `apple`, `email`.
-
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout` (requires `Authorization: Bearer <idToken>`, returns `204`)
-- `GET /api/v1/auth/me` (requires bearer token)
-
-### Request Body for register/login
-
-```json
-{
-   "provider": "google",
-   "idToken": "mock:google:uid-123:user@example.com"
-}
-```
-
-### Mock Token Rules (Local Development)
-
-When `AUTH_PROVIDER_MODE=mock`, backend accepts this token format:
-
-`mock:<provider>:<uid>:<email>`
-
-Examples:
-
-- `mock:google:g-001:alice@gmail.com`
-- `mock:apple:a-001:bob@icloud.com`
-- `mock:email:e-001:charlie@example.com`
-
-## Database Setup & Testing
-
-1. **Install Dependencies**
+1. **Install dependencies**
    ```bash
-   npm ci
+   cd backend && npm ci
    ```
 
-2. **Start Database (Docker)**
+2. **Configure environment**
    ```bash
-   npm run db:start
+   cp .env.example .env
    ```
 
-3. **Apply Schema to Database**
-   Push the schema defined in `src/db/schema.prisma` to the database:
+   Edit `.env` with the following required values:
+
+   | Variable | Description |
+   |----------|-------------|
+   | `DATABASE_URL` | PostgreSQL connection string — `postgresql://admin:password@localhost:5432/wevibe_dev` |
+   | `AUTH_PROVIDER_MODE` | `firebase` for real auth (requires service account), `mock` for local testing without Firebase |
+   | `FIREBASE_PROJECT_ID` | Firebase project ID — `wevibe-dev` (dev) or `wevibe-prod` (prod) |
+   | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON — place in `backend/secrets/` (gitignored) |
+   | `PORT` | API port — defaults to `3000` |
+
+   **Firebase service account files** (required when `AUTH_PROVIDER_MODE=firebase`):
+   ```
+   backend/secrets/firebase-service-account-dev.json   ← dev
+   backend/secrets/firebase-service-account-prod.json  ← prod
+   ```
+   These are gitignored — get them from a team member.
+
+3. **Set up database**
    ```bash
-   npm run db:push
+   npm run db:start                                        # start PostgreSQL (Docker)
+   npm run db:push                                         # apply schema
+   npx prisma generate --schema src/db/schema.prisma      # generate Prisma client
+   npm run db:seed                                         # optional: seed fake data
    ```
 
-4. **Generate Prisma Client**
+4. **Start the server**
    ```bash
-   npm run db:generate
+   npm start
+   # → API server running on port 3000
    ```
 
-5. **Seed Fake Data**
-   ```bash
-   npm run db:seed
-   ```
-
-6. **Run Tests**
+5. **Run tests**
    ```bash
    npm test
    ```
-   > Ensure the database is running (`npm run db:start`) to pass connectivity tests.
 
-7. **Check Connection (Optional)**
-   ```bash
-   npm run db:check
-   ```
+### API Endpoints
 
-8. **Run API Server**
-   ```bash
-   npm start
-   ```
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/auth/register` | Register with Firebase token |
+| `POST` | `/api/v1/auth/login` | Login with Firebase token |
+| `POST` | `/api/v1/auth/logout` | Logout (Bearer token required) |
+| `GET` | `/api/v1/auth/me` | Get current user (Bearer token required) |
+| `GET` | `/api/v1/users/profile` | Get own profile |
+| `PATCH` | `/api/v1/users/profile` | Update own profile |
 
-## Folder Structure
+### Folder Structure
 
 ```
-src/
-  routes/        API route definitions
-  controllers/   Request/response handling
-  services/      Business logic
-  repositories/  Database query layer
-  middleware/    Auth, error handling
-  db/            DB connection and setup
-  utils/         Shared helpers
-  config/        Environment and app config
-
-tests/           Test suites
-docs/            API and architecture docs
+backend/src/
+  routes/         Route definitions
+  controllers/    Request/response handling + validation
+  services/       Business logic
+  repositories/   Database query layer (Prisma)
+  middleware/     Auth, error handling
+  db/             Schema and DB setup
+  utils/          Shared helpers
+  config/         Environment config
 ```

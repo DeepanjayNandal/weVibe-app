@@ -19,8 +19,3 @@ struct OtherUserProfileView: View {
     }
 }
 
-// MARK: - Preview
-
-#Preview {
-    OtherUserProfileView(profile: .mock, onDismiss: {})
-}

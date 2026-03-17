@@ -37,6 +37,9 @@ final class AuthManager {
     /// The email address that verification was sent to — displayed on ConfirmScreen.
     var pendingVerificationEmail: String = ""
 
+    /// True while the onboarding POST is in flight — used by SurveyStep5 to show a loader.
+    var isSubmittingOnboarding: Bool = false
+
     // MARK: - Private
 
     /// Nonce used for Apple Sign-In — must be stored for Firebase credential creation.
@@ -46,22 +49,28 @@ final class AuthManager {
 
     // MARK: - Launch
 
-    /// Registers a persistent Firebase Auth state listener. Fires immediately with current state.
+    /// One-time launch check: routes based on existing Firebase session.
+    /// Also registers a persistent listener to detect external sign-out (e.g. token revoked).
     func checkAuthState() async {
+        // Route immediately based on current session — no listener race possible.
+        let user = Auth.auth().currentUser
+        if let user {
+            if !user.isEmailVerified {
+                appState = .pendingVerification
+                pendingVerificationEmail = user.email ?? ""
+            } else {
+                await resolvePostAuthState()
+            }
+        } else {
+            appState = .unauthenticated
+        }
+
+        // Persistent listener: only handles external sign-out after launch.
+        // All explicit auth operations route themselves — they don't rely on this.
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
-            guard let user else {
-                Task { @MainActor in self.appState = .unauthenticated }
-                return
-            }
-            if !user.isEmailVerified {
-                Task { @MainActor in
-                    self.appState = .pendingVerification
-                    self.pendingVerificationEmail = user.email ?? ""
-                }
-                return
-            }
-            Task { await self.resolvePostAuthState() }
+            guard user == nil else { return }
+            Task { @MainActor in self.appState = .unauthenticated }
         }
     }
 
@@ -94,6 +103,8 @@ final class AuthManager {
             pendingVerificationEmail = email
             appState = .pendingVerification
         } catch {
+            // Roll back the Firebase account so the user can retry registration cleanly.
+            try? await Auth.auth().currentUser?.delete()
             throw AuthError.unknown(mapAuthError(error))
         }
     }
@@ -219,6 +230,8 @@ final class AuthManager {
     /// Called by SurveyStep5 "Finish" — POSTs full profile to backend then routes to main app.
     func completeOnboarding(_ data: OnboardingData) {
         Task {
+            isSubmittingOnboarding = true
+            defer { isSubmittingOnboarding = false }
             guard let user = Auth.auth().currentUser else {
                 appState = .unauthenticated
                 return
@@ -236,15 +249,23 @@ final class AuthManager {
                 data.clear()
                 appState = .authenticated
             } catch {
-                globalError = error.localizedDescription
+                globalError = "Couldn't save your profile. Please check your connection and try again."
             }
         }
     }
 
     // MARK: - Sign Out
 
-    func logout() {
+    func logout(profileStore: UserProfileStore, onboardingData: OnboardingData) {
         try? Auth.auth().signOut()
+
+        // MARK: - Store Cleanup on Logout
+        // When adding new stores, clear them here to prevent data leaking between accounts.
+        // Current stores:
+        profileStore.clear()          // UserProfileStore — profile/edit fields
+        onboardingData.clear()        // OnboardingData — clears partial draft if user abandoned onboarding
+        // TODO: chatStore.clear()    — add when chat feature is built
+
         pendingVerificationEmail = ""
         appState = .unauthenticated
     }
@@ -265,14 +286,14 @@ final class AuthManager {
         }
         do {
             let token = try await user.getIDToken()
-            let hasProfile = try await apiClient.checkProfile(token: token)
-            appState = hasProfile ? .authenticated : .onboarding
-        } catch APIError.noProfile {
-            appState = .onboarding
+            let onboardingComplete = try await apiClient.checkProfile(token: token)
+            appState = onboardingComplete ? .authenticated : .onboarding
         } catch APIError.unauthorized {
             appState = .unauthenticated
         } catch {
-            appState = .onboarding
+            // Network failure — assume returning user and let them into the app.
+            // ProfileView will show the fetch error and offer a retry.
+            appState = .authenticated
         }
     }
 
@@ -298,13 +319,22 @@ final class AuthManager {
 
     private func randomNonceString(length: Int = 32) -> String {
         precondition(length > 0)
-        var randomBytes = [UInt8](repeating: 0, count: length)
-        let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
-        if errorCode != errSecSuccess {
-            fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
-        }
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
-        return String(randomBytes.map { byte in charset[Int(byte) % charset.count] })
+        // Use rejection sampling to eliminate modulo bias:
+        // charset.count (66) does not divide 256 evenly, so bytes >= 66 are discarded.
+        var result = [Character]()
+        result.reserveCapacity(length)
+        while result.count < length {
+            var batch = [UInt8](repeating: 0, count: length - result.count)
+            let status = SecRandomCopyBytes(kSecRandomDefault, batch.count, &batch)
+            if status != errSecSuccess {
+                fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(status)")
+            }
+            for byte in batch where Int(byte) < charset.count && result.count < length {
+                result.append(charset[Int(byte)])
+            }
+        }
+        return String(result)
     }
 
     private func sha256(_ input: String) -> String {
@@ -338,10 +368,10 @@ private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerD
     }
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            fatalError("No window available for Apple Sign-In presentation")
-        }
-        return window
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+            ?? UIWindow()
     }
 }

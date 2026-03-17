@@ -4,6 +4,8 @@ import SwiftUI
 
 func editNav<Content: View>(
     title: String,
+    isSaving: Bool = false,
+    onCancel: (() -> Void)? = nil,
     onSave: @escaping () -> Void,
     @ViewBuilder body: () -> Content
 ) -> some View {
@@ -17,9 +19,19 @@ func editNav<Content: View>(
         .toolbarBackground(AppTheme.secondaryBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { EmptyView() }
+            if let onCancel {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                        .foregroundStyle(.white.opacity(isSaving ? 0.3 : 0.6))
+                        .disabled(isSaving)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save", action: onSave).foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                if isSaving {
+                    ProgressView().tint(AppTheme.iconColor)
+                } else {
+                    Button("Save", action: onSave).foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                }
             }
         }
     }
@@ -167,7 +179,7 @@ private func sanitizeHandle(_ input: String, maxLength: Int) -> String {
     s = s.components(separatedBy: "?").first ?? s
     // Strip a leading "@" if the user typed or pasted it
     if s.hasPrefix("@") { s = String(s.dropFirst()) }
-    // Keep only valid handle characters
-    s = s.filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+    // Keep only valid handle characters (ASCII letters/digits, underscore, dot)
+    s = s.filter { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "_" || $0 == "." }
     return s.count > maxLength ? String(s.prefix(maxLength)) : s
 }

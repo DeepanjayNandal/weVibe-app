@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import FirebaseAuth
 
 // MARK: - MatchProfile (data model for viewing another user's profile)
 
@@ -55,65 +56,12 @@ struct MatchProfile: Identifiable {
         var answer: String
     }
 
-    // MARK: - Mock Data
-    static let mock = MatchProfile(
-        id: "mock-1",
-        firstName: "Jessica",
-        lastName: "Parker",
-        age: 23,
-        jobTitle: "Professional Model",
-        bio: "Adventure seeker, coffee lover, and part-time explorer. Looking for someone who appreciates both deep conversations and spontaneous road trips.",
-        pronouns: "she/her",
-        instagramHandle: "jessicap",
-        tiktokHandle: "jessparker",
-        locationCity: "Chicago",
-        locationState: "IL",
-        orientation: "Straight",
-        identity: nil,
-        personalityType: "Protagonist (ENFJ)",
-        loveLanguage: "Quality Time",
-        zodiacSign: "Leo",
-        interests: ["Travel", "Photography", "Music", "Reading", "Fitness", "Dance"],
-        preferredDateActivities: ["Dinner & a movie", "Exploring the city", "Live music at a bar"],
-        drinks: "Sometimes",
-        smoking: "Never",
-        cannabis: "Never",
-        workout: "Often",
-        sleepSchedule: "Night Owl",
-        pets: "Have",
-        petTypes: "Dog",
-        career: "Arts",
-        school: "Northwestern University",
-        education: "Bachelor's Degree",
-        ethnicities: ["White", "Hispanic/Latino"],
-        languages: ["English", "Spanish"],
-        photoURLs: [
-            "https://picsum.photos/seed/wv1/400/600",
-            "https://picsum.photos/seed/wv2/400/600",
-            "https://picsum.photos/seed/wv3/400/600",
-            "https://picsum.photos/seed/wv4/400/600",
-            "https://picsum.photos/seed/wv5/400/600",
-            "https://picsum.photos/seed/wv6/400/600",
-        ], // mock photos for MatchProfile preview
-        prompts: [
-            .init(question: "A perfect day for me looks like...", answer: "Waking up late, grabbing coffee at a local cafe, exploring a new neighborhood, and ending the evening with great music and company."),
-            .init(question: "The most spontaneous thing I've done is...", answer: "Booked a last-minute flight to Paris with nothing but a backpack and a sense of adventure."),
-        ],
-        socialMediaLinks: [],
-        showLocation: true,
-        showOrientation: true,
-        showPersonalityTrait: true,
-        showInterests: true,
-        showLifestyle: true,
-        showCareer: true,
-        showPets: true
-    )
 }
 
 // MARK: - UserProfileStore
 
-/// Holds all extended profile fields not captured during onboarding.
-/// Provides mock GET/PATCH API and UserDefaults persistence until the real backend is ready.
+/// In-memory store for the authenticated user's full profile.
+/// Data is fetched from the backend on app launch and after every PATCH — no local caching.
 @Observable
 final class UserProfileStore {
 
@@ -190,6 +138,22 @@ final class UserProfileStore {
     var firstName: String = ""
     var lastName: String = ""
 
+    // MARK: - Core (synced from backend, set during onboarding)
+    var birthDate: String = ""      // ISO YYYY-MM-DD
+    var sex: String = ""            // "Male" / "Female" / "Non-binary" etc.
+    var locationCity: String = ""
+    var locationState: String = ""
+
+    // MARK: - Prompts
+    var prompt1Question: String = ""
+    var prompt1Answer: String = ""
+    var prompt2Question: String = ""
+    var prompt2Answer: String = ""
+    var prompt3Question: String = ""
+    var prompt3Answer: String = ""
+    var customPromptQuestion: String = ""
+    var customPromptAnswer: String = ""
+
     // MARK: - Social Media
     var socialMediaLinks: [String] = ["", "", ""]
     var spotifyPlaylistURL: String = ""
@@ -206,166 +170,165 @@ final class UserProfileStore {
 
     // MARK: - Load State
     var isLoading: Bool = false
+    var fetchFailed: Bool = false
+    var patchError: String? = nil
 
-    private static let storageKey = "wevibe_profile_ext_v3"
+    private let apiClient = APIClient()
 
-    init() { load() }
+    // MARK: - API
 
-    // MARK: - Mock API
-
-    /// Mock GET /users/profile — loads from local cache.
-    /// TODO: replace with real network call that decodes UserProfileResponse and applies all fields.
+    /// GET /users/profile — fetches full profile from backend and updates the store.
     func fetchProfile() async {
         isLoading = true
+        fetchFailed = false
         defer { isLoading = false }
-        try? await Task.sleep(nanoseconds: 500_000_000)
-    }
-
-    /// Mock PATCH /users/profile — persists locally.
-    /// TODO: replace body with URLSession call sending a JSON payload of changed fields.
-    func patchProfile() async {
-        isLoading = true
-        defer { isLoading = false }
-        try? await Task.sleep(nanoseconds: 300_000_000)
-        save()
-    }
-
-    // MARK: - Persistence
-
-    func save() {
-        guard let data = try? JSONEncoder().encode(Draft(from: self)) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
-    }
-
-    private func load() {
-        guard
-            let data = UserDefaults.standard.data(forKey: Self.storageKey),
-            let draft = try? JSONDecoder().decode(Draft.self, from: data)
-        else { return }
-        draft.apply(to: self)
-    }
-
-    // MARK: - Codable Mirror
-
-    private struct Draft: Codable {
-        var firstName, lastName: String
-        var bio, jobTitle, school, instagramHandle, tiktokHandle: String
-        var orientation: String; var showOrientation: Bool
-        var identity: String; var showIdentity: Bool
-        var pronouns, children, birthCountry: String
-        var ethnicities, languages: [String]
-        var career, education: String
-        var heightFt, heightIn, heightCm, heightUnit: String
-        var drinks, smoking, workout, sleepSchedule, pets: String
-        var cannabis: String; var isCannabisFlexible: Bool
-        var petTypes, petsName: String
-        var isDrinksFlexible, isSmokingFlexible, isWorkoutFlexible, isSleepFlexible, isKidsFlexible: Bool
-        var loveLanguage, zodiacSign: String
-        var communicationStyle, conflictStyle: String
-        var personalityType: String
-        var interests, preferredDateActivities, wouldNotDoActivities: [String]
-        var relationshipGoals: [String]
-        var meetPreference: String
-        var minAge, maxAge, distance: Double
-        var socialMediaLinks: [String]; var spotifyPlaylistURL: String
-        var photoURLs: [String]
-        var showSex: Bool
-        var showLocation, showPersonalityTrait, showInterests: Bool
-        var showLifestyle, showCareer, showPets: Bool
-
-        init(from s: UserProfileStore) {
-            firstName = s.firstName; lastName = s.lastName
-            bio = s.bio; jobTitle = s.jobTitle; school = s.school
-            instagramHandle = s.instagramHandle; tiktokHandle = s.tiktokHandle
-            orientation = s.orientation; showOrientation = s.showOrientation
-            identity = s.identity; showIdentity = s.showIdentity
-            pronouns = s.pronouns; children = s.children
-            birthCountry = s.birthCountry
-            ethnicities = s.ethnicities; languages = s.languages
-            career = s.career; education = s.education
-            heightFt = s.heightFt; heightIn = s.heightIn; heightCm = s.heightCm; heightUnit = s.heightUnit
-            drinks = s.drinks; smoking = s.smoking; workout = s.workout
-            sleepSchedule = s.sleepSchedule; pets = s.pets
-            cannabis = s.cannabis; isCannabisFlexible = s.isCannabisFlexible
-            petTypes = s.petTypes; petsName = s.petsName
-            isDrinksFlexible = s.isDrinksFlexible; isSmokingFlexible = s.isSmokingFlexible
-            isWorkoutFlexible = s.isWorkoutFlexible; isSleepFlexible = s.isSleepFlexible
-            isKidsFlexible = s.isKidsFlexible
-            loveLanguage = s.loveLanguage; zodiacSign = s.zodiacSign
-            communicationStyle = s.communicationStyle; conflictStyle = s.conflictStyle
-            personalityType = s.personalityType
-            interests = s.interests
-            preferredDateActivities = s.preferredDateActivities
-            wouldNotDoActivities = s.wouldNotDoActivities
-            relationshipGoals = s.relationshipGoals
-            meetPreference = s.meetPreference
-            minAge = s.minAge; maxAge = s.maxAge; distance = s.distance
-            socialMediaLinks = s.socialMediaLinks; spotifyPlaylistURL = s.spotifyPlaylistURL
-            photoURLs = s.photoURLs
-            showSex = s.showSex
-            showLocation = s.showLocation; showPersonalityTrait = s.showPersonalityTrait
-            showInterests = s.showInterests; showLifestyle = s.showLifestyle
-            showCareer = s.showCareer; showPets = s.showPets
+        guard let user = Auth.auth().currentUser else { return }
+        do {
+            let token = try await user.getIDToken()
+            let response = try await apiClient.getProfile(token: token)
+            apply(response: response)
+        } catch {
+            fetchFailed = true
         }
+    }
 
-        func apply(to s: UserProfileStore) {
-            s.firstName = firstName; s.lastName = lastName
-            s.bio = bio; s.jobTitle = jobTitle; s.school = school
-            s.instagramHandle = instagramHandle; s.tiktokHandle = tiktokHandle
-            s.orientation = orientation; s.showOrientation = showOrientation
-            s.identity = identity; s.showIdentity = showIdentity
-            s.pronouns = pronouns; s.children = children
-            s.birthCountry = birthCountry
-            s.ethnicities = ethnicities; s.languages = languages
-            s.career = career; s.education = education
-            s.heightFt = heightFt; s.heightIn = heightIn; s.heightCm = heightCm; s.heightUnit = heightUnit
-            s.drinks = drinks; s.smoking = smoking; s.workout = workout
-            s.sleepSchedule = sleepSchedule; s.pets = pets
-            s.cannabis = cannabis; s.isCannabisFlexible = isCannabisFlexible
-            s.petTypes = petTypes; s.petsName = petsName
-            s.isDrinksFlexible = isDrinksFlexible; s.isSmokingFlexible = isSmokingFlexible
-            s.isWorkoutFlexible = isWorkoutFlexible; s.isSleepFlexible = isSleepFlexible
-            s.isKidsFlexible = isKidsFlexible
-            s.loveLanguage = loveLanguage; s.zodiacSign = zodiacSign
-            s.communicationStyle = communicationStyle; s.conflictStyle = conflictStyle
-            s.personalityType = personalityType
-            s.interests = interests
-            s.preferredDateActivities = preferredDateActivities
-            s.wouldNotDoActivities = wouldNotDoActivities
-            s.relationshipGoals = relationshipGoals
-            s.meetPreference = meetPreference
-            s.minAge = minAge; s.maxAge = maxAge; s.distance = distance
-            s.socialMediaLinks = socialMediaLinks; s.spotifyPlaylistURL = spotifyPlaylistURL
-            s.photoURLs = photoURLs
-            s.showSex = showSex
-            s.showLocation = showLocation; s.showPersonalityTrait = showPersonalityTrait
-            s.showInterests = showInterests; s.showLifestyle = showLifestyle
-            s.showCareer = showCareer; s.showPets = showPets
+    /// PATCH /users/profile — sends only the changed fields, then re-fetches to confirm saved state.
+    /// Pass a targeted `ProfileUpdatePayload` to send only the fields that changed.
+    /// Omit the payload to send all non-empty fields (used by onboarding and legacy call sites).
+    func patchProfile(_ payload: ProfileUpdatePayload? = nil) async {
+        patchError = nil
+        guard let user = Auth.auth().currentUser else { return }
+        do {
+            let token = try await user.getIDToken()
+            let p = payload ?? ProfileUpdatePayload(from: self)
+            try await apiClient.updateProfile(token: token, payload: p)
+            // Re-fetch so the store reflects exactly what the backend saved
+            await fetchProfile()
+        } catch {
+            patchError = "Failed to save. Please try again."
         }
+    }
+
+    // MARK: - Apply GET Response
+
+    private func apply(response r: UserProfileResponse) {
+        if let v = r.firstName         { firstName        = v }
+        if let v = r.lastName          { lastName         = v }
+        if let v = r.birthDate         { birthDate        = v }
+        if let v = r.gender            { sex              = v }
+        if let v = r.locationCity      { locationCity     = v }
+        if let v = r.locationState     { locationState    = v }
+        if let v = r.bio               { bio              = v }
+        if let v = r.jobTitle          { jobTitle         = v }
+        if let v = r.school            { school           = v }
+        if let v = r.instagramHandle   { instagramHandle  = v }
+        if let v = r.tiktokHandle      { tiktokHandle     = v }
+        if let v = r.spotifyPlaylistUrl { spotifyPlaylistURL = v }
+        if let v = r.pronouns          { pronouns         = v }
+        if let v = r.orientation       { orientation      = v }
+        if let v = r.showOrientation   { showOrientation  = v }
+        if let v = r.genderIdentity    { identity         = v }
+        if let v = r.showIdentity      { showIdentity     = v }
+        if let v = r.showGender        { showSex          = v }
+        if let v = r.careerField       { career           = v }
+        if let v = r.education         { education        = EducationLevel(rawValue: v)?.displayName ?? v }
+        if let unit = r.heightUnit {
+            heightUnit = unit == "imperial" ? "FT" : "CM"
+            if unit == "imperial" {
+                heightFt = r.heightFt.map { String($0) } ?? ""
+                heightIn = r.heightIn.map { String($0) } ?? ""
+                heightCm = ""
+            } else {
+                heightCm = r.heightCm.map { String($0) } ?? ""
+                heightFt = ""; heightIn = ""
+            }
+        }
+        if let v = r.ethnicity              { ethnicities           = v }
+        if let v = r.languages             { languages             = v }
+        if let v = r.birthCountry          { birthCountry          = v }
+        if let v = r.drinks                { drinks                = v }
+        if let v = r.smoking               { smoking               = v }
+        if let v = r.workout               { workout               = v }
+        if let v = r.sleepSchedule         { sleepSchedule         = v }
+        if let v = r.pets                  { pets                  = v }
+        if let v = r.cannabis              { cannabis              = v }
+        if let v = r.petTypes              { petTypes              = v }
+        if let v = r.petsName              { petsName              = v }
+        if let v = r.children              { children              = v }
+        if let v = r.isDrinksFlexible      { isDrinksFlexible      = v }
+        if let v = r.isSmokingFlexible     { isSmokingFlexible     = v }
+        if let v = r.isWorkoutFlexible     { isWorkoutFlexible     = v }
+        if let v = r.isSleepFlexible       { isSleepFlexible       = v }
+        if let v = r.isCannabisFlexible    { isCannabisFlexible    = v }
+        if let v = r.isKidsFlexible        { isKidsFlexible        = v }
+        if let v = r.loveLanguage          { loveLanguage          = v }
+        if let v = r.zodiacSign            { zodiacSign            = v }
+        if let v = r.communicationStyle    { communicationStyle    = v }
+        if let v = r.conflictStyle         { conflictStyle         = v }
+        if let v = r.personalityType       { personalityType       = v }
+        if let v = r.interests             { interests             = v }
+        if let v = r.preferredDateActivities { preferredDateActivities = v }
+        if let v = r.wouldNotDoActivities  { wouldNotDoActivities  = v }
+        if let v = r.meetPreference        { meetPreference        = v }
+        if let v = r.relationshipGoals     { relationshipGoals     = v }
+        if let v = r.minAgePreference      { minAge                = Double(v) }
+        if let v = r.maxAgePreference      { maxAge                = Double(v) }
+        if let v = r.distancePreferenceMiles { distance            = Double(v) }
+        if let v = r.photoUrls             { photoURLs             = v }
+        if let prompts = r.prompts {
+            prompt1Question      = prompts.count > 0 ? prompts[0].question : ""
+            prompt1Answer        = prompts.count > 0 ? prompts[0].answer   : ""
+            prompt2Question      = prompts.count > 1 ? prompts[1].question : ""
+            prompt2Answer        = prompts.count > 1 ? prompts[1].answer   : ""
+            prompt3Question      = prompts.count > 2 ? prompts[2].question : ""
+            prompt3Answer        = prompts.count > 2 ? prompts[2].answer   : ""
+            customPromptQuestion = prompts.count > 3 ? prompts[3].question : ""
+            customPromptAnswer   = prompts.count > 3 ? prompts[3].answer   : ""
+        }
+    }
+
+    // MARK: - Clear (called on logout)
+
+    func clear() {
+        bio = ""; jobTitle = ""; school = ""; instagramHandle = ""; tiktokHandle = ""
+        orientation = ""; showOrientation = true; identity = ""; showIdentity = true; pronouns = ""
+        children = ""; birthCountry = ""; ethnicities = []; languages = []
+        career = ""; education = ""
+        heightFt = ""; heightIn = ""; heightCm = ""; heightUnit = "FT"
+        drinks = ""; smoking = ""; workout = ""; sleepSchedule = ""; pets = ""
+        cannabis = ""; isCannabisFlexible = false; petTypes = ""; petsName = ""
+        isDrinksFlexible = false; isSmokingFlexible = false; isWorkoutFlexible = false
+        isSleepFlexible = false; isKidsFlexible = false
+        loveLanguage = ""; zodiacSign = ""; communicationStyle = ""; conflictStyle = ""; personalityType = ""
+        interests = []; preferredDateActivities = []; wouldNotDoActivities = []
+        relationshipGoals = []; meetPreference = ""; minAge = 18; maxAge = 50; distance = 25
+        firstName = ""; lastName = ""; birthDate = ""; sex = ""; locationCity = ""; locationState = ""
+        prompt1Question = ""; prompt1Answer = ""; prompt2Question = ""; prompt2Answer = ""
+        prompt3Question = ""; prompt3Answer = ""; customPromptQuestion = ""; customPromptAnswer = ""
+        socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photoURLs = []
+        showSex = true; showLocation = true; showPersonalityTrait = true
+        showInterests = true; showLifestyle = true; showCareer = true; showPets = true
+        fetchFailed = false
+        patchError = nil
     }
 }
 
 // MARK: - Static Option Lists
 
 extension UserProfileStore {
+    // BinarySlider needs empty string in the middle for the neutral position
     static let communicationStyleOptions = ["Big Texter", "", "Phone Person"]
     static let conflictStyleOptions      = ["Quiet & Reserved", "", "Confrontational"]
-    static let identityOptions = [
-        "Man", "Woman", "Non-binary", "Gender fluid", "Gender queer",
-        "Agender", "Bigender", "Two-spirit", "Transgender", "Prefer not to say"
-    ]
-    static let orientationOptions = [
-        "Straight", "Gay", "Lesbian", "Bisexual",
-        "Demisexual", "Pansexual", "Queer", "Questioning", "Prefer not to say"
-    ]
-    static let loveLanguageOptions = [
-        "Words of Affirmation", "Acts of Service",
-        "Receiving Gifts", "Quality Time", "Physical Touch"
-    ]
-    static let zodiacOptions = [
-        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
-    ]
+
+    static let orientationOptions      = SexualOrientation.allCases.map(\.rawValue)
+    static let identityOptions         = GenderIdentity.allCases.map(\.rawValue)
+    static let loveLanguageOptions     = LoveLanguage.allCases.map(\.rawValue)
+    static let zodiacOptions           = ZodiacSign.allCases.map(\.rawValue)
+    static let childrenOptions         = FamilyPreference.allCases.map(\.rawValue)
+    static let cannabisOptions         = FrequencyHabit.allCases.map(\.rawValue)
+    static let relationshipGoalOptions = RelationshipGoal.allCases.map(\.rawValue)
+    static let meetPreferenceOptions   = MeetPreference.allCases.map(\.rawValue)
+
     static let interestOptions = [
         "Travel", "Photography", "Music", "Reading", "Fitness", "Dance",
         "Cooking", "Gaming", "Art", "Sports", "Movies", "Yoga",
@@ -382,8 +345,4 @@ extension UserProfileStore {
         "Something active & adventurous", "Concert", "Hiking", "Cooking together",
         "Picnic", "Art gallery", "Sports game", "Comedy show", "Rooftop bar"
     ]
-    static let childrenOptions = ["Don't want", "Unsure", "Want", "Have"]
-    static let cannabisOptions = ["Never", "Sometimes", "Often"]
-    static let relationshipGoalOptions = ["Short Term", "Long Term", "Marriage", "Still figuring out"]
-    static let meetPreferenceOptions = ["Men", "Women", "Open to both"]
 }

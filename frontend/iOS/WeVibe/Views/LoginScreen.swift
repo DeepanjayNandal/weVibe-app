@@ -6,10 +6,6 @@ struct LoginScreen: View {
 
     @Environment(AuthRouter.self) private var authRouter
     @Environment(AuthManager.self) private var authManager
-    
-    @Binding var showLogin: Bool
-    @Binding var showRegister: Bool
-    @Binding var showForgotPassword: Bool
 
     @State private var emailError: String?
     @State private var passwordError: String?
@@ -47,6 +43,7 @@ struct LoginScreen: View {
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                        .textContentType(.emailAddress)
                         .onChange(of: email) { _, _ in emailError = nil; authError = nil }
 
                     if let emailError {
@@ -72,6 +69,7 @@ struct LoginScreen: View {
                                 .cornerRadius(14)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
+                                .textContentType(.password)
                                 .focused($isPasswordFocused)
                                 .onChange(of: password) { _, _ in passwordError = nil; authError = nil }
                         } else {
@@ -82,8 +80,7 @@ struct LoginScreen: View {
                                 .background(.white)
                                 .foregroundStyle(.black)
                                 .cornerRadius(14)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
+                                .textContentType(.password)
                                 .focused($isPasswordFocused)
                                 .onChange(of: password) { _, _ in passwordError = nil; authError = nil }
                         }
@@ -107,7 +104,7 @@ struct LoginScreen: View {
                 }
 
                 HStack {
-                    Button(action: { showForgotPassword = true }) {
+                    Button(action: { authRouter.navigate(to: .forgotPassword) }) {
                         Text("Forgot Password?")
                             .foregroundStyle(Color.white)
                             .underline()
@@ -116,7 +113,7 @@ struct LoginScreen: View {
 
                     Spacer()
 
-                    Button(action: { showRegister = true }) {
+                    Button(action: { authRouter.navigate(to: .register) }) {
                         Text("Sign up")
                             .foregroundStyle(AppTheme.smallText)
                             .underline()
@@ -182,7 +179,7 @@ struct LoginScreen: View {
             }
             .padding(.horizontal, 24)
         }
-        .navigationBarBackButtonHidden(false)
+        .navigationBarHidden(true)
         .onTapGesture {
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }

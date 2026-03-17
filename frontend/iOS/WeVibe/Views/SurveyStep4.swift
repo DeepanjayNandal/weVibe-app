@@ -5,16 +5,8 @@ struct SurveyStep4: View {
     @Environment(OnboardingRouter.self) private var onboardingRouter
     @Environment(OnboardingData.self) private var onboardingData
 
-    let educationOptions = [
-        "High School",
-        "In College",
-        "Bachelor's Degree",
-        "Master's Degree",
-        "PhD / Doctorate",
-        "Other"
-    ]
-
-    let careerOptions = ["Technology", "Healthcare", "Education", "Finance", "Arts", "Other"]
+    let educationOptions = EducationLevel.allCases.map(\.displayName)
+    let careerOptions    = CareerField.allCases.map(\.rawValue)
 
     let languages = [
         "English", "Spanish", "Mandarin/Chinese", "Hindi", "Arabic",
@@ -68,7 +60,14 @@ struct SurveyStep4: View {
                             HStack(spacing: 6) {
                                 ForEach(["FT", "CM"], id: \.self) { unit in
                                     Button {
+                                        guard unit != onboardingData.heightUnit else { return }
                                         onboardingData.heightUnit = unit
+                                        if unit == "CM" {
+                                            onboardingData.heightFt = ""
+                                            onboardingData.heightIn = ""
+                                        } else {
+                                            onboardingData.heightCm = ""
+                                        }
                                     } label: {
                                         Text(unit)
                                             .font(.system(size: 14, weight: .bold))

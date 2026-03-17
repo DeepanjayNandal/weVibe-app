@@ -128,10 +128,8 @@ struct PhotosEditSheet: View {
     }
 
     private func save() {
-        // Existing URLs kept as-is; new local images would be uploaded here in production.
-        // For now only URL removals are persisted.
+        // Photo upload not yet implemented — update in-memory only.
         store.photoURLs = urls
-        Task { await store.patchProfile() }
         dismiss()
     }
 }
@@ -148,9 +146,10 @@ struct AboutEditSheet: View {
     @State private var tiktok = ""
     @State private var spotify = ""
     @State private var showValidation = false
+    @State private var isSaving = false
 
     var body: some View {
-        editNav(title: "About Me", onSave: save) {
+        editNav(title: "About Me", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Name")
             requiredLabel("First Name")
             editField("", "First name", text: $firstName)
@@ -189,7 +188,18 @@ struct AboutEditSheet: View {
         store.instagramHandle    = instagram
         store.tiktokHandle       = tiktok
         store.spotifyPlaylistURL = spotify
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.firstName         = fn
+        p.lastName          = ln
+        p.bio               = bio.isEmpty          ? nil : bio
+        p.instagramHandle   = instagram.isEmpty    ? nil : instagram
+        p.tiktokHandle      = tiktok.isEmpty       ? nil : tiktok
+        p.spotifyPlaylistUrl = spotify.isEmpty     ? nil : spotify
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -205,9 +215,10 @@ struct IdentityEditSheet: View {
     @State private var showIdentity = true
     @State private var pronouns = ""
     @State private var showSex = true
+    @State private var isSaving = false
 
     var body: some View {
-        editNav(title: "Identity", onSave: save) {
+        editNav(title: "Identity", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Gender")
             toggleRow("Show gender on my profile", isOn: $showSex)
             editField("Pronouns", "e.g. she/her, he/him, they/them", text: $pronouns)
@@ -227,7 +238,18 @@ struct IdentityEditSheet: View {
         store.orientation = orientation; store.showOrientation = showOrientation
         store.identity = identity; store.showIdentity = showIdentity
         store.pronouns = pronouns; store.showSex = showSex
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.pronouns      = pronouns.isEmpty    ? nil : pronouns
+        p.orientation   = orientation.isEmpty ? nil : orientation
+        p.showGender    = showSex
+        p.showOrientation = showOrientation
+        p.genderIdentity  = identity.isEmpty  ? nil : identity
+        p.showIdentity    = showIdentity
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -240,9 +262,10 @@ struct PersonalityEditSheet: View {
     @State private var zodiac = ""
     @State private var comm = ""
     @State private var conflict = ""
+    @State private var isSaving = false
 
     var body: some View {
-        editNav(title: "Personality", onSave: save) {
+        editNav(title: "Personality", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             pickerRow("Love Language", selection: $loveLanguage, options: UserProfileStore.loveLanguageOptions)
             pickerRow("Zodiac Sign", selection: $zodiac, options: UserProfileStore.zodiacOptions)
             BinarySlider(title: "Communication Style", options: UserProfileStore.communicationStyleOptions,
@@ -259,7 +282,16 @@ struct PersonalityEditSheet: View {
     private func save() {
         store.loveLanguage = loveLanguage
         store.zodiacSign = zodiac; store.communicationStyle = comm; store.conflictStyle = conflict
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.loveLanguage       = loveLanguage.isEmpty ? nil : loveLanguage
+        p.zodiacSign         = zodiac.isEmpty       ? nil : zodiac
+        p.communicationStyle = comm.isEmpty         ? nil : comm
+        p.conflictStyle      = conflict.isEmpty     ? nil : conflict
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -270,6 +302,7 @@ struct InterestsEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected: Set<String> = []
     @State private var searchText = ""
+    @State private var isSaving = false
 
     private static let maxInterests = 7
 
@@ -314,10 +347,16 @@ struct InterestsEditSheet: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.foregroundStyle(.white.opacity(0.6))
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(.white.opacity(isSaving ? 0.3 : 0.6))
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                    if isSaving {
+                        ProgressView().tint(AppTheme.iconColor)
+                    } else {
+                        Button("Save") { save() }.foregroundStyle(AppTheme.iconColor).fontWeight(.semibold)
+                    }
                 }
             }
         }
@@ -344,7 +383,13 @@ struct InterestsEditSheet: View {
 
     private func save() {
         store.interests = Array(selected).sorted()
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.interests = store.interests.isEmpty ? nil : store.interests
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -355,11 +400,12 @@ struct DateActivitiesEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var wouldDo: Set<String> = []
     @State private var wouldNot: Set<String> = []
+    @State private var isSaving = false
 
     private static let maxActivities = 3
 
     var body: some View {
-        editNav(title: "Date Activities", onSave: save) {
+        editNav(title: "Date Activities", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             activitiesSection("Would love to do on a date (\(wouldDo.count)/\(Self.maxActivities))",
                               selected: $wouldDo, blocked: wouldNot, accent: AppTheme.iconColor)
             activitiesSection("Would NOT do on a date (\(wouldNot.count)/\(Self.maxActivities))",
@@ -400,7 +446,14 @@ struct DateActivitiesEditSheet: View {
     private func save() {
         store.preferredDateActivities = Array(wouldDo).sorted()
         store.wouldNotDoActivities = Array(wouldNot).sorted()
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.preferredDateActivities = store.preferredDateActivities.isEmpty ? nil : store.preferredDateActivities
+        p.wouldNotDoActivities    = store.wouldNotDoActivities.isEmpty    ? nil : store.wouldNotDoActivities
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -425,19 +478,20 @@ struct LifestyleEditSheet: View {
     @State private var isSleepFlexible = false
     @State private var isCannabisFlexible = false
     @State private var isKidsFlexible = false
+    @State private var isSaving = false
 
     var body: some View {
-        editNav(title: "Lifestyle", onSave: save) {
+        editNav(title: "Lifestyle", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Habits")
-            pickerRow("Drinks", selection: $drinks, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Drinks", selection: $drinks, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on drinking", isOn: $isDrinksFlexible)
-            pickerRow("Smoking", selection: $smoking, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Smoking", selection: $smoking, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on smoking", isOn: $isSmokingFlexible)
-            pickerRow("Workout", selection: $workout, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Workout", selection: $workout, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on workout", isOn: $isWorkoutFlexible)
-            pickerRow("Sleep Schedule", selection: $sleepSchedule, options: ["Night Owl", "Early Bird", "Flexible"])
+            pickerRow("Sleep Schedule", selection: $sleepSchedule, options: SleepSchedule.allCases.map(\.rawValue))
             toggleRow("Flexible on sleep schedule", isOn: $isSleepFlexible)
-            pickerRow("Pets", selection: $pets, options: ["Don't want", "Unsure", "Want", "Have"])
+            pickerRow("Pets", selection: $pets, options: FamilyPreference.allCases.map(\.rawValue))
 
             sectionLabel("More about pets")
             editField("What type of pets?", "e.g. Dog, Cat, Fish", text: $petTypes)
@@ -472,7 +526,27 @@ struct LifestyleEditSheet: View {
         store.isDrinksFlexible = isDrinksFlexible; store.isSmokingFlexible = isSmokingFlexible
         store.isWorkoutFlexible = isWorkoutFlexible; store.isSleepFlexible = isSleepFlexible
         store.isCannabisFlexible = isCannabisFlexible; store.isKidsFlexible = isKidsFlexible
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.drinks       = drinks.isEmpty       ? nil : drinks
+        p.smoking      = smoking.isEmpty      ? nil : smoking
+        p.workout      = workout.isEmpty      ? nil : workout
+        p.sleepSchedule = sleepSchedule.isEmpty ? nil : sleepSchedule
+        p.pets         = pets.isEmpty         ? nil : pets
+        p.cannabis     = cannabis.isEmpty     ? nil : cannabis
+        p.petTypes     = petTypes.isEmpty     ? nil : petTypes
+        p.petsName     = petsName.isEmpty     ? nil : petsName
+        p.children     = children.isEmpty     ? nil : children
+        p.isDrinksFlexible   = isDrinksFlexible
+        p.isSmokingFlexible  = isSmokingFlexible
+        p.isWorkoutFlexible  = isWorkoutFlexible
+        p.isSleepFlexible    = isSleepFlexible
+        p.isCannabisFlexible = isCannabisFlexible
+        p.isKidsFlexible     = isKidsFlexible
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -485,6 +559,7 @@ struct BackgroundEditSheet: View {
     @State private var ethnicities: Set<String> = []
     @State private var languages: Set<String> = []
     @State private var birthCountry = ""
+    @State private var isSaving = false
 
     private static let ethnicityOptions = [
         "White", "Asian", "Hispanic/Latino", "Black/African American",
@@ -503,7 +578,7 @@ struct BackgroundEditSheet: View {
     ]
 
     var body: some View {
-        editNav(title: "Background", onSave: save) {
+        editNav(title: "Background", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Ethnicity")
             FlowLayout(spacing: 8) {
                 ForEach(Self.ethnicityOptions, id: \.self) { item in
@@ -550,7 +625,15 @@ struct BackgroundEditSheet: View {
         store.ethnicities = ethnicities.sorted()
         store.languages = languages.sorted()
         store.birthCountry = birthCountry
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.ethnicity    = store.ethnicities.isEmpty ? nil : store.ethnicities
+        p.languages    = store.languages.isEmpty   ? nil : store.languages
+        p.birthCountry = birthCountry.isEmpty      ? nil : birthCountry
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -570,19 +653,15 @@ struct CareerEditSheet: View {
     @State private var school = ""
 
     @State private var showValidation = false
+    @State private var isSaving = false
 
-    private static let educationOptions = [
-        "High School", "In College", "Bachelor's Degree",
-        "Master's Degree", "PhD / Doctorate", "Other"
-    ]
-    private static let careerOptions = [
-        "Technology", "Healthcare", "Education", "Finance", "Arts", "Other"
-    ]
+    private static let educationOptions = EducationLevel.allCases.map(\.displayName)
+    private static let careerOptions    = CareerField.allCases.map(\.rawValue)
 
     private var isMandatoryFilled: Bool { !career.isEmpty && !education.isEmpty }
 
     var body: some View {
-        editNav(title: "Career & Education", onSave: save) {
+        editNav(title: "Career & Education", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             requiredPicker("Career field", selection: $career, options: Self.careerOptions)
             requiredPicker("Education level", selection: $education, options: Self.educationOptions)
             editField("Job Title", "e.g. Software Engineer, Designer", text: $jobTitle)
@@ -632,7 +711,12 @@ struct CareerEditSheet: View {
         HStack(spacing: 8) {
             HStack(spacing: 4) {
                 ForEach(["FT", "CM"], id: \.self) { unit in
-                    Button { heightUnit = unit } label: {
+                    Button {
+                            guard unit != heightUnit else { return }
+                            heightUnit = unit
+                            if unit == "CM" { heightFt = ""; heightIn = "" }
+                            else { heightCm = "" }
+                        } label: {
                         Text(unit)
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(heightUnit == unit ? .black : .white)
@@ -681,20 +765,35 @@ struct CareerEditSheet: View {
         store.heightFt = heightFt; store.heightIn = heightIn
         store.heightCm = heightCm; store.heightUnit = heightUnit
         store.jobTitle = jobTitle; store.school = school
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.careerField = career.isEmpty    ? nil : career
+        p.education   = education.isEmpty ? nil : (EducationLevel.from(displayName: education)?.rawValue ?? education)
+        p.jobTitle    = jobTitle.isEmpty  ? nil : jobTitle
+        p.school      = school.isEmpty    ? nil : school
+        let isImperial = heightUnit == "FT"
+        if !heightFt.isEmpty || !heightCm.isEmpty {
+            p.heightUnit = isImperial ? "imperial" : "metric"
+            p.heightFt   = isImperial ? Int(heightFt) : nil
+            p.heightIn   = isImperial ? (Int(heightIn) ?? 0) : nil
+            p.heightCm   = isImperial ? nil : Int(heightCm)
+        }
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
 // MARK: - Prompts Edit Sheet
 
 struct PromptsEditSheet: View {
-    @Environment(OnboardingData.self) private var onboarding
+    @Environment(UserProfileStore.self) var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var q1 = ""; @State private var a1 = ""
-    @State private var q2 = ""; @State private var a2 = ""
-    @State private var q3 = ""; @State private var a3 = ""
-    @State private var customQ = ""; @State private var customA = ""
+    // Snapshot of prompt values on open — restored if user cancels without saving
+    @State private var snapshot: (String, String, String, String, String, String, String, String)?
+    @State private var isSaving = false
 
     private static let promptOptions = [
         "A perfect day for me looks like...",
@@ -712,22 +811,36 @@ struct PromptsEditSheet: View {
     ]
 
     var body: some View {
-        editNav(title: "Prompts", onSave: save) {
-            promptField("Prompt 1", question: $q1, answer: $a1, usedBy: [q2, q3])
-            promptField("Prompt 2", question: $q2, answer: $a2, usedBy: [q1, q3])
-            promptField("Prompt 3", question: $q3, answer: $a3, usedBy: [q1, q2])
+        @Bindable var store = store
+        editNav(title: "Prompts", isSaving: isSaving, onCancel: { restoreSnapshot(); dismiss() }, onSave: save) {
+            promptField("Prompt 1", question: $store.prompt1Question, answer: $store.prompt1Answer,
+                        usedBy: [store.prompt2Question, store.prompt3Question])
+            promptField("Prompt 2", question: $store.prompt2Question, answer: $store.prompt2Answer,
+                        usedBy: [store.prompt1Question, store.prompt3Question])
+            promptField("Prompt 3", question: $store.prompt3Question, answer: $store.prompt3Answer,
+                        usedBy: [store.prompt1Question, store.prompt2Question])
             sectionLabel("Your own prompt")
-            editField("Write your own question...", "", text: $customQ)
-            if !customQ.isEmpty {
-                editField("Your answer", "Write your answer...", text: $customA, multiline: true)
+            editField("Write your own question...", "", text: $store.customPromptQuestion)
+            if !store.customPromptQuestion.isEmpty {
+                editField("Your answer", "Write your answer...", text: $store.customPromptAnswer, multiline: true)
             }
         }
         .onAppear {
-            q1 = onboarding.prompt1Question; a1 = onboarding.prompt1Answer
-            q2 = onboarding.prompt2Question; a2 = onboarding.prompt2Answer
-            q3 = onboarding.prompt3Question; a3 = onboarding.prompt3Answer
-            customQ = onboarding.ownPrompt; customA = onboarding.ownPromptAnswer
+            snapshot = (
+                store.prompt1Question, store.prompt1Answer,
+                store.prompt2Question, store.prompt2Answer,
+                store.prompt3Question, store.prompt3Answer,
+                store.customPromptQuestion, store.customPromptAnswer
+            )
         }
+    }
+
+    private func restoreSnapshot() {
+        guard let s = snapshot else { return }
+        store.prompt1Question = s.0; store.prompt1Answer = s.1
+        store.prompt2Question = s.2; store.prompt2Answer = s.3
+        store.prompt3Question = s.4; store.prompt3Answer = s.5
+        store.customPromptQuestion = s.6; store.customPromptAnswer = s.7
     }
 
     @ViewBuilder private func promptField(
@@ -759,11 +872,26 @@ struct PromptsEditSheet: View {
     }
 
     private func save() {
-        onboarding.prompt1Question = q1; onboarding.prompt1Answer = a1
-        onboarding.prompt2Question = q2; onboarding.prompt2Answer = a2
-        onboarding.prompt3Question = q3; onboarding.prompt3Answer = a3
-        onboarding.ownPrompt = customQ; onboarding.ownPromptAnswer = customA
-        onboarding.save(); dismiss()
+        var promptList: [ProfileUpdatePayload.PromptEntry] = []
+        if !store.prompt1Question.isEmpty && !store.prompt1Answer.isEmpty {
+            promptList.append(.init(question: store.prompt1Question, answer: store.prompt1Answer))
+        }
+        if !store.prompt2Question.isEmpty && !store.prompt2Answer.isEmpty {
+            promptList.append(.init(question: store.prompt2Question, answer: store.prompt2Answer))
+        }
+        if !store.prompt3Question.isEmpty && !store.prompt3Answer.isEmpty {
+            promptList.append(.init(question: store.prompt3Question, answer: store.prompt3Answer))
+        }
+        if !store.customPromptQuestion.isEmpty && !store.customPromptAnswer.isEmpty {
+            promptList.append(.init(question: store.customPromptQuestion, answer: store.customPromptAnswer))
+        }
+        var p = ProfileUpdatePayload()
+        p.prompts = promptList.isEmpty ? nil : promptList
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }
 
@@ -779,9 +907,10 @@ struct PreferencesEditSheet: View {
     @State private var maxAge: Double = 50
     @State private var distance: Double = 25
     @State private var showValidation = false
+    @State private var isSaving = false
 
     var body: some View {
-        editNav(title: "Preferences", onSave: save) {
+        editNav(title: "Preferences", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             // I'm looking for
             requiredLabel("I'm looking for")
             FlowLayout(spacing: 8) {
@@ -854,6 +983,16 @@ struct PreferencesEditSheet: View {
         store.minAge            = minAge
         store.maxAge            = maxAge
         store.distance          = distance
-        Task { await store.patchProfile() }; dismiss()
+        var p = ProfileUpdatePayload()
+        p.meetPreference         = meetPref.isEmpty ? nil : meetPref
+        p.relationshipGoals      = store.relationshipGoals.isEmpty ? nil : store.relationshipGoals
+        p.minAgePreference       = Int(minAge)
+        p.maxAgePreference       = Int(maxAge)
+        p.distancePreferenceMiles = Int(distance)
+        isSaving = true
+        Task {
+            await store.patchProfile(p)
+            if store.patchError == nil { dismiss() } else { isSaving = false }
+        }
     }
 }

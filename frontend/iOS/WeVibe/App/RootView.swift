@@ -61,35 +61,19 @@ struct LaunchView: View {
 // Unauthenticated flow: Splash → Login/Register/ForgotPassword
 struct AuthFlowView: View {
     @State private var authRouter = AuthRouter()
-    @State private var showLogin = false
-    @State private var showRegister = false
-    @State private var showForgotPassword = false
 
     var body: some View {
-        ZStack {
-            SplashScreen(showLogin: $showLogin)
-
-            if showLogin {
-                LoginScreen(showLogin: $showLogin, showRegister: $showRegister, showForgotPassword: $showForgotPassword)
-                    .transition(.move(edge: .bottom))
-                    .zIndex(1)
-            }
-
-            if showRegister {
-                RegisterScreen(showRegister: $showRegister)
-                    .transition(.move(edge: .trailing))
-                    .zIndex(2)
-            }
-
-            if showForgotPassword {
-                ForgotPasswordScreen(showForgotPassword: $showForgotPassword)
-                    .transition(.move(edge: .trailing))
-                    .zIndex(3)
-            }
+        NavigationStack(path: $authRouter.path) {
+            SplashScreen()
+                .navigationDestination(for: AuthRoute.self) { route in
+                    switch route {
+                    case .login:         LoginScreen()
+                    case .register:      RegisterScreen()
+                    case .forgotPassword: ForgotPasswordScreen()
+                    }
+                }
         }
-        .animation(.easeInOut(duration: 0.5), value: showLogin)
-        .animation(.easeInOut(duration: 0.5), value: showRegister)
-        .animation(.easeInOut(duration: 0.5), value: showForgotPassword)
+        .navigationBarHidden(true)
         .environment(authRouter)
     }
 }

@@ -53,12 +53,15 @@ private struct SpeedDatingTab: View {
                 .navigationDestination(for: SpeedDatingRoute.self) { route in
                     switch(route) {
                     case .rules: SpeedDatingRules()
-                    case .q1: PersonalityTestView()
-
+                    case .tests: PersonalityTestView()
+                    case .joinQueue: JoinQueueView()
+                    case .findingMatch : FindingMatchView()
+//                    case .matchResult
                     }
                 }
         }
         .environment(speedDatingRouter)
+        .environment(PersonalityTestData())
     }
 }
 

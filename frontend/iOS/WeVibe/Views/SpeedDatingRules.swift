@@ -103,7 +103,7 @@ struct SpeedDatingRules: View {
                         isLoading: false,
                         isDisabled: false
                     ) {
-                        speedDatingRouter.navigate(to: .q1)
+                        speedDatingRouter.navigate(to: .tests)
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)

@@ -1,0 +1,248 @@
+// ==========================================================
+// WeVibe Complete Database Architecture 
+// Features: Strict Enums, No Swipes, 24h Icebreaker Challenge, Double Opt-in
+// ==========================================================
+
+Table users {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  firebase_uid varchar [unique, note: 'Populated after Firebase Auth linking']
+  auth_provider enum_auth_provider [not null, default: 'email']
+  email varchar [unique, not null]
+  phone varchar [unique]
+  password_hash varchar
+  created_at timestamp [default: `now()`]
+  last_active_at timestamp
+  
+  is_banned boolean [default: false]
+  current_status enum_user_status [default: 'offline'] 
+  is_registration_complete boolean [default: false]
+  is_personality_test_complete boolean [default: false]
+
+  // --- Search Preferences ---
+  search_radius_km int [default: 50] 
+  search_age_min int [default: 18]   
+  search_age_max int [default: 35]   
+  search_gender enum_meet_gender [default: 'both'] 
+  
+  preferences jsonb [note: 'Flexible storage for other specific preferences']
+}
+
+Table profiles {
+  user_id uuid [pk, ref: - users.id]
+  
+  // --- Core Demographics ---
+  display_name varchar
+  birth_date date
+  gender varchar [note: 'Gender identity']
+  sex enum_sex [note: 'Biological sex']
+  ethnicity varchar [note: 'e.g., White, Asian, Hispanic, Black, Pacific Islander']
+  height_cm int [note: 'Stored in cm to maintain a standard unit']
+  
+  // --- Location ---
+  location_point geography [note: 'PostGIS Latitude/Longitude for spatial queries']
+  state varchar 
+  zip_code varchar 
+
+  // --- Background ---
+  education enum_education 
+  career_field varchar 
+  languages jsonb [note: 'Array: ["English", "Mandarin", "Spanish"]']
+
+  // --- Intent & Personality ---
+  relationship_intent enum_intent 
+  personality_primary varchar [note: 'Primary Soul Archetype']
+  personality_secondary varchar [note: 'Secondary Soul Archetype']
+
+  // --- Lifestyle & Habits ---
+  lifestyle_drinks enum_frequency
+  lifestyle_smoking enum_frequency
+  lifestyle_workout enum_frequency
+  lifestyle_pets enum_preference_level
+  lifestyle_children enum_preference_level
+  lifestyle_sleep enum_sleep_schedule
+
+  // --- Prompts & Media ---
+  prompts jsonb [note: 'Array of objects: [{"question": "...", "answer": "..."}]']
+  photos jsonb [note: 'Array of Image URLs']
+  social_integrations jsonb [note: 'Spotify, Instagram links etc.']
+  
+  likes_received_count int [default: 0]
+
+  indexes {
+    location_point 
+    (gender, personality_primary) 
+  }
+}
+
+// ==========================================================
+// Icebreaker & Match Module (24h / 20 Messages)
+// ==========================================================
+
+Table matches {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_a_id uuid [ref: > users.id]
+  user_b_id uuid [ref: > users.id]
+  created_at timestamp [default: `now()`]
+  
+  // --- 24h Icebreaker Challenge ---
+  expires_at timestamp [note: 'Set to created_at + 24 hours']
+  message_count int [default: 0, note: 'Increments on each message. Target: 20']
+  
+  // --- Double Opt-in Decision ---
+  user_a_decision enum_decision [default: 'pending']
+  user_b_decision enum_decision [default: 'pending']
+  
+  status enum_match_status [default: 'trial']
+  
+  // --- Chat List Optimization ---
+  last_message_content varchar 
+  last_message_at timestamp
+  
+  indexes {
+    (user_a_id, last_message_at)
+    (user_b_id, last_message_at)
+  }
+}
+
+Table messages {
+  id bigint [pk, increment]
+  match_id uuid [ref: > matches.id]
+  sender_id uuid [ref: > users.id]
+  content text
+  type enum_msg_type [default: 'text']
+  created_at timestamp [default: `now()`]
+  read_at timestamp
+}
+
+// ==========================================================
+// 3-Minute Speed Dating Module
+// ==========================================================
+
+Table speed_dating_sessions {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_a_id uuid [ref: > users.id]
+  user_b_id uuid [ref: > users.id]
+  started_at timestamp [default: `now()`]
+  expires_at timestamp [note: 'Set to started_at + 3 minutes']
+  
+  // --- Double Opt-in Decision ---
+  user_a_decision enum_decision [default: 'pending']
+  user_b_decision enum_decision [default: 'pending']
+  
+  status varchar [note: 'active, waiting_decision, matched, closed']
+}
+
+Table speed_dating_messages {
+  id bigint [pk, increment]
+  session_id uuid [ref: > speed_dating_sessions.id]
+  sender_id uuid [ref: > users.id]
+  content text
+  type enum_msg_type [default: 'text']
+  created_at timestamp [default: `now()`]
+  
+  note: 'Temporary messages during the 3-minute blind date'
+}
+
+Table matching_queue {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [unique, ref: - users.id]
+  joined_at timestamp [default: `now()`]
+  
+  indexes {
+    joined_at
+  }
+}
+
+Table user_blocks {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  blocker_user_id uuid [ref: > users.id]
+  blocked_user_id uuid [ref: > users.id]
+  reason varchar
+  created_at timestamp [default: `now()`]
+}
+
+// ==========================================================
+// Enums Definitions
+// ==========================================================
+
+Enum enum_decision {
+  pending
+  yes
+  no
+}
+
+Enum enum_match_status {
+  trial              // 24h icebreaker phase
+  waiting_decision   // Hit 20 messages, waiting for both users to opt-in
+  active             // Both said YES, permanent chat unlocked
+  expired            // Failed 24h limit or someone said NO
+  unmatched          // Manually unmatched after being active
+  reported           // Match flagged by a user
+}
+
+Enum enum_sex {
+  male
+  female
+}
+
+Enum enum_meet_gender {
+  men
+  women
+  both
+}
+
+Enum enum_intent {
+  short_term
+  long_term
+  marriage
+  figuring_out
+}
+
+Enum enum_education {
+  high_school
+  in_college
+  bachelors
+  masters
+  phd
+  other
+}
+
+Enum enum_frequency {
+  never
+  sometimes
+  often
+}
+
+Enum enum_preference_level {
+  dont_want
+  unsure
+  want
+  have
+}
+
+Enum enum_sleep_schedule {
+  night_owl
+  early_bird
+  flexible
+}
+
+Enum enum_user_status {
+  active
+  offline
+  in_speed_date
+  banned
+}
+
+Enum enum_auth_provider {
+  email     
+  google     
+  apple   
+  facebook 
+}
+
+Enum enum_msg_type {
+  text
+  image
+  audio
+  system
+}

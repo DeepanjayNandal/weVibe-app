@@ -33,3 +33,10 @@ userRouter.get(
   authenticate(authVerifier),
   asyncHandler(profileController.getProfile),
 );
+
+// PATCH /profile — partial update, only fields present in the request body are updated
+userRouter.patch(
+  '/profile',
+  authenticate(authVerifier),
+  asyncHandler(profileController.updateProfile),
+);

@@ -6,4 +6,4 @@ steps:
     args: ['push', 'gcr.io/$PROJECT_ID/api']
 
 options:
-  logging: CLOUD_LOGGING_ONLY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

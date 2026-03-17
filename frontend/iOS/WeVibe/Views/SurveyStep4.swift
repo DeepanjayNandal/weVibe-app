@@ -5,16 +5,8 @@ struct SurveyStep4: View {
     @Environment(OnboardingRouter.self) private var onboardingRouter
     @Environment(OnboardingData.self) private var onboardingData
 
-    let educationOptions = [
-        "High School",
-        "In College",
-        "Bachelor's Degree",
-        "Master's Degree",
-        "PhD / Doctorate",
-        "Other"
-    ]
-
-    let careerOptions = ["Technology", "Healthcare", "Education", "Finance", "Arts", "Other"]
+    let educationOptions = EducationLevel.allCases.map(\.displayName)
+    let careerOptions    = CareerField.allCases.map(\.rawValue)
 
     let languages = [
         "English", "Spanish", "Mandarin/Chinese", "Hindi", "Arabic",

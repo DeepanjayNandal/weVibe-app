@@ -298,13 +298,22 @@ final class AuthManager {
 
     private func randomNonceString(length: Int = 32) -> String {
         precondition(length > 0)
-        var randomBytes = [UInt8](repeating: 0, count: length)
-        let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
-        if errorCode != errSecSuccess {
-            fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
-        }
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
-        return String(randomBytes.map { byte in charset[Int(byte) % charset.count] })
+        // Use rejection sampling to eliminate modulo bias:
+        // charset.count (66) does not divide 256 evenly, so bytes >= 66 are discarded.
+        var result = [Character]()
+        result.reserveCapacity(length)
+        while result.count < length {
+            var batch = [UInt8](repeating: 0, count: length - result.count)
+            let status = SecRandomCopyBytes(kSecRandomDefault, batch.count, &batch)
+            if status != errSecSuccess {
+                fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(status)")
+            }
+            for byte in batch where Int(byte) < charset.count && result.count < length {
+                result.append(charset[Int(byte)])
+            }
+        }
+        return String(result)
     }
 
     private func sha256(_ input: String) -> String {
@@ -338,10 +347,10 @@ private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerD
     }
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            fatalError("No window available for Apple Sign-In presentation")
-        }
-        return window
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+            ?? UIWindow()
     }
 }

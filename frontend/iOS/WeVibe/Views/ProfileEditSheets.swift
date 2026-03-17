@@ -150,7 +150,7 @@ struct AboutEditSheet: View {
     @State private var showValidation = false
 
     var body: some View {
-        editNav(title: "About Me", onSave: save) {
+        editNav(title: "About Me", onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Name")
             requiredLabel("First Name")
             editField("", "First name", text: $firstName)
@@ -207,7 +207,7 @@ struct IdentityEditSheet: View {
     @State private var showSex = true
 
     var body: some View {
-        editNav(title: "Identity", onSave: save) {
+        editNav(title: "Identity", onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Gender")
             toggleRow("Show gender on my profile", isOn: $showSex)
             editField("Pronouns", "e.g. she/her, he/him, they/them", text: $pronouns)
@@ -242,7 +242,7 @@ struct PersonalityEditSheet: View {
     @State private var conflict = ""
 
     var body: some View {
-        editNav(title: "Personality", onSave: save) {
+        editNav(title: "Personality", onCancel: { dismiss() }, onSave: save) {
             pickerRow("Love Language", selection: $loveLanguage, options: UserProfileStore.loveLanguageOptions)
             pickerRow("Zodiac Sign", selection: $zodiac, options: UserProfileStore.zodiacOptions)
             BinarySlider(title: "Communication Style", options: UserProfileStore.communicationStyleOptions,
@@ -359,7 +359,7 @@ struct DateActivitiesEditSheet: View {
     private static let maxActivities = 3
 
     var body: some View {
-        editNav(title: "Date Activities", onSave: save) {
+        editNav(title: "Date Activities", onCancel: { dismiss() }, onSave: save) {
             activitiesSection("Would love to do on a date (\(wouldDo.count)/\(Self.maxActivities))",
                               selected: $wouldDo, blocked: wouldNot, accent: AppTheme.iconColor)
             activitiesSection("Would NOT do on a date (\(wouldNot.count)/\(Self.maxActivities))",
@@ -427,17 +427,17 @@ struct LifestyleEditSheet: View {
     @State private var isKidsFlexible = false
 
     var body: some View {
-        editNav(title: "Lifestyle", onSave: save) {
+        editNav(title: "Lifestyle", onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Habits")
-            pickerRow("Drinks", selection: $drinks, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Drinks", selection: $drinks, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on drinking", isOn: $isDrinksFlexible)
-            pickerRow("Smoking", selection: $smoking, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Smoking", selection: $smoking, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on smoking", isOn: $isSmokingFlexible)
-            pickerRow("Workout", selection: $workout, options: ["Never", "Sometimes", "Often"])
+            pickerRow("Workout", selection: $workout, options: FrequencyHabit.allCases.map(\.rawValue))
             toggleRow("Flexible on workout", isOn: $isWorkoutFlexible)
-            pickerRow("Sleep Schedule", selection: $sleepSchedule, options: ["Night Owl", "Early Bird", "Flexible"])
+            pickerRow("Sleep Schedule", selection: $sleepSchedule, options: SleepSchedule.allCases.map(\.rawValue))
             toggleRow("Flexible on sleep schedule", isOn: $isSleepFlexible)
-            pickerRow("Pets", selection: $pets, options: ["Don't want", "Unsure", "Want", "Have"])
+            pickerRow("Pets", selection: $pets, options: FamilyPreference.allCases.map(\.rawValue))
 
             sectionLabel("More about pets")
             editField("What type of pets?", "e.g. Dog, Cat, Fish", text: $petTypes)
@@ -503,7 +503,7 @@ struct BackgroundEditSheet: View {
     ]
 
     var body: some View {
-        editNav(title: "Background", onSave: save) {
+        editNav(title: "Background", onCancel: { dismiss() }, onSave: save) {
             sectionLabel("Ethnicity")
             FlowLayout(spacing: 8) {
                 ForEach(Self.ethnicityOptions, id: \.self) { item in
@@ -571,18 +571,13 @@ struct CareerEditSheet: View {
 
     @State private var showValidation = false
 
-    private static let educationOptions = [
-        "High School", "In College", "Bachelor's Degree",
-        "Master's Degree", "PhD / Doctorate", "Other"
-    ]
-    private static let careerOptions = [
-        "Technology", "Healthcare", "Education", "Finance", "Arts", "Other"
-    ]
+    private static let educationOptions = EducationLevel.allCases.map(\.displayName)
+    private static let careerOptions    = CareerField.allCases.map(\.rawValue)
 
     private var isMandatoryFilled: Bool { !career.isEmpty && !education.isEmpty }
 
     var body: some View {
-        editNav(title: "Career & Education", onSave: save) {
+        editNav(title: "Career & Education", onCancel: { dismiss() }, onSave: save) {
             requiredPicker("Career field", selection: $career, options: Self.careerOptions)
             requiredPicker("Education level", selection: $education, options: Self.educationOptions)
             editField("Job Title", "e.g. Software Engineer, Designer", text: $jobTitle)
@@ -688,7 +683,7 @@ struct CareerEditSheet: View {
 // MARK: - Prompts Edit Sheet
 
 struct PromptsEditSheet: View {
-    @Environment(OnboardingData.self) private var onboarding
+    @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var q1 = ""; @State private var a1 = ""
@@ -712,7 +707,7 @@ struct PromptsEditSheet: View {
     ]
 
     var body: some View {
-        editNav(title: "Prompts", onSave: save) {
+        editNav(title: "Prompts", onCancel: { dismiss() }, onSave: save) {
             promptField("Prompt 1", question: $q1, answer: $a1, usedBy: [q2, q3])
             promptField("Prompt 2", question: $q2, answer: $a2, usedBy: [q1, q3])
             promptField("Prompt 3", question: $q3, answer: $a3, usedBy: [q1, q2])
@@ -723,10 +718,10 @@ struct PromptsEditSheet: View {
             }
         }
         .onAppear {
-            q1 = onboarding.prompt1Question; a1 = onboarding.prompt1Answer
-            q2 = onboarding.prompt2Question; a2 = onboarding.prompt2Answer
-            q3 = onboarding.prompt3Question; a3 = onboarding.prompt3Answer
-            customQ = onboarding.ownPrompt; customA = onboarding.ownPromptAnswer
+            q1 = store.prompt1Question; a1 = store.prompt1Answer
+            q2 = store.prompt2Question; a2 = store.prompt2Answer
+            q3 = store.prompt3Question; a3 = store.prompt3Answer
+            customQ = store.customPromptQuestion; customA = store.customPromptAnswer
         }
     }
 
@@ -759,11 +754,11 @@ struct PromptsEditSheet: View {
     }
 
     private func save() {
-        onboarding.prompt1Question = q1; onboarding.prompt1Answer = a1
-        onboarding.prompt2Question = q2; onboarding.prompt2Answer = a2
-        onboarding.prompt3Question = q3; onboarding.prompt3Answer = a3
-        onboarding.ownPrompt = customQ; onboarding.ownPromptAnswer = customA
-        onboarding.save(); dismiss()
+        store.prompt1Question = q1; store.prompt1Answer = a1
+        store.prompt2Question = q2; store.prompt2Answer = a2
+        store.prompt3Question = q3; store.prompt3Answer = a3
+        store.customPromptQuestion = customQ; store.customPromptAnswer = customA
+        Task { await store.patchProfile() }; dismiss()
     }
 }
 
@@ -781,7 +776,7 @@ struct PreferencesEditSheet: View {
     @State private var showValidation = false
 
     var body: some View {
-        editNav(title: "Preferences", onSave: save) {
+        editNav(title: "Preferences", onCancel: { dismiss() }, onSave: save) {
             // I'm looking for
             requiredLabel("I'm looking for")
             FlowLayout(spacing: 8) {

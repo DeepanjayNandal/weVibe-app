@@ -44,10 +44,10 @@ struct ProfileView: View {
         let location = [onboarding.locationCity, onboarding.locationState]
             .filter { !$0.isEmpty }.joined(separator: ", ")
         let prompts: [(String, String)] = [
-            (onboarding.prompt1Question, onboarding.prompt1Answer),
-            (onboarding.prompt2Question, onboarding.prompt2Answer),
-            (onboarding.prompt3Question, onboarding.prompt3Answer),
-            (onboarding.ownPrompt,       onboarding.ownPromptAnswer),
+            (store.prompt1Question,      store.prompt1Answer),
+            (store.prompt2Question,      store.prompt2Answer),
+            (store.prompt3Question,      store.prompt3Answer),
+            (store.customPromptQuestion, store.customPromptAnswer),
         ].filter { !$0.0.isEmpty }
 
         return ProfileDisplayData(
@@ -137,7 +137,10 @@ struct ProfileView: View {
         } message: {
             Text("Are you sure you want to log out?")
         }
-        .task { await store.fetchProfile() }
+        .task {
+            store.seedIfNeeded(from: onboarding)
+            await store.fetchProfile()
+        }
     }
 
     // MARK: - Edit Sheet Router

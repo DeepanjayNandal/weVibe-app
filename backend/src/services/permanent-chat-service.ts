@@ -29,6 +29,7 @@ export type PermanentChatMatchItem = {
   messageCount: number;
   canOpen: boolean;
   canSendMessage: boolean;
+  unreadCount: number;
   counterpart: {
     userId: string | null;
     displayName: string | null;
@@ -121,30 +122,73 @@ export class PermanentChatService {
       ],
     });
 
-    return rows.map((row) => this.toMatchItem(row, userId));
+    const matchIds = rows.map((row) => row.id);
+    const unreadCountMap = await this.buildUnreadCountMap(matchIds, userId);
+
+    return rows.map((row) => this.toMatchItem(row, userId, unreadCountMap));
   }
 
   async getMatchDetail(userId: string, matchId: string): Promise<PermanentChatMatchItem> {
     const match = await this.getAuthorizedMatch(userId, matchId);
-    return this.toMatchItem(match, userId);
+    const unreadCountMap = await this.buildUnreadCountMap([matchId], userId);
+    return this.toMatchItem(match, userId, unreadCountMap);
   }
 
   async getMatchMessages(userId: string, matchId: string): Promise<PermanentChatMessagesResult> {
-    const match = await this.getAuthorizedMatch(userId, matchId);
+    return prisma.$transaction(async (tx) => {
+      const match = await this.getAuthorizedMatch(userId, matchId, tx);
 
-    const rows = await prisma.messages.findMany({
+      const rows = await tx.messages.findMany({
+        where: {
+          match_id: matchId,
+        },
+        orderBy: {
+          created_at: 'asc',
+        },
+      });
+
+      const unreadCountMap = await this.buildUnreadCountMap([matchId], userId, tx);
+
+      return {
+        match: this.toMatchItem(match, userId, unreadCountMap),
+        messages: rows.map(messageToPayload),
+      };
+    });
+  }
+
+  async markMatchMessagesRead(userId: string, matchId: string): Promise<PermanentChatMatchItem> {
+    return prisma.$transaction(async (tx) => {
+      const match = await this.getAuthorizedMatch(userId, matchId, tx);
+
+      await tx.messages.updateMany({
+        where: {
+          match_id: matchId,
+          sender_id: { not: userId },
+          read_at: null,
+        },
+        data: {
+          read_at: new Date(),
+        },
+      });
+
+      const refreshedMatch = await this.getAuthorizedMatch(userId, matchId, tx);
+      const unreadCountMap = await this.buildUnreadCountMap([matchId], userId, tx);
+
+      return this.toMatchItem(refreshedMatch, userId, unreadCountMap);
+    });
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    return prisma.messages.count({
       where: {
-        match_id: matchId,
-      },
-      orderBy: {
-        created_at: 'asc',
+        sender_id: { not: userId },
+        read_at: null,
+        matches: {
+          OR: [{ user_a_id: userId }, { user_b_id: userId }],
+          status: STATUS_ACTIVE,
+        },
       },
     });
-
-    return {
-      match: this.toMatchItem(match, userId),
-      messages: rows.map(messageToPayload),
-    };
   }
 
   async sendMessage(userId: string, matchId: string, content: string): Promise<PermanentChatSendResult> {
@@ -199,8 +243,12 @@ export class PermanentChatService {
     });
   }
 
-  private async getAuthorizedMatch(userId: string, matchId: string): Promise<MatchWithProfiles> {
-    const match = await prisma.matches.findUnique({
+  private async getAuthorizedMatch(
+    userId: string,
+    matchId: string,
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ): Promise<MatchWithProfiles> {
+    const match = await db.matches.findUnique({
       where: { id: matchId },
       include: {
         users_matches_user_a_idTousers: {
@@ -221,7 +269,43 @@ export class PermanentChatService {
     return match;
   }
 
-  private toMatchItem(match: MatchWithProfiles, userId: string): PermanentChatMatchItem {
+  private async buildUnreadCountMap(
+    matchIds: string[],
+    userId: string,
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+
+    if (matchIds.length === 0) {
+      return map;
+    }
+
+    const grouped = await db.messages.groupBy({
+      by: ['match_id'],
+      where: {
+        match_id: { in: matchIds },
+        sender_id: { not: userId },
+        read_at: null,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    for (const row of grouped) {
+      if (!row.match_id) continue;
+      const unreadCount = typeof row._count === 'object' ? (row._count._all ?? 0) : 0;
+      map.set(row.match_id, unreadCount);
+    }
+
+    return map;
+  }
+
+  private toMatchItem(
+    match: MatchWithProfiles,
+    userId: string,
+    unreadCountMap: Map<string, number> = new Map<string, number>(),
+  ): PermanentChatMatchItem {
     const isUserA = isUserAInTwoParty(match, userId);
     const counterpartUser = isUserA
       ? match.users_matches_user_b_idTousers
@@ -238,6 +322,7 @@ export class PermanentChatService {
       messageCount: toNumber(match.message_count),
       canOpen: status === STATUS_ACTIVE,
       canSendMessage: status === STATUS_ACTIVE,
+      unreadCount: unreadCountMap.get(match.id) ?? 0,
       counterpart: {
         userId: counterpartUser?.id ?? null,
         displayName: counterpartUser?.profiles?.display_name ?? null,

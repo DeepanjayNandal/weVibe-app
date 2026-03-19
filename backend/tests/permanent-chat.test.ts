@@ -231,4 +231,91 @@ describe('Permanent Chat API', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('MATCH_NOT_ACTIVE');
   });
+
+  test('updates permanent unread state and contributes to badge aggregation', async () => {
+    const tokenA = 'mock:google:pc-a-unread-001:pc-a-unread-001@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-unread-001:pc-b-unread-001@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ content: 'permanent unread' });
+
+    const listBeforeRead = await request(app)
+      .get('/api/v1/matching/matches')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(listBeforeRead.status).toBe(200);
+    expect(listBeforeRead.body.data.matches[0].unreadCount).toBe(1);
+
+    const badgesBeforeRead = await request(app)
+      .get('/api/v1/matching/chats/badges')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(badgesBeforeRead.status).toBe(200);
+    expect(badgesBeforeRead.body.data.matchesUnread).toBe(1);
+    expect(badgesBeforeRead.body.data.totalUnread).toBeGreaterThanOrEqual(1);
+
+    const detailBeforeRead = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(detailBeforeRead.status).toBe(200);
+    expect(detailBeforeRead.body.data.match.unreadCount).toBe(1);
+
+    const messagesResponse = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(messagesResponse.status).toBe(200);
+    expect(messagesResponse.body.data.messages[0].readAt).toBeNull();
+
+    const markReadResponse = await request(app)
+      .patch(`/api/v1/matching/matches/${matchId}/read`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(markReadResponse.status).toBe(200);
+    expect(markReadResponse.body.data.match.unreadCount).toBe(0);
+
+    const messagesAfterRead = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}/messages`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(messagesAfterRead.status).toBe(200);
+    expect(messagesAfterRead.body.data.messages[0].readAt).toBeTruthy();
+
+    const badgesAfterRead = await request(app)
+      .get('/api/v1/matching/chats/badges')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(badgesAfterRead.status).toBe(200);
+    expect(badgesAfterRead.body.data.matchesUnread).toBe(0);
+
+    const detailAfterRead = await request(app)
+      .get(`/api/v1/matching/matches/${matchId}`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(detailAfterRead.status).toBe(200);
+    expect(detailAfterRead.body.data.match.unreadCount).toBe(0);
+  });
 });

@@ -1,9 +1,9 @@
-import { bucket } from "../config/firebase";
+import { getStorageBucket } from "../config/firebase";
 
 export const generateUploadURL = async (
   path: string,
 ) => {
-  const file = bucket.file(path);
+  const file = getStorageBucket().file(path);
 
   const [url] = await file.getSignedUrl({
     version: "v4",
@@ -15,7 +15,7 @@ export const generateUploadURL = async (
 };
 
 export const generateReadURL = async (path: string) => {
-  const file = bucket.file(path);
+  const file = getStorageBucket().file(path);
 
   const [url] = await file.getSignedUrl({
     version: "v4",
@@ -27,12 +27,12 @@ export const generateReadURL = async (path: string) => {
 };
 
 export const fileExists = async (path: string) => {
-  const file = bucket.file(path);
+  const file = getStorageBucket().file(path);
   const [exists] = await file.exists();
   return exists;
 };
 
 export const deleteFile = async (path: string) => {
-  const file = bucket.file(path);
+  const file = getStorageBucket().file(path);
   await file.delete();
 };

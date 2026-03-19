@@ -106,7 +106,7 @@ struct ProfileView: View {
             school:                  store.school,
             education:               store.education,
             heightDisplay:           height,
-            photoURLs:               store.photoURLs,
+            photoURLs:               store.photos.map(\.url),
             prompts:                 prompts,
             socialLinks:             store.socialMediaLinks,
             spotifyURL:              store.spotifyPlaylistURL,

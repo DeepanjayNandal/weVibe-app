@@ -45,31 +45,124 @@ model messages {
 
 model profiles {
   user_id               String                    @id @db.Uuid
+
+  // Basic identity — first_name and last_name are stored separately (display_name kept for internal use)
+  first_name            String?                   @db.VarChar(100)
+  last_name             String?                   @db.VarChar(100)
   display_name          String?                   @db.VarChar(100)
   birth_date            DateTime?                 @db.Date
+  // gender: biological sex from onboarding ("Male", "Female", "Non-binary", "Prefer not to say")
   gender                String?                   @db.VarChar(50)
   sex                   enum_sex?
-  ethnicity             String?                   @db.VarChar(100)
+  // pronouns: free text e.g. "she/her", "he/him" — set via profile edit
+  pronouns              String?                   @db.VarChar(50)
+  // orientation: sexual orientation — set via profile edit
+  orientation           String?                   @db.VarChar(50)
+  // gender_identity: separate from gender — set via profile edit
+  gender_identity       String?                   @db.VarChar(50)
+  // visibility toggles — user controls what shows on their public profile
+  show_sex              Boolean?                  @default(true)
+  show_orientation      Boolean?                  @default(true)
+  show_identity         Boolean?                  @default(true)
+  // ethnicity stored as JSON array — users can select multiple (e.g. ["White", "Asian"])
+  ethnicity             Json?
+  // birth_country: single-select country of origin — set via profile edit
+  birth_country         String?                   @db.VarChar(100)
+
+  // Height — unit determines which fields are used
+  // imperial: height_ft + height_in | metric: height_cm
+  height_unit           String?                   @db.VarChar(10)
+  height_ft             Int?
+  height_in             Int?
   height_cm             Int?
+
+  // Location — stored as separate lat/lng floats (simpler than PostGIS for onboarding writes)
+  // location_point is kept for matchmaking distance queries (PostGIS)
+  latitude              Float?
+  longitude             Float?
   location_point        Unsupported("geography(Point,4326)")?
-  state                 String?                   @db.VarChar(100)
-  zip_code              String?                   @db.VarChar(20)
-  education             enum_education?
+  location_city         String?                   @db.VarChar(100)
+  state                 String?                   @db.VarChar(100)   // exposed as location_state in API responses
+  zip_code              String?                   @db.VarChar(20)    // exposed as location_zip in API responses
+
+  // education: snake_case values e.g. "bachelors", "masters" — matches iOS EducationLevel rawValue
+  education             String?                   @db.VarChar(100)
+  // career_field: industry enum e.g. "Technology", "Healthcare" — collected during onboarding
   career_field          String?                   @db.VarChar(100)
+  // job_title: free text e.g. "Software Engineer" — set via profile edit
+  job_title             String?                   @db.VarChar(100)
+  // school: free text e.g. "MIT" — set via profile edit
+  school                String?                   @db.VarChar(100)
+  // languages: JSON array of spoken languages e.g. ["English", "Spanish"] — collected during onboarding
   languages             Json?
-  relationship_intent   enum_intent?
+
+  // Relationship goals — stored as a JSON array (e.g. ["short_term", "long_term"])
+  // Replaces the single relationship_intent enum to allow multi-select (max 2)
+  relationship_goals    Json?
+  relationship_intent   enum_intent?              // kept for legacy/matchmaking use — do not remove
+
   personality_primary   String?                   @db.VarChar(100)
   personality_secondary String?                   @db.VarChar(100)
-  lifestyle_drinks      enum_frequency?
-  lifestyle_smoking     enum_frequency?
-  lifestyle_workout     enum_frequency?
-  lifestyle_pets        enum_preference_level?
-  lifestyle_children    enum_preference_level?
-  lifestyle_sleep       enum_sleep_schedule?
+
+  // Lifestyle habits (all optional) — stored as plain strings to match exact iOS values
+  lifestyle_drinks      String?                   @db.VarChar(20)
+  lifestyle_smoking     String?                   @db.VarChar(20)
+  lifestyle_workout     String?                   @db.VarChar(20)
+  lifestyle_pets        String?                   @db.VarChar(20)
+  lifestyle_children    String?                   @db.VarChar(20)
+  lifestyle_sleep       String?                   @db.VarChar(20)
+  // cannabis habit — same frequency values as drinks/smoking/workout
+  lifestyle_cannabis    String?                   @db.VarChar(20)
+  // pet detail fields — free text, only relevant when lifestyle_pets = "Have"
+  pet_types             String?                   @db.VarChar(100)
+  pets_name             String?                   @db.VarChar(100)
+
+  // Lifestyle flexibility flags — user is okay if match has different habit
+  is_drinks_flexible    Boolean?                  @default(false)
+  is_smoking_flexible   Boolean?                  @default(false)
+  is_workout_flexible   Boolean?                  @default(false)
+  is_sleep_flexible     Boolean?                  @default(false)
+  is_cannabis_flexible  Boolean?                  @default(false)
+  is_kids_flexible      Boolean?                  @default(false)
+
+  // Free-text bio, max 500 characters — enforced in application layer
+  bio                   String?                   @db.VarChar(500)
+
+  // Social handles — set via profile edit, iOS strips @ before sending
+  instagram_handle      String?                   @db.VarChar(100)
+  tiktok_handle         String?                   @db.VarChar(100)
+  spotify_playlist_url  String?                   @db.VarChar(500)
+
+  // Personality fields — set via profile edit
+  love_language         String?                   @db.VarChar(50)
+  zodiac_sign           String?                   @db.VarChar(20)
+  // communication_style / conflict_style: enum or "" (empty = neutral/middle of slider)
+  communication_style   String?                   @db.VarChar(50)
+  conflict_style        String?                   @db.VarChar(50)
+  // personality_type: MBTI result e.g. "Consul (ESFJ)" — set by Personality Test flow, read-only here
+  personality_type      String?                   @db.VarChar(100)
+
+  // Interests — JSON array, max 7 items
+  interests             Json?
+  // preferred_date_activities / would_not_do_activities — JSON arrays, max 3 items each
+  preferred_date_activities   Json?
+  would_not_do_activities     Json?
+
+  // Prompts — JSON array of { question, answer }, max 4 items (3 preset + 1 custom)
   prompts               Json?
   photos                Json?
   social_integrations   Json?
   likes_received_count  Int?                      @default(0)
+
+  // User preferences — moved here from users table for cleaner profile ownership
+  // meet_preference: who the user wants to meet — stored as plain string to match iOS values ("Men", "Women", "Open to both")
+  meet_preference       String?                   @db.VarChar(20)
+  // Age preferences for matchmaking
+  min_age_preference    Int?
+  max_age_preference    Int?
+  // Distance preference in miles (not km — matches what the iOS app sends)
+  distance_preference_miles Int?
+
   users                 users                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([location_point], map: "idx_profiles_location", type: Gist)
@@ -97,6 +190,7 @@ model speed_dating_messages {
   content               String
   type                  enum_msg_type?         @default(text)
   created_at            DateTime?              @default(now()) @db.Timestamp(6)
+  read_at               DateTime?              @db.Timestamp(6)
   speed_dating_sessions speed_dating_sessions? @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users                 users?                 @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -136,6 +230,9 @@ model users {
   created_at                                                   DateTime?               @default(now()) @db.Timestamp(6)
   last_active_at                                               DateTime?               @db.Timestamp(6)
   is_banned                                                    Boolean?                @default(false)
+  // onboarding_complete: set to true after user submits the onboarding survey (POST /api/v1/users/profile)
+  // iOS uses this to decide whether to route to onboarding or the main app after login
+  onboarding_complete                                          Boolean?                @default(false)
   is_registration_complete                                     Boolean?                @default(false)
   is_personality_test_complete                                 Boolean?                @default(false)
   current_status                                               enum_user_status?       @default(offline)

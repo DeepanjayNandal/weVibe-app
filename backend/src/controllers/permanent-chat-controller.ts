@@ -74,6 +74,44 @@ export class PermanentChatController {
     });
   };
 
+  removeMatch = async (req: Request, res: Response): Promise<void> => {
+    const userId = await this.resolveUserId(req);
+    const matchId = this.readMatchId(req.params.matchId);
+    const result = await this.permanentChatService.removeMatch(userId, matchId);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  };
+
+  blockCounterpart = async (req: Request, res: Response): Promise<void> => {
+    const userId = await this.resolveUserId(req);
+    const matchId = this.readMatchId(req.params.matchId);
+    const result = await this.permanentChatService.blockCounterpart(userId, matchId, req.body?.reason);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  };
+
+  reportCounterpart = async (req: Request, res: Response): Promise<void> => {
+    const userId = await this.resolveUserId(req);
+    const matchId = this.readMatchId(req.params.matchId);
+    const result = await this.permanentChatService.reportCounterpart(
+      userId,
+      matchId,
+      req.body?.reason,
+      req.body?.details,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  };
+
   private async resolveUserId(req: Request): Promise<string> {
     const firebaseUid = req.auth?.uid;
     if (!firebaseUid) {

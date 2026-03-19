@@ -49,3 +49,21 @@ permanentChatRouter.post(
   authenticate(authVerifier),
   asyncHandler(permanentChatController.sendMessage),
 );
+
+permanentChatRouter.post(
+  '/matches/:matchId/remove',
+  authenticate(authVerifier),
+  asyncHandler(permanentChatController.removeMatch),
+);
+
+permanentChatRouter.post(
+  '/matches/:matchId/block',
+  authenticate(authVerifier),
+  asyncHandler(permanentChatController.blockCounterpart),
+);
+
+permanentChatRouter.post(
+  '/matches/:matchId/report',
+  authenticate(authVerifier),
+  asyncHandler(permanentChatController.reportCounterpart),
+);

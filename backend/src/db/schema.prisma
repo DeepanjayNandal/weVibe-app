@@ -24,6 +24,7 @@ model matches {
   users_matches_user_a_idTousers users?             @relation("matches_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users_matches_user_b_idTousers users?             @relation("matches_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   messages                       messages[]
+  user_reports                   user_reports[]
 
   @@index([user_a_id, last_message_at], map: "idx_matches_user_a")
   @@index([user_b_id, last_message_at], map: "idx_matches_user_b")
@@ -251,6 +252,25 @@ model users {
   speed_dating_sessions_speed_dating_sessions_user_b_idTousers speed_dating_sessions[] @relation("speed_dating_sessions_user_b_idTousers")
   user_blocks_user_blocks_blocked                              user_blocks[]          @relation("user_blocks_blocked")
   user_blocks_user_blocks_blocker                              user_blocks[]          @relation("user_blocks_blocker")
+  user_reports_user_reports_reported                           user_reports[]         @relation("user_reports_reported")
+  user_reports_user_reports_reporter                           user_reports[]         @relation("user_reports_reporter")
+}
+
+model user_reports {
+  id                                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporter_user_id                  String    @db.Uuid
+  reported_user_id                  String    @db.Uuid
+  match_id                          String?   @db.Uuid
+  reason                            String    @db.VarChar(255)
+  details                           String?   @db.VarChar(1000)
+  created_at                        DateTime  @default(now()) @db.Timestamp(6)
+  matches                           matches?  @relation(fields: [match_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  users_user_reports_reported       users     @relation("user_reports_reported", fields: [reported_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_reports_reporter       users     @relation("user_reports_reporter", fields: [reporter_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([reporter_user_id], map: "idx_user_reports_reporter")
+  @@index([reported_user_id], map: "idx_user_reports_reported")
+  @@index([match_id], map: "idx_user_reports_match")
 }
 
 enum enum_match_status {

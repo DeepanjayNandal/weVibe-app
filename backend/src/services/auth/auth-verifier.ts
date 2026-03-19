@@ -76,6 +76,7 @@ class RealFirebaseVerifier implements AuthVerifier {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: env.firebaseProjectId,
+        storageBucket: "gs://wevibe-dev.firebasestorage.app", 
       });
     }
   }

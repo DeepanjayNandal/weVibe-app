@@ -6,13 +6,12 @@ import {
   fileExists,
   deleteFile,
 } from "../services/storage.service";
-import { AuthRequest } from "../middleware/auth";
 
 /**
  * POST /upload-url
  */
-export const getUploadURL = async (req: AuthRequest, res: Response) => {
-  const uid = req.user.uid;
+export const getUploadURL = async (req: Request, res: Response) => {
+  const uid = req.auth?.uid;
 const { v4: uuidv4 } = await import("uuid");
   const photoId = uuidv4();
   const path = `users/${uid}/photos/${photoId}.jpg`;
@@ -22,8 +21,8 @@ const { v4: uuidv4 } = await import("uuid");
   res.json({ photoId, uploadURL });
 };
 
-export const finalizeUpload = async (req: AuthRequest, res: Response) => {
-  const uid = req.user.uid;
+export const finalizeUpload = async (req: Request, res: Response) => {
+  const uid = req.auth?.uid;
   const { url } = req.body;
   const photoId = url.split("/").slice(-1)[0].split(".")[0];
   const path = `users/${uid}/photos/${photoId}.jpg`;
@@ -62,9 +61,9 @@ export const finalizeUpload = async (req: AuthRequest, res: Response) => {
   res.json({ id: photoId, url });
 };
 
-export const deletePhoto = async (req: AuthRequest, res: Response) => {
+export const deletePhoto = async (req: Request, res: Response) => {
   try {
-    const uid = req.user.uid;
+    const uid = req.auth?.uid;
     const { photoId } = req.params;
 
     // 1. Get user's profile
@@ -107,9 +106,9 @@ export const deletePhoto = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const reorderPhotos = async (req: AuthRequest, res: Response) => {
+export const reorderPhotos = async (req: Request, res: Response) => {
   try {
-    const uid = req.user.uid;
+    const uid = req.auth?.uid;
     const { orderedPhotoIds } = req.body;
 
     // Validate input

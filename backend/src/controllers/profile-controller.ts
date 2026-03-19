@@ -3,6 +3,7 @@ import { profiles } from '@prisma/client';
 import { ProfileService } from '../services/profile-service';
 import { UserRepository } from '../repositories/user-repository';
 import { unauthorized } from '../utils/errors';
+import { generateReadURL } from '../services/storage.service';
 
 // ─── Allowed values ────────────────────────────────────────────────────────────
 // All values match the exact rawValue strings iOS sends — do not change casing.
@@ -433,8 +434,6 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     // ── Prompts ───────────────────────────────────────────────────────────────
     prompts:                      profile.prompts ?? null,
 
-    // ── Photos (out of scope — returned as empty array until photo API is built) ──
-    photo_urls:                   [],
   };
 }
 
@@ -595,7 +594,18 @@ export class ProfileController {
       unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
     }
 
-    res.status(200).json(serializeProfile(profile!));
+    const serialized = serializeProfile(profile!);
+
+    const rawPhotos = Array.isArray(profile!.photos) ? (profile!.photos as any[]) : [];
+    const sortedPhotos = [...rawPhotos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const photos = await Promise.all(
+      sortedPhotos.map(async (p: any) => ({
+        id: p.id,
+        url: await generateReadURL(p.storagePath),
+      }))
+    );
+
+    res.status(200).json({ ...serialized, photos });
   };
 
   // PATCH /api/v1/users/profile

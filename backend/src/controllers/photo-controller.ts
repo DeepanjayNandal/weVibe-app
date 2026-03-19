@@ -1,165 +1,206 @@
-import { Request, Response } from "express";
-// import { v4 as uuidv4 } from "uuid";
-import { prisma } from "../db/prisma-client";
+import { v4 as uuidv4 } from 'uuid';
+import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../db/prisma-client';
 import {
   generateUploadURL,
+  generateReadURL,
   fileExists,
   deleteFile,
-} from "../services/storage.service";
+  AllowedMimeType,
+} from '../services/storage.service';
 
-/**
- * POST /upload-url
- */
+interface StoredPhoto {
+  id: string;
+  storagePath: string;
+  order: number;
+  createdAt: string;
+}
+
+const MAX_PHOTOS = 6;
+const ALLOWED_MIME_TYPES: AllowedMimeType[] = ['image/jpeg', 'image/png'];
+const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
+function toStoredPhotos(json: Prisma.JsonValue | null | undefined): StoredPhoto[] {
+  if (!json || !Array.isArray(json)) return [];
+  return json as unknown as StoredPhoto[];
+}
+
+function toJsonArray(photos: StoredPhoto[]): Prisma.InputJsonValue {
+  return photos as unknown as Prisma.InputJsonValue;
+}
+
+// POST /upload-url
 export const getUploadURL = async (req: Request, res: Response) => {
-  const uid = req.auth?.uid;
-const { v4: uuidv4 } = await import("uuid");
-  const photoId = uuidv4();
-  const path = `users/${uid}/photos/${photoId}.jpg`;
+  const uid = req.auth!.uid;
+  const { mimeType, sizeBytes } = req.body;
 
-  const uploadURL = await generateUploadURL(path);
-
-  res.json({ photoId, uploadURL });
-};
-
-export const finalizeUpload = async (req: Request, res: Response) => {
-  const uid = req.auth?.uid;
-  const { url } = req.body;
-  const photoId = url.split("/").slice(-1)[0].split(".")[0];
-  const path = `users/${uid}/photos/${photoId}.jpg`;
-  const exists = await fileExists(path);
-  if (!exists) {
-    return res.status(422).json({ error: "File not uploaded" });
+  if (!mimeType || !ALLOWED_MIME_TYPES.includes(mimeType)) {
+    return res.status(400).json({ code: 'INVALID_MIME_TYPE', message: 'mimeType must be image/jpeg or image/png' });
   }
 
-  // 1. Get existing photos
+  if (typeof sizeBytes !== 'number' || sizeBytes < 1 || sizeBytes > MAX_SIZE_BYTES) {
+    return res.status(400).json({ code: 'INVALID_SIZE', message: 'sizeBytes must be between 1 and 10485760' });
+  }
+
   const profile = await prisma.profiles.findUnique({
     where: { user_id: uid },
     select: { photos: true },
   });
-
-  let photos: any[] = [];
-
-  if (profile?.photos) {
-    photos = profile.photos as any[];
+  const existingPhotos = toStoredPhotos(profile?.photos);
+  if (existingPhotos.length >= MAX_PHOTOS) {
+    return res.status(400).json({ code: 'MAX_PHOTOS_EXCEEDED', message: 'Maximum of 6 photos allowed' });
   }
 
-  // 2. Add new photo
-  photos.push({
-    id: photoId,
-    url: url,
-    createdAt: new Date().toISOString(),
-  });
+  const photoId = uuidv4();
+  const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+  const storagePath = `users/${uid}/photos/${photoId}.${ext}`;
 
-  // 3. Save back to DB
-  await prisma.profiles.update({
-    where: { user_id: uid },
-    data: {
-      photos,
-    },
-  });
+  const uploadURL = await generateUploadURL(storagePath, mimeType);
 
-  res.json({ id: photoId, url });
+  return res.json({ photoId, uploadURL });
 };
 
+// POST /finalize
+export const finalizeUpload = async (req: Request, res: Response) => {
+  const uid = req.auth!.uid;
+  const { photoId, order } = req.body;
+
+  if (typeof photoId !== 'string' || photoId.trim().length === 0) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'photoId is required' });
+  }
+  if (typeof order !== 'number' || !Number.isInteger(order) || order < 0) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'order must be a non-negative integer' });
+  }
+
+  // Try .jpg first, then .png (matches ext chosen in getUploadURL)
+  let storagePath = `users/${uid}/photos/${photoId}.jpg`;
+  let exists = await fileExists(storagePath);
+  if (!exists) {
+    storagePath = `users/${uid}/photos/${photoId}.png`;
+    exists = await fileExists(storagePath);
+  }
+  if (!exists) {
+    return res.status(422).json({ code: 'PHOTO_NOT_UPLOADED', message: 'File not found in storage. Complete the GCS PUT before calling finalize.' });
+  }
+
+  // Re-check 6-photo cap at finalize time (race condition guard)
+  const profile = await prisma.profiles.findUnique({
+    where: { user_id: uid },
+    select: { photos: true },
+  });
+  const existingPhotos = toStoredPhotos(profile?.photos);
+  if (existingPhotos.length >= MAX_PHOTOS) {
+    return res.status(400).json({ code: 'MAX_PHOTOS_EXCEEDED', message: 'Maximum of 6 photos allowed' });
+  }
+
+  const newPhoto: StoredPhoto = {
+    id: photoId,
+    storagePath,
+    order,
+    createdAt: new Date().toISOString(),
+  };
+
+  await prisma.profiles.update({
+    where: { user_id: uid },
+    data: { photos: toJsonArray([...existingPhotos, newPhoto]) },
+  });
+
+  // Generate a fresh signed GET URL — never echo back the PUT URL
+  const url = await generateReadURL(storagePath);
+
+  return res.json({ id: photoId, url });
+};
+
+// DELETE /:photoId
 export const deletePhoto = async (req: Request, res: Response) => {
   try {
-    const uid = req.auth?.uid;
+    const uid = req.auth!.uid;
     const { photoId } = req.params;
 
-    // 1. Get user's profile
     const profile = await prisma.profiles.findUnique({
       where: { user_id: uid },
       select: { photos: true },
     });
 
     if (!profile || !profile.photos) {
-      return res.status(404).json({ error: "No photos found" });
+      return res.status(404).json({ code: 'PHOTO_NOT_FOUND', message: 'No photos found' });
     }
 
-    let photos = profile.photos as any[];
-
-    // 2. Find the photo
+    const photos = toStoredPhotos(profile.photos);
     const photoToDelete = photos.find((p) => p.id === photoId);
 
     if (!photoToDelete) {
-      return res.status(404).json({ error: "Photo not found" });
+      return res.status(404).json({ code: 'PHOTO_NOT_FOUND', message: 'Photo not found' });
     }
 
-    // 3. Delete from storage (GCS)
     await deleteFile(photoToDelete.storagePath);
 
-    // 4. Remove from array
     const updatedPhotos = photos.filter((p) => p.id !== photoId);
-
-    // 5. Save back to DB
     await prisma.profiles.update({
       where: { user_id: uid },
-      data: {
-        photos: updatedPhotos,
-      },
+      data: { photos: toJsonArray(updatedPhotos) },
     });
 
-    res.sendStatus(204);
+    return res.sendStatus(204);
   } catch (error) {
-    console.error("Delete photo error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Delete photo error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
 
+// PATCH /reorder
 export const reorderPhotos = async (req: Request, res: Response) => {
   try {
-    const uid = req.auth?.uid;
-    const { orderedPhotoIds } = req.body;
+    const uid = req.auth!.uid;
+    const body = req.body;
 
-    // Validate input
-    if (!Array.isArray(orderedPhotoIds)) {
-      return res.status(400).json({ error: "Invalid input" });
+    if (!Array.isArray(body) || body.length === 0) {
+      return res.status(400).json({ code: 'BAD_REQUEST', message: 'Request body must be a non-empty JSON array' });
     }
 
-    // 1. Get user's profile
+    for (const entry of body) {
+      if (
+        typeof entry.photoId !== 'string' ||
+        typeof entry.order !== 'number' ||
+        !Number.isInteger(entry.order) ||
+        entry.order < 0
+      ) {
+        return res.status(400).json({ code: 'BAD_REQUEST', message: 'Each entry must have photoId (string) and order (integer >= 0)' });
+      }
+    }
+
     const profile = await prisma.profiles.findUnique({
       where: { user_id: uid },
       select: { photos: true },
     });
 
     if (!profile || !profile.photos) {
-      return res.status(404).json({ error: "No photos found" });
+      return res.status(404).json({ code: 'PHOTO_NOT_FOUND', message: 'No photos found' });
     }
 
-    let photos = profile.photos as any[];
+    const photos = toStoredPhotos(profile.photos);
+    const existingIds = new Set(photos.map((p) => p.id));
 
-    // 2. Ensure all IDs belong to user
-    const existingIds = photos.map((p) => p.id);
+    for (const entry of body) {
+      if (!existingIds.has(entry.photoId)) {
+        return res.status(404).json({ code: 'PHOTO_NOT_FOUND', message: `Photo ${entry.photoId} not found` });
+      }
+    }
 
-    const isValid = orderedPhotoIds.every((id: string) =>
-      existingIds.includes(id)
+    const orderMap = new Map<string, number>(body.map((e: any) => [e.photoId, e.order]));
+    const updatedPhotos = photos.map((photo) =>
+      orderMap.has(photo.id) ? { ...photo, order: orderMap.get(photo.id)! } : photo
     );
 
-    if (!isValid) {
-      return res.status(400).json({ error: "Invalid photo IDs" });
-    }
-
-    // 3. Reorder photos based on orderedPhotoIds
-    const reorderedPhotos = orderedPhotoIds.map((id: string, index: number) => {
-      const photo = photos.find((p) => p.id === id);
-
-      return {
-        ...photo,
-        order: index, // update order
-      };
-    });
-
-    // 4. Save back to DB
     await prisma.profiles.update({
       where: { user_id: uid },
-      data: {
-        photos: reorderedPhotos,
-      },
+      data: { photos: toJsonArray(updatedPhotos) },
     });
 
-    res.status(200).json({ success: true });
+    return res.status(200).json({});
   } catch (error) {
-    console.error("Reorder photos error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Reorder photos error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
-}
+};

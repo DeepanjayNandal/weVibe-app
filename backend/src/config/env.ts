@@ -29,5 +29,6 @@ export const env = {
   databaseUrl: buildDatabaseUrl(),
   // Firebase project ID — required when AUTH_PROVIDER_MODE=firebase
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? '',
+  // Firebase Storage bucket — required when AUTH_PROVIDER_MODE=firebase
   firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? '',
 };

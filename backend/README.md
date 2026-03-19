@@ -48,6 +48,29 @@ Examples:
 - `mock:google:g-001:alice@gmail.com`
 - `mock:apple:a-001:bob@icloud.com`
 - `mock:email:e-001:charlie@example.com`
+## Deploy backend to GCP
+Run the `upload_gcp.sh`
+
+**Push local backend to GCP**
+   ```bash
+   bash upload_gcp.sh
+   ```
+
+**Test the GCP Deployment**
+After successful deployment, your service URL will be printed in the console (e.g., `https://wevibe-backend19-1001323522506.us-central1.run.app/api/v1/auth/login`). You can test it via Postman or cURL:
+
+1. **Health Check**
+   ```bash
+   curl <YOUR_GCP_SERVICE_URL>/health
+   ```
+
+2. **Test Login (with Mock Auth)**
+   ```bash
+   curl -X POST <YOUR_GCP_SERVICE_URL>/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"provider": "email", "idToken": "mock:email:e-001:charlie@example.com"}'
+   ```
+   *Note: Replace `<YOUR_GCP_SERVICE_URL>` with your actual Cloud Run URL.*
 
 ## Database Setup & Testing
 
@@ -94,12 +117,6 @@ Run all commands from the `weVibe-app/` directory using `--prefix backend`.
    npm test
    ```
    Ensure the database is running on (`npm run db:start`) to pass connectivity tests.
-
-7. **Check Connection (Optional)**
-   ```bash
-   npm run db:check
-   npm start --prefix backend
-   ```
 
 8. **Test with mock auth**
    ```bash

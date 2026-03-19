@@ -1127,6 +1127,159 @@ Authorization: Bearer <firebase-id-token>
 
 ---
 
+### 25. Remove Permanent Match
+
+Removes a permanent match from active conversation and sets the relationship to unmatched.
+
+```
+POST /api/v1/matching/matches/:matchId/remove
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "unmatched",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "lastMessageAt": "2026-01-01T00:10:00.000Z",
+      "lastMessageContent": "Hello",
+      "messageCount": 24,
+      "canOpen": false,
+      "canSendMessage": false,
+      "unreadCount": 0,
+      "counterpart": {
+        "userId": "uuid",
+        "displayName": "Alice Smith",
+        "photoUrl": "https://..."
+      }
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 26. Block Permanent Match Counterpart
+
+Blocks the counterpart user, and also removes the permanent match.
+
+```
+POST /api/v1/matching/matches/:matchId/block
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body (Optional)**
+```json
+{
+  "reason": "harassment"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | no | Optional block reason, stored in `user_blocks.reason` |
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "blockId": "uuid",
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "unmatched",
+      "canOpen": false,
+      "canSendMessage": false
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 27. Report Permanent Match Counterpart
+
+Reports the counterpart user, sets match status to `reported`, and stores the report record.
+
+```
+POST /api/v1/matching/matches/:matchId/report
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "reason": "spam",
+  "details": "unsolicited messages"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Report reason, must be non-empty after trim |
+| `details` | string | no | Additional context text |
+
+**Response 200 — Success**
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": "uuid",
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "reported",
+      "canOpen": false,
+      "canSendMessage": false
+    }
+  }
+}
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `MISSING_MATCH_ID` | `matchId` path param is missing or empty |
+| 400 | `MISSING_REPORT_REASON` | `reason` is missing, not a string, or empty after trim |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
+| 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

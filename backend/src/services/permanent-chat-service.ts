@@ -56,7 +56,35 @@ export type PermanentChatSendResult = {
   match: PermanentChatMatchItem;
 };
 
+export type RemoveMatchResult = {
+  match: PermanentChatMatchItem;
+  counterpartUserId: string;
+};
+
+export type BlockCounterpartResult = {
+  match: PermanentChatMatchItem;
+  counterpartUserId: string;
+  blockId: string;
+};
+
+export type ReportCounterpartResult = {
+  match: PermanentChatMatchItem;
+  counterpartUserId: string;
+  reportId: string;
+};
+
 const STATUS_ACTIVE = 'active';
+const STATUS_UNMATCHED = 'unmatched';
+const STATUS_REPORTED = 'reported';
+const STATUS_ENDED_EARLY = 'ended_early';
+const SPEED_SESSION_INTERRUPTIBLE_STATUSES = [
+  'active',
+  'active_counter_pending',
+  'active_request_locked',
+  'awaiting_decision',
+  'awaiting_counter_decision',
+  'awaiting_decision_locked',
+] as const;
 
 function normalizeMatchStatus(status: MatchStatus): MatchStatus {
   if (!status) return status;
@@ -96,6 +124,12 @@ function messageToPayload(message: messages): PermanentMessagePayload {
 
 function toNumber(value: number | null | undefined): number {
   return value ?? 0;
+}
+
+function normalizeReason(reason: unknown): string | null {
+  if (typeof reason !== 'string') return null;
+  const normalized = reason.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 export class PermanentChatService {
@@ -243,6 +277,115 @@ export class PermanentChatService {
     });
   }
 
+  async removeMatch(userId: string, matchId: string): Promise<RemoveMatchResult> {
+    return prisma.$transaction(async (tx) => {
+      return this.removeMatchInTransaction(tx, userId, matchId);
+    });
+  }
+
+  async blockCounterpart(userId: string, matchId: string, reason?: unknown): Promise<BlockCounterpartResult> {
+    return prisma.$transaction(async (tx) => {
+      const removeResult = await this.removeMatchInTransaction(tx, userId, matchId);
+      const normalizedReason = normalizeReason(reason);
+
+      const block = await tx.user_blocks.upsert({
+        where: {
+          blocker_user_id_blocked_user_id: {
+            blocker_user_id: userId,
+            blocked_user_id: removeResult.counterpartUserId,
+          },
+        },
+        update: {
+          reason: normalizedReason,
+        },
+        create: {
+          blocker_user_id: userId,
+          blocked_user_id: removeResult.counterpartUserId,
+          reason: normalizedReason,
+        },
+      });
+
+      return {
+        match: removeResult.match,
+        counterpartUserId: removeResult.counterpartUserId,
+        blockId: block.id,
+      };
+    });
+  }
+
+  async reportCounterpart(
+    userId: string,
+    matchId: string,
+    reason: unknown,
+    details: unknown,
+  ): Promise<ReportCounterpartResult> {
+    const normalizedReason = normalizeReason(reason);
+    if (!normalizedReason) {
+      badRequest('reason is required', 'MISSING_REPORT_REASON');
+    }
+
+    const normalizedDetails = normalizeReason(details);
+
+    return prisma.$transaction(async (tx) => {
+      const authorizedMatch = await this.getAuthorizedMatch(userId, matchId, tx);
+      const counterpartUserId = this.getCounterpartUserId(authorizedMatch, userId);
+
+      const reportedMatch = await tx.matches.update({
+        where: { id: matchId },
+        data: {
+          status: STATUS_REPORTED,
+        },
+        include: {
+          users_matches_user_a_idTousers: {
+            include: { profiles: true },
+          },
+          users_matches_user_b_idTousers: {
+            include: { profiles: true },
+          },
+        },
+      });
+
+      await tx.speed_dating_sessions.updateMany({
+        where: {
+          OR: [
+            {
+              user_a_id: userId,
+              user_b_id: counterpartUserId,
+            },
+            {
+              user_a_id: counterpartUserId,
+              user_b_id: userId,
+            },
+          ],
+          status: {
+            in: [...SPEED_SESSION_INTERRUPTIBLE_STATUSES],
+          },
+        },
+        data: {
+          status: STATUS_ENDED_EARLY,
+          user_a_decision: 'pending',
+          user_b_decision: 'pending',
+        },
+      });
+
+      const report = await tx.user_reports.create({
+        data: {
+          reporter_user_id: userId,
+          reported_user_id: counterpartUserId,
+          match_id: matchId,
+          reason: normalizedReason,
+          details: normalizedDetails,
+        },
+      });
+
+      return {
+        match: this.toMatchItem(reportedMatch, userId),
+        counterpartUserId,
+        reportId: report.id,
+      };
+    });
+  }
+
   private async getAuthorizedMatch(
     userId: string,
     matchId: string,
@@ -329,6 +472,72 @@ export class PermanentChatService {
         photoUrl: extractPhotoUrl(counterpartUser?.profiles?.photos ?? null),
       },
     };
+  }
+
+  private async removeMatchInTransaction(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    matchId: string,
+  ): Promise<RemoveMatchResult> {
+    const authorizedMatch = await this.getAuthorizedMatch(userId, matchId, tx);
+    const counterpartUserId = this.getCounterpartUserId(authorizedMatch, userId);
+
+    const currentStatus = normalizeMatchStatus(authorizedMatch.status);
+    const nextStatus = currentStatus === STATUS_REPORTED ? STATUS_REPORTED : STATUS_UNMATCHED;
+
+    const updatedMatch = await tx.matches.update({
+      where: { id: matchId },
+      data: {
+        status: nextStatus,
+      },
+      include: {
+        users_matches_user_a_idTousers: {
+          include: { profiles: true },
+        },
+        users_matches_user_b_idTousers: {
+          include: { profiles: true },
+        },
+      },
+    });
+
+    await tx.speed_dating_sessions.updateMany({
+      where: {
+        OR: [
+          {
+            user_a_id: userId,
+            user_b_id: counterpartUserId,
+          },
+          {
+            user_a_id: counterpartUserId,
+            user_b_id: userId,
+          },
+        ],
+        status: {
+          in: [...SPEED_SESSION_INTERRUPTIBLE_STATUSES],
+        },
+      },
+      data: {
+        status: STATUS_ENDED_EARLY,
+        user_a_decision: 'pending',
+        user_b_decision: 'pending',
+      },
+    });
+
+    return {
+      match: this.toMatchItem(updatedMatch, userId),
+      counterpartUserId,
+    };
+  }
+
+  private getCounterpartUserId(match: MatchWithProfiles, userId: string): string {
+    const isUserA = isUserAInTwoParty(match, userId);
+    const counterpartUserId = isUserA ? match.user_b_id : match.user_a_id;
+
+    if (!counterpartUserId) {
+      throw new AppError('Match participants are incomplete', 400, 'MATCH_PARTICIPANTS_INVALID');
+    }
+
+    return counterpartUserId;
   }
 
 }

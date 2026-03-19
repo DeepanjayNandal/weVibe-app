@@ -90,6 +90,7 @@ describe('Permanent Chat API', () => {
   });
 
   beforeEach(async () => {
+    await prisma.$executeRaw`DELETE FROM user_reports`;
     await prisma.$executeRaw`DELETE FROM messages`;
     await prisma.$executeRaw`DELETE FROM matches`;
     await prisma.$executeRaw`DELETE FROM speed_dating_messages`;
@@ -317,5 +318,138 @@ describe('Permanent Chat API', () => {
 
     expect(detailAfterRead.status).toBe(200);
     expect(detailAfterRead.body.data.match.unreadCount).toBe(0);
+  });
+
+  test('removes a match and marks it as unmatched', async () => {
+    const tokenA = 'mock:google:pc-a-remove-001:pc-a-remove-001@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-remove-001:pc-b-remove-001@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    const removeResponse = await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/remove`)
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(removeResponse.status).toBe(200);
+    expect(removeResponse.body.data.match.matchId).toBe(matchId);
+    expect(removeResponse.body.data.match.status).toBe('unmatched');
+    expect(removeResponse.body.data.match.canSendMessage).toBe(false);
+    expect(removeResponse.body.data.counterpartUserId).toBe(userB.userId);
+
+    const dbMatch = await prisma.matches.findUnique({ where: { id: matchId } });
+    expect(dbMatch?.status).toBe('unmatched');
+  });
+
+  test('blocks counterpart and creates user_blocks record', async () => {
+    const tokenA = 'mock:google:pc-a-block-001:pc-a-block-001@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-block-001:pc-b-block-001@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    const blockResponse = await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/block`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ reason: 'harassment' });
+
+    expect(blockResponse.status).toBe(200);
+    expect(blockResponse.body.data.match.status).toBe('unmatched');
+    expect(blockResponse.body.data.counterpartUserId).toBe(userB.userId);
+    expect(typeof blockResponse.body.data.blockId).toBe('string');
+
+    const blockRow = await prisma.user_blocks.findUnique({
+      where: {
+        blocker_user_id_blocked_user_id: {
+          blocker_user_id: userA.userId,
+          blocked_user_id: userB.userId,
+        },
+      },
+    });
+
+    expect(blockRow).toBeTruthy();
+    expect(blockRow?.reason).toBe('harassment');
+  });
+
+  test('reports counterpart, sets match to reported, and stores report record', async () => {
+    const tokenA = 'mock:google:pc-a-report-001:pc-a-report-001@permanent-chat.test';
+    const tokenB = 'mock:google:pc-b-report-001:pc-b-report-001@permanent-chat.test';
+
+    const userA = await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const userB = await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const matchId = await createMatch(userA.userId, userB.userId, 'active');
+
+    const reportResponse = await request(app)
+      .post(`/api/v1/matching/matches/${matchId}/report`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ reason: 'spam', details: 'unsolicited messages' });
+
+    expect(reportResponse.status).toBe(200);
+    expect(reportResponse.body.data.match.status).toBe('reported');
+    expect(reportResponse.body.data.counterpartUserId).toBe(userB.userId);
+    expect(typeof reportResponse.body.data.reportId).toBe('string');
+
+    const dbMatch = await prisma.matches.findUnique({ where: { id: matchId } });
+    expect(dbMatch?.status).toBe('reported');
+
+    const reportRow = await prisma.user_reports.findUnique({
+      where: { id: reportResponse.body.data.reportId },
+    });
+
+    expect(reportRow).toBeTruthy();
+    expect(reportRow?.reporter_user_id).toBe(userA.userId);
+    expect(reportRow?.reported_user_id).toBe(userB.userId);
+    expect(reportRow?.reason).toBe('spam');
+    expect(reportRow?.details).toBe('unsolicited messages');
   });
 });

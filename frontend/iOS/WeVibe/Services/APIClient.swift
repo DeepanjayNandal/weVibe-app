@@ -1,5 +1,12 @@
 import Foundation
 
+// MARK: - UserPhoto
+
+struct UserPhoto: Identifiable, Decodable {
+    let id: String
+    let url: String
+}
+
 private struct ErrorResponse: Decodable {
     struct ErrorBody: Decodable { let code: String }
     let error: ErrorBody
@@ -115,6 +122,79 @@ struct APIClient {
         var req = request(path: "/users/profile", method: "PATCH", token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(payload)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    // MARK: - Photos
+
+    struct PhotoUploadURLResult {
+        let photoId: String
+        let uploadURL: URL
+    }
+
+    /// POST /users/profile/photos/upload-url — returns a signed PUT URL for direct GCS upload.
+    func requestPhotoUploadURL(token: String, mimeType: String, sizeBytes: Int) async throws -> PhotoUploadURLResult {
+        var req = request(path: "/users/profile/photos/upload-url", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["mimeType": mimeType, "sizeBytes": sizeBytes]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable { let photoId: String; let uploadURL: String }
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        guard let url = URL(string: resp.uploadURL) else { throw APIError.serverError(0) }
+        return PhotoUploadURLResult(photoId: resp.photoId, uploadURL: url)
+    }
+
+    /// PUT <signedURL> — uploads raw JPEG bytes directly to GCS. No auth header (credentials are in the URL).
+    func uploadPhotoData(_ data: Data, to signedURL: URL) async throws {
+        var req = URLRequest(url: signedURL)
+        req.httpMethod = "PUT"
+        req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 60
+        req.httpBody = data
+        let uploadSession = URLSession(configuration: .default)
+        let (_, urlResponse) = try await uploadSession.data(for: req)
+        guard let http = urlResponse as? HTTPURLResponse else {
+            throw APIError.network(URLError(.badServerResponse))
+        }
+        if !(200..<300).contains(http.statusCode) { throw APIError.serverError(http.statusCode) }
+    }
+
+    /// POST /users/profile/photos/finalize — confirms the upload and writes the photo record to the DB.
+    func finalizePhotoUpload(token: String, photoId: String, order: Int) async throws -> UserPhoto {
+        var req = request(path: "/users/profile/photos/finalize", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["photoId": photoId, "order": order]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        return try JSONDecoder().decode(UserPhoto.self, from: data)
+    }
+
+    /// DELETE /users/profile/photos/:photoId — removes photo from storage and DB.
+    func deletePhoto(token: String, photoId: String) async throws {
+        let req = request(path: "/users/profile/photos/\(photoId)", method: "DELETE", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 204 || (200..<300).contains(status) { return }
+        throw APIError.serverError(status)
+    }
+
+    /// PATCH /users/profile/photos/reorder — updates the display order of photos.
+    func reorderPhotos(token: String, orders: [(photoId: String, order: Int)]) async throws {
+        var req = request(path: "/users/profile/photos/reorder", method: "PATCH", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = orders.map { ["photoId": $0.photoId, "order": $0.order] as [String: Any] }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
@@ -348,7 +428,7 @@ struct UserProfileResponse: Decodable {
     let locationCity: String?
     let locationState: String?
     let prompts: [PromptEntry]?
-    let photoUrls: [String]?
+    let photos: [UserPhoto]?
 
     enum CodingKeys: String, CodingKey {
         case firstName = "first_name"
@@ -397,7 +477,7 @@ struct UserProfileResponse: Decodable {
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
         case prompts
-        case photoUrls = "photo_urls"
+        case photos = "photos"
         case birthDate = "birth_date"
         case gender
         case locationCity = "location_city"

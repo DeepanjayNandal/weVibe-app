@@ -113,9 +113,10 @@ struct ProfileCardView: View {
     // MARK: - Photo Area
 
     private var photoCarousel: some View {
-        ZStack(alignment: .bottom) {
+        Group {
             if data.photoURLs.isEmpty {
                 t.sectionBg
+                    .frame(maxWidth: .infinity)
                     .frame(height: 340)
                     .overlay {
                         VStack(spacing: 12) {
@@ -150,40 +151,44 @@ struct ProfileCardView: View {
                     } placeholder: { t.sectionBg }
                     .frame(maxWidth: .infinity)
                     .frame(height: 340)
+                    .clipped()
                 }
                 .buttonStyle(.plain)
-            }
-
-            LinearGradient(
-                colors: [.clear, t.bg],
-                startPoint: .init(x: 0.5, y: t.isLight ? 0.6 : 0.5), endPoint: .bottom
-            )
-            .frame(height: 140)
-
-            HStack {
-                if data.photoURLs.count > 1 {
-                    Label("1 / \(data.photoURLs.count)", systemImage: "photo.on.rectangle")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(t.isLight ? Color(hex: "#6C6C70") : .white.opacity(0.85))
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(.ultraThinMaterial, in: Capsule())
+                .frame(maxWidth: .infinity)
+                .frame(height: 340)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [.clear, t.bg],
+                        startPoint: .init(x: 0.5, y: t.isLight ? 0.6 : 0.5), endPoint: .bottom
+                    )
+                    .frame(height: 140)
+                    .allowsHitTesting(false)
                 }
-                Spacer()
-                if isOwnProfile, case .ownProfile(let onEdit, _) = mode {
-                    Button { onEdit(.photos) } label: {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 15))
-                            .foregroundStyle(t.isLight ? Color(hex: "#6C6C70") : .white)
-                            .padding(10)
-                            .background(.ultraThinMaterial, in: Circle())
+                .overlay(alignment: .bottom) {
+                    HStack {
+                        if data.photoURLs.count > 1 {
+                            Label("1 / \(data.photoURLs.count)", systemImage: "photo.on.rectangle")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Color.black.opacity(0.45), in: Capsule())
+                        }
+                        Spacer()
+                        if isOwnProfile, case .ownProfile(let onEdit, _) = mode {
+                            Button { onEdit(.photos) } label: {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.white)
+                                    .padding(10)
+                                    .background(Color.black.opacity(0.45), in: Circle())
+                            }
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
         }
-        .frame(height: 340)
-        .clipped()
     }
 
     // MARK: - Name Header

@@ -157,7 +157,7 @@ final class UserProfileStore {
     // MARK: - Social Media
     var socialMediaLinks: [String] = ["", "", ""]
     var spotifyPlaylistURL: String = ""
-    var photoURLs: [String] = []
+    var photos: [UserPhoto] = []
 
     // MARK: - Field Visibility (shown to other users)
     var showSex: Bool = true
@@ -274,7 +274,7 @@ final class UserProfileStore {
         if let v = r.minAgePreference      { minAge                = Double(v) }
         if let v = r.maxAgePreference      { maxAge                = Double(v) }
         if let v = r.distancePreferenceMiles { distance            = Double(v) }
-        if let v = r.photoUrls             { photoURLs             = v }
+        if let v = r.photos                { photos                = v }
         if let prompts = r.prompts {
             prompt1Question      = prompts.count > 0 ? prompts[0].question : ""
             prompt1Answer        = prompts.count > 0 ? prompts[0].answer   : ""
@@ -305,7 +305,7 @@ final class UserProfileStore {
         firstName = ""; lastName = ""; birthDate = ""; sex = ""; locationCity = ""; locationState = ""
         prompt1Question = ""; prompt1Answer = ""; prompt2Question = ""; prompt2Answer = ""
         prompt3Question = ""; prompt3Answer = ""; customPromptQuestion = ""; customPromptAnswer = ""
-        socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photoURLs = []
+        socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photos = []
         showSex = true; showLocation = true; showPersonalityTrait = true
         showInterests = true; showLifestyle = true; showCareer = true; showPets = true
         fetchFailed = false

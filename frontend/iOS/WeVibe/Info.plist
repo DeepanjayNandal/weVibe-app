@@ -2,25 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSApplicationCrashOnExceptions</key>
-	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>WeVibe uses your location to show you matches nearby.</string>
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>BackgroundColor</key>
-		<string>LaunchBackground</string>
-		<key>ImageName</key>
-		<string>LogoPlaceholder</string>
-	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
-		<!-- DEV: REVERSED_CLIENT_ID from GoogleService-Info-Dev.plist (bundle ID: com.wevibe1.dev) -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -31,7 +14,6 @@
 				<string>com.googleusercontent.apps.754456353577-r3lsbkibe2gn69hn1p5dittvp82ronep</string>
 			</array>
 		</dict>
-		<!-- PROD: REVERSED_CLIENT_ID from GoogleService-Info-Prod.plist (bundle ID: com.wevibe1.app) -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -43,5 +25,19 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSApplicationCrashOnExceptions</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>BackgroundColor</key>
+		<string>LaunchBackground</string>
+		<key>ImageName</key>
+		<string>LogoPlaceholder</string>
+	</dict>
 </dict>
 </plist>

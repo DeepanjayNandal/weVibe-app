@@ -1,18 +1,15 @@
 import SwiftUI
 import Observation
 
-enum SpeedDatingRoute: Hashable {
-    case rules
-    case tests
-    case joinQueue
-    case findingMatch
+enum ChatRoute: Hashable {
+    case activeChat(matchId: String)
 }
 
 @Observable
-final class SpeedDatingRouter {
+final class ChatRouter {
     var path = NavigationPath()
 
-    func navigate(to route: SpeedDatingRoute) {
+    func navigate(to route: ChatRoute) {
         path.append(route)
     }
 
@@ -20,8 +17,8 @@ final class SpeedDatingRouter {
         guard !path.isEmpty else { return }
         path.removeLast()
     }
+
     func popToRoot() {
         path.removeLast(path.count)
     }
 }
-

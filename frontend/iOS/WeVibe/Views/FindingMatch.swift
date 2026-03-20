@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - Single Bubble
+
 private struct BubbleView: View {
     let baseSize: CGFloat
     let color: Color
@@ -32,7 +34,6 @@ private struct BubbleView: View {
                     scale   = CGFloat.random(in: 0.88...1.12)
                     opacity = Double.random(in: 0.65...1.0)
                 }
-
                 withAnimation(
                     .easeInOut(duration: Double.random(in: 1.8...2.8))
                     .repeatForever(autoreverses: true)
@@ -48,6 +49,7 @@ private struct BubbleView: View {
 
 private struct BubbleGrid: View {
 
+    // Each row: (count, size, colors)
     private struct Row {
         let count: Int
         let size: CGFloat
@@ -96,9 +98,34 @@ private struct BubbleGrid: View {
     }
 }
 
+// MARK: - Animated Dots (loading indicator under title)
+
+private struct LoadingDots: View {
+    @State private var activeIndex = 0
+    private let timer = Timer.publish(every: 0.38, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(Color(hex: "#B2F542"))
+                    .frame(width: 5, height: 5)
+                    .scaleEffect(activeIndex == i ? 1.5 : 0.8)
+                    .opacity(activeIndex == i ? 1.0 : 0.35)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: activeIndex)
+            }
+        }
+        .onReceive(timer) { _ in
+            activeIndex = (activeIndex + 1) % 3
+        }
+    }
+}
+
 // MARK: - Main View
 
 struct FindingMatchView: View {
+
+    var onMatchFound: (String) -> Void
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
 
@@ -112,17 +139,36 @@ struct FindingMatchView: View {
     @State private var glowScale: CGFloat    = 1.0
     @State private var glowOpacity: Double   = 0.15
 
+
+    @State private var errorMessage: String?  = nil
+    @State private var isSearching: Bool      = true
+    @State private var matchTask: Task<Void, Never>? = nil
+
+    private let matchmakingService = MatchmakingService()
+
     var body: some View {
         ZStack {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
+
+            RadialGradient(
+                colors: [
+                    Color(hex: "#1A8C4E").opacity(glowOpacity),
+                    Color.clear,
+                ],
+                center: .center,
+                startRadius: 10,
+                endRadius: 320
+            )
+            .scaleEffect(glowScale)
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
 
                 HStack {
                     Spacer()
                     Button {
-                        speedDatingRouter.pop()
+                        speedDatingRouter.popToRoot()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
@@ -140,10 +186,10 @@ struct FindingMatchView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
-                .padding(.bottom, 48)
 
-            
-                LogoView(size: 100)
+                Spacer()
+
+                LogoView(size: 72)
                     .scaleEffect(logoScale)
                     .opacity(logoOpacity)
                     .padding(.bottom, 24)
@@ -153,19 +199,39 @@ struct FindingMatchView: View {
                         Text("Finding A Match")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
+                        if isSearching { LoadingDots() }
                     }
 
-                    Text("We're finding someone for you to chat to you!")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                        .padding(.horizontal, 48)
+                    if let error = errorMessage {
+                        VStack(spacing: 12) {
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 48)
+
+                            Button {
+                                errorMessage = nil
+                                isSearching  = true
+                                startMatchmaking()
+                            } label: {
+                                Text("try again")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.primaryButton)
+                            }
+                        }
+                    } else {
+                        Text("We're finding someone for you to chat to you!")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                            .padding(.horizontal, 48)
+                    }
                 }
                 .opacity(titleOpacity)
                 .offset(y: titleOffset)
                 .padding(.bottom, 44)
-                
 
                 BubbleGrid()
                     .opacity(gridOpacity)
@@ -175,7 +241,32 @@ struct FindingMatchView: View {
             }
         }
         .navigationBarHidden(true)
-        .onAppear { animateIn() }
+        .onAppear {
+            animateIn()
+            startMatchmaking()
+        }
+    }
+
+    // MARK: - Matchmaking
+
+    private func startMatchmaking() {
+        matchTask?.cancel()
+        matchTask = Task {
+            do {
+                let matchId = try await matchmakingService.findMatch()
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    isSearching = false
+                    onMatchFound(matchId)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    isSearching  = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 
     // MARK: - Entrance Animations
@@ -193,7 +284,7 @@ struct FindingMatchView: View {
             gridOpacity = 1
             gridOffset  = 0
         }
-        // Background glow breathe
+       
         withAnimation(
             .easeInOut(duration: 2.4)
             .repeatForever(autoreverses: true)

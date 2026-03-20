@@ -43,6 +43,7 @@
 		A38BAB692F48215C00E908DB /* PromptField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38BAB682F48215500E908DB /* PromptField.swift */; };
 		A3AEC0DF2F663F9500F7E31D /* JoinQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */; };
 		A3AEC0E42F67C80800F7E31D /* FindingMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */; };
+		A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */; };
 		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
 		BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A02F59AE1100178889 /* FirebaseAnalytics */; };
 		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
@@ -88,6 +89,7 @@
 		A38BAB682F48215500E908DB /* PromptField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptField.swift; sourceTree = "<group>"; };
 		A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueue.swift; sourceTree = "<group>"; };
 		A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingMatch.swift; sourceTree = "<group>"; };
+		A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChattingScreen.swift; sourceTree = "<group>"; };
 		A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationPermissionScreen.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */,
 				A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */,
 				A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */,
 				A351B54C2F5A591C007C6412 /* PersonalityTest.swift */,
@@ -217,7 +220,7 @@
 				A38BAAE92F47CE9900E908DB /* FlowLayout.swift */,
 				A38BAAE32F47CE1200E908DB /* EthnicityChip.swift */,
 				A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */,
-					B10005 /* LogoView.swift */,
+				B10005 /* LogoView.swift */,
 				905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */,
 			);
 			path = Components;
@@ -375,6 +378,7 @@
 				A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */,
 				A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
+				A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
@@ -389,7 +393,7 @@
 				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,
 				A38BAB272F47E10500E908DB /* GenderCheckbox.swift in Sources */,
-					A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
+				A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
 				BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */,
 				A3AEC0E42F67C80800F7E31D /* FindingMatch.swift in Sources */,
 				BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */,

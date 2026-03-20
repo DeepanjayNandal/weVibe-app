@@ -2,7 +2,6 @@ import SwiftUI
 
 // MARK: - Tab Identity
 
-/// Add a new case here when a new tab is introduced.
 enum AppTab: Hashable {
     case speedDating
     case chat
@@ -12,22 +11,34 @@ enum AppTab: Hashable {
 
 // MARK: - HomeScreen
 
-// Hosts each tab in its own NavigationStack.
-// To add a tab: new AppTab case + new Tab view + new item in CustomTabBar.
 struct HomeScreen: View {
 
-    @State private var selectedTab: AppTab = .speedDating
+    @State private var selectedTab: AppTab     = .speedDating
+    @State private var pendingMatchId: String? = nil
+    @State private var isInActiveChat: Bool    = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                SpeedDatingTab()
-                    .tag(AppTab.speedDating)
-                    .toolbar(.hidden, for: .tabBar)
+                SpeedDatingTab(selectedTab: $selectedTab, onMatchFound: { matchId in
+                    DispatchQueue.main.async {
+                        pendingMatchId = matchId
+                        selectedTab    = .chat
+                    }
+                })
+                .tag(AppTab.speedDating)
+                .toolbar(.hidden, for: .tabBar)
 
-                ChatTab()
-                    .tag(AppTab.chat)
-                    .toolbar(.hidden, for: .tabBar)
+                ChatTab(
+                    pendingMatchId: $pendingMatchId,
+                    isInActiveChat: $isInActiveChat,
+                    onChatClosed: {
+                        isInActiveChat = false
+                        selectedTab    = .chat
+                    }
+                )
+                .tag(AppTab.chat)
+                .toolbar(.hidden, for: .tabBar)
 
                 ProfileTab()
                     .tag(AppTab.profile)
@@ -41,22 +52,24 @@ struct HomeScreen: View {
 }
 
 // MARK: - Tab Views
-// Each tab owns a NavigationStack driven by its router.
-// Add .navigationDestination cases here as screens are built for each tab.
 
 private struct SpeedDatingTab: View {
     @State private var speedDatingRouter = SpeedDatingRouter()
-    
+    @Binding var selectedTab: AppTab
+    var onMatchFound: (String) -> Void
+
     var body: some View {
         NavigationStack(path: $speedDatingRouter.path) {
             SpeedDatingPlaceholder()
                 .navigationDestination(for: SpeedDatingRoute.self) { route in
-                    switch(route) {
-                    case .rules: SpeedDatingRules()
-                    case .tests: PersonalityTestView()
+                    switch route {
+                    case .rules:     SpeedDatingRules()
+                    case .tests:     PersonalityTestView()
                     case .joinQueue: JoinQueueView()
-                    case .findingMatch : FindingMatchView()
-//                    case .matchResult
+                    case .findingMatch:
+                        FindingMatchView { matchId in
+                            onMatchFound(matchId)   // HomeScreen handles tab switch
+                        }
                     }
                 }
         }
@@ -65,10 +78,33 @@ private struct SpeedDatingTab: View {
     }
 }
 
-
 private struct ChatTab: View {
+    @Binding var pendingMatchId: String?
+    @Binding var isInActiveChat: Bool
+    
+    var onChatClosed: () -> Void
+    @State private var chatRouter = ChatRouter()
+
     var body: some View {
-        NavigationStack { ChatPlaceholder() }
+        NavigationStack(path: $chatRouter.path) {
+            ChatPlaceholder()
+                .navigationDestination(for: ChatRoute.self) { route in
+                    switch route {
+                    case .activeChat(let matchId):
+                        ActiveChatView(matchId: matchId) {
+                            chatRouter.popToRoot()
+                            onChatClosed()
+                        }
+                    }
+                }
+        }
+        // When HomeScreen sets pendingMatchId, auto-push the chat screen
+        .onChange(of: pendingMatchId) { _, newMatchId in
+            guard let matchId = newMatchId else { return }
+            chatRouter.navigate(to: .activeChat(matchId: matchId))
+            pendingMatchId = nil   // clear so re-navigating doesn't re-trigger
+        }
+        .environment(chatRouter)
     }
 }
 
@@ -79,8 +115,6 @@ private struct ProfileTab: View {
 }
 
 // MARK: - Placeholders
-// Replace each of these with the real root screen for that tab when ready.
-
 
 private struct ChatPlaceholder: View {
     var body: some View {
@@ -94,8 +128,6 @@ private struct ChatPlaceholder: View {
     }
 }
 
-
-
 // MARK: - Custom Tab Bar
 
 private struct CustomTabBar: View {
@@ -106,7 +138,6 @@ private struct CustomTabBar: View {
         let systemImage: String
     }
 
-    // Add a new TabItem here when a new tab is introduced.
     private let items: [TabItem] = [
         TabItem(tab: .speedDating, systemImage: "stopwatch.fill"),
         TabItem(tab: .chat,        systemImage: "message.fill"),

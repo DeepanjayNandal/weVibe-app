@@ -217,7 +217,7 @@
 				A38BAAE92F47CE9900E908DB /* FlowLayout.swift */,
 				A38BAAE32F47CE1200E908DB /* EthnicityChip.swift */,
 				A38BAAE12F47CD9200E908DB /* ProgressBarView.swift */,
-					B10005 /* LogoView.swift */,
+				B10005 /* LogoView.swift */,
 				905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */,
 			);
 			path = Components;
@@ -389,7 +389,7 @@
 				A38BAAE22F47CD9700E908DB /* ProgressBarView.swift in Sources */,
 				A10002 /* SplashScreen.swift in Sources */,
 				A38BAB272F47E10500E908DB /* GenderCheckbox.swift in Sources */,
-					A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
+				A38BAAD22F47B6B200E908DB /* SurveyStep2.swift in Sources */,
 				BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */,
 				A3AEC0E42F67C80800F7E31D /* FindingMatch.swift in Sources */,
 				BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */,
@@ -489,7 +489,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WeVibe;
+				INFOPLIST_KEY_CFBundleDisplayName = "WeVibe Dev";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WeVibe uses your location to show you matches nearby.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -504,7 +505,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe1.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wevibe2dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -531,7 +532,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WeVibe/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WeVibe;
+				INFOPLIST_KEY_CFBundleDisplayName = "WeVibe Dev";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WeVibe uses your location to show you matches nearby.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

@@ -2,22 +2,38 @@ import SwiftUI
 import PhotosUI
 import FirebaseAuth
 
+// MARK: - PhotoItem
+
+/// Unified model for both already-uploaded and newly picked photos.
+/// Lets the single grid reorder all items together before saving.
+private enum PhotoItem: Identifiable {
+    case existing(UserPhoto)
+    case new(id: String, image: UIImage)
+
+    var id: String {
+        switch self {
+        case .existing(let p):    return p.id
+        case .new(let id, _):     return id
+        }
+    }
+}
+
 // MARK: - Photos Edit Sheet
 
 struct PhotosEditSheet: View {
     @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var existingPhotos: [UserPhoto] = []
+    @State private var photoItems: [PhotoItem] = []
     @State private var removedPhotoIds: Set<String> = []
     @State private var pickerItems: [PhotosPickerItem] = []
-    @State private var newImages: [UIImage] = []
     @State private var isSaving: Bool = false
     @State private var uploadProgress: String = ""
     @State private var saveError: String? = nil
+    @State private var draggingItemId: String? = nil
 
     private static let maxPhotos = 6
-    private var totalCount: Int { existingPhotos.count + newImages.count }
+    private var totalCount: Int { photoItems.count }
     private var remaining: Int { Swift.max(0, Self.maxPhotos - totalCount) }
 
     var body: some View {
@@ -45,27 +61,61 @@ struct PhotosEditSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+                        if !photoItems.isEmpty {
+                            Text("Hold & drag to reorder")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.35))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
+                        }
+                        let columns = [GridItem(.flexible()), GridItem(.flexible())]
                         LazyVGrid(columns: columns, spacing: 10) {
-                            ForEach(existingPhotos) { photo in
+                            ForEach(photoItems) { item in
                                 photoCell {
-                                    AsyncImage(url: URL(string: photo.url)) { img in
-                                        img.resizable().scaledToFill()
-                                    } placeholder: {
-                                        AppTheme.secondaryBackground
+                                    switch item {
+                                    case .existing(let photo):
+                                        AsyncImage(url: URL(string: photo.url)) { img in
+                                            img.resizable().scaledToFill()
+                                        } placeholder: {
+                                            AppTheme.secondaryBackground
+                                        }
+                                    case .new(_, let image):
+                                        Image(uiImage: image).resizable().scaledToFill()
                                     }
                                 } onRemove: {
-                                    removedPhotoIds.insert(photo.id)
-                                    existingPhotos.removeAll { $0.id == photo.id }
+                                    if case .existing(let photo) = item {
+                                        removedPhotoIds.insert(photo.id)
+                                    }
+                                    photoItems.removeAll { $0.id == item.id }
                                 }
-                            }
-                            ForEach(newImages.indices, id: \.self) { i in
-                                photoCell {
-                                    Image(uiImage: newImages[i])
-                                        .resizable().scaledToFill()
-                                } onRemove: {
-                                    newImages.remove(at: i)
-                                    if i < pickerItems.count { pickerItems.remove(at: i) }
+                                .opacity(draggingItemId == item.id ? 0.4 : 1.0)
+                                .draggable(item.id) {
+                                    Group {
+                                        switch item {
+                                        case .existing(let photo):
+                                            AsyncImage(url: URL(string: photo.url)) { img in
+                                                img.resizable().scaledToFill()
+                                            } placeholder: {
+                                                AppTheme.secondaryBackground
+                                            }
+                                        case .new(_, let image):
+                                            Image(uiImage: image).resizable().scaledToFill()
+                                        }
+                                    }
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .onAppear { draggingItemId = item.id }
+                                }
+                                .dropDestination(for: String.self) { droppedIds, _ in
+                                    draggingItemId = nil
+                                    guard let droppedId = droppedIds.first,
+                                          droppedId != item.id,
+                                          let from = photoItems.firstIndex(where: { $0.id == droppedId }),
+                                          let to = photoItems.firstIndex(where: { $0.id == item.id })
+                                    else { return false }
+                                    withAnimation { photoItems.move(fromOffsets: IndexSet(integer: from),
+                                                                    toOffset: to > from ? to + 1 : to) }
+                                    return true
                                 }
                             }
                             if totalCount < Self.maxPhotos {
@@ -105,7 +155,7 @@ struct PhotosEditSheet: View {
             }
             .onChange(of: pickerItems) { loadNewImages() }
         }
-        .onAppear { existingPhotos = store.photos }
+        .onAppear { photoItems = store.photos.map { .existing($0) } }
     }
 
     @ViewBuilder
@@ -118,13 +168,13 @@ struct PhotosEditSheet: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.4))
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 120)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12)
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
             .foregroundStyle(AppTheme.iconColor.opacity(0.4)))
-        .cornerRadius(12)
+        .aspectRatio(1, contentMode: .fit)
     }
 
     @ViewBuilder
@@ -132,29 +182,40 @@ struct PhotosEditSheet: View {
         @ViewBuilder image: () -> Content,
         onRemove: @escaping () -> Void
     ) -> some View {
-        ZStack(alignment: .topTrailing) {
-            image()
-                .frame(maxWidth: .infinity)
-                .frame(height: 120)
-                .clipped()
-                .cornerRadius(12)
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.white)
-                    .background(Color.black.opacity(0.5), in: Circle())
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay(
+                image()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .topTrailing) {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.white)
+                        .background(Color.black.opacity(0.5), in: Circle())
+                }
+                .padding(6)
+                .disabled(isSaving)
             }
-            .padding(6)
-            .disabled(isSaving)
-        }
     }
 
     private func loadNewImages() {
-        newImages = []
-        for item in pickerItems {
+        // Snapshot and reset so the picker opens fresh on the next tap.
+        let itemsToLoad = pickerItems
+        pickerItems = []
+        for item in itemsToLoad {
             item.loadTransferable(type: Data.self) { result in
                 if case .success(let data) = result, let data, let img = UIImage(data: data) {
-                    DispatchQueue.main.async { newImages.append(img) }
+                    // Normalize EXIF orientation — UIImage(data:) preserves the rotation
+                    // flag but SwiftUI can render it incorrectly, making thumbnails look
+                    // stretched or rotated. Drawing into a new context produces a clean .up image.
+                    let normalized = img.normalizedForDisplay()
+                    DispatchQueue.main.async {
+                        photoItems.append(.new(id: UUID().uuidString, image: normalized))
+                    }
                 }
             }
         }
@@ -179,17 +240,21 @@ struct PhotosEditSheet: View {
 
         let client = APIClient()
 
-        // 1. Delete removed photos in parallel
+        // 1. Delete removed photos sequentially — backend does read-modify-write on
+        //    the photos JSON column with no locking, so parallel deletes race and
+        //    the last write wins, leaving orphaned DB records pointing to deleted GCS files.
         if !removedPhotoIds.isEmpty {
             uploadProgress = "Removing photos…"
-            await withTaskGroup(of: Void.self) { group in
-                for photoId in removedPhotoIds {
-                    group.addTask { try? await client.deletePhoto(token: token, photoId: photoId) }
-                }
+            for photoId in removedPhotoIds {
+                try? await client.deletePhoto(token: token, photoId: photoId)
             }
         }
 
-        // 2. Upload new images sequentially: compress → signed URL → PUT → finalize
+        // 2. Upload new images in their current grid order
+        let newImages = photoItems.compactMap { item -> UIImage? in
+            if case .new(_, let img) = item { return img }
+            return nil
+        }
         var uploadedPhotos: [UserPhoto] = []
         for (i, image) in newImages.enumerated() {
             uploadProgress = "Uploading photo \(i + 1) of \(newImages.count)…"
@@ -199,9 +264,8 @@ struct PhotosEditSheet: View {
                     token: token, mimeType: "image/jpeg", sizeBytes: jpegData.count
                 )
                 try await client.uploadPhotoData(jpegData, to: urlResult.uploadURL)
-                let order = existingPhotos.count + uploadedPhotos.count
                 let photo = try await client.finalizePhotoUpload(
-                    token: token, photoId: urlResult.photoId, order: order
+                    token: token, photoId: urlResult.photoId, order: i
                 )
                 uploadedPhotos.append(photo)
             } catch {
@@ -210,8 +274,15 @@ struct PhotosEditSheet: View {
             }
         }
 
-        // 3. Reorder: existing (in grid order) + newly uploaded
-        let finalPhotos = existingPhotos + uploadedPhotos
+        // 3. Reorder using the unified grid order: walk photoItems, replacing .new slots
+        //    with their uploaded UserPhoto in sequence.
+        var uploadIterator = uploadedPhotos.makeIterator()
+        let finalPhotos = photoItems.compactMap { item -> UserPhoto? in
+            switch item {
+            case .existing(let photo): return removedPhotoIds.contains(photo.id) ? nil : photo
+            case .new:                 return uploadIterator.next()
+            }
+        }
         if finalPhotos.count > 1 {
             uploadProgress = "Saving order…"
             let orders = finalPhotos.enumerated().map { (idx, photo) in (photoId: photo.id, order: idx) }
@@ -236,6 +307,32 @@ struct PhotosEditSheet: View {
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let resized = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
         return resized.jpegData(compressionQuality: quality)
+    }
+}
+
+// MARK: - UIImage orientation normalization
+
+private extension UIImage {
+    /// Returns a copy of the image drawn in the `.up` orientation.
+    /// Required because `UIImage(data:)` preserves the EXIF rotation flag, which
+    /// SwiftUI's `Image(uiImage:)` can render incorrectly in grid cells.
+    /// Normalizes EXIF orientation AND scales down to `maxDimension` in one pass.
+    /// Keeping photos at full resolution (~48 MB uncompressed per 12 MP frame) causes
+    /// OOM crashes when 3+ are loaded simultaneously. 1200 px is plenty for a
+    /// 120 pt thumbnail at 3× and matches the upload compress() target.
+    func normalizedForDisplay(maxDimension: CGFloat = 1200) -> UIImage {
+        let scale: CGFloat
+        if size.width > maxDimension || size.height > maxDimension {
+            scale = min(maxDimension / size.width, maxDimension / size.height)
+        } else if imageOrientation == .up {
+            return self
+        } else {
+            scale = 1.0
+        }
+        let newSize = CGSize(width: (size.width * scale).rounded(),
+                             height: (size.height * scale).rounded())
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
 

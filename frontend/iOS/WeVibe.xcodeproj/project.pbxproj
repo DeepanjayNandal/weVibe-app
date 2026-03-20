@@ -44,6 +44,7 @@
 		A3AEC0DF2F663F9500F7E31D /* JoinQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */; };
 		A3AEC0E42F67C80800F7E31D /* FindingMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */; };
 		A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */; };
+		A3AEC19B2F6D0EEB00F7E31D /* LogoWithoutText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */; };
 		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
 		BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A02F59AE1100178889 /* FirebaseAnalytics */; };
 		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
@@ -90,6 +91,7 @@
 		A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueue.swift; sourceTree = "<group>"; };
 		A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingMatch.swift; sourceTree = "<group>"; };
 		A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChattingScreen.swift; sourceTree = "<group>"; };
+		A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoWithoutText.swift; sourceTree = "<group>"; };
 		A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationPermissionScreen.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
@@ -209,6 +211,7 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */,
 				BBB2B9992F513510002190F2 /* ErrorToast.swift */,
 				BBB2B97D2F503025002190F2 /* PrimaryButton.swift */,
 				A38BAB682F48215500E908DB /* PromptField.swift */,
@@ -410,6 +413,7 @@
 				A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,
 				A38BAB292F47E13100E908DB /* GoalCheckbox.swift in Sources */,
+				A3AEC19B2F6D0EEB00F7E31D /* LogoWithoutText.swift in Sources */,
 				6A2674668955B670DB832C2D /* LocationPermissionScreen.swift in Sources */,
 				E8B15669B6C798425208C3EE /* ProfileView.swift in Sources */,
 				58749CD0FF32C7442D53C46D /* ProfileCard.swift in Sources */,

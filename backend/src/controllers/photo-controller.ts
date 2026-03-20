@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
+import { UserRepository } from '../repositories/user-repository';
 import {
   generateUploadURL,
   generateReadURL,
@@ -20,6 +21,7 @@ interface StoredPhoto {
 const MAX_PHOTOS = 6;
 const ALLOWED_MIME_TYPES: AllowedMimeType[] = ['image/jpeg', 'image/png'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+const userRepository = new UserRepository();
 
 function toStoredPhotos(json: Prisma.JsonValue | null | undefined): StoredPhoto[] {
   if (!json || !Array.isArray(json)) return [];
@@ -30,9 +32,17 @@ function toJsonArray(photos: StoredPhoto[]): Prisma.InputJsonValue {
   return photos as unknown as Prisma.InputJsonValue;
 }
 
+async function resolveUserId(firebaseUid: string): Promise<string> {
+  const user = await userRepository.findByFirebaseUid(firebaseUid);
+  if (!user) throw new Error('USER_NOT_FOUND');
+  return user.id;   // ← this is the actual UUID used in profiles.user_id
+}
+
 // POST /upload-url
 export const getUploadURL = async (req: Request, res: Response) => {
-  const uid = req.auth!.uid;
+  const firebaseUid = req.auth!.uid;
+  const uid = await resolveUserId(firebaseUid);
+
   const { mimeType, sizeBytes } = req.body;
 
   if (!mimeType || !ALLOWED_MIME_TYPES.includes(mimeType)) {
@@ -63,7 +73,9 @@ export const getUploadURL = async (req: Request, res: Response) => {
 
 // POST /finalize
 export const finalizeUpload = async (req: Request, res: Response) => {
-  const uid = req.auth!.uid;
+  const firebaseUid = req.auth!.uid;
+  const uid = await resolveUserId(firebaseUid);
+
   const { photoId, order } = req.body;
 
   if (typeof photoId !== 'string' || photoId.trim().length === 0) {
@@ -115,7 +127,8 @@ export const finalizeUpload = async (req: Request, res: Response) => {
 // DELETE /:photoId
 export const deletePhoto = async (req: Request, res: Response) => {
   try {
-    const uid = req.auth!.uid;
+    const firebaseUid = req.auth!.uid;
+    const uid = await resolveUserId(firebaseUid);
     const { photoId } = req.params;
 
     const profile = await prisma.profiles.findUnique({
@@ -152,7 +165,8 @@ export const deletePhoto = async (req: Request, res: Response) => {
 // PATCH /reorder
 export const reorderPhotos = async (req: Request, res: Response) => {
   try {
-    const uid = req.auth!.uid;
+    const firebaseUid = req.auth!.uid;
+    const uid = await resolveUserId(firebaseUid);
     const body = req.body;
 
     if (!Array.isArray(body) || body.length === 0) {

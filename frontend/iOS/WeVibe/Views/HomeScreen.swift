@@ -17,23 +17,31 @@ struct HomeScreen: View {
     @State private var pendingMatchId: String? = nil
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            SpeedDatingTab(onMatchFound: { matchId in
-                DispatchQueue.main.async {
-                    pendingMatchId = matchId
-                    selectedTab    = .chat
-                }
-            })
-            .tag(AppTab.speedDating)
-            .toolbar(.hidden, for: .tabBar)
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selectedTab) {
+                SpeedDatingTab(
+                    selectedTab: $selectedTab,
+                    onMatchFound: { matchId in
+                        DispatchQueue.main.async {
+                            pendingMatchId = matchId
+                            selectedTab    = .chat
+                        }
+                    }
+                )
+                .tag(AppTab.speedDating)
+                .toolbar(.hidden, for: .tabBar)
 
-            ChatTab(pendingMatchId: $pendingMatchId)
+                ChatTab(
+                    selectedTab: $selectedTab,
+                    pendingMatchId: $pendingMatchId
+                )
                 .tag(AppTab.chat)
                 .toolbar(.hidden, for: .tabBar)
 
-            ProfileTab()
-                .tag(AppTab.profile)
-                .toolbar(.hidden, for: .tabBar)
+                ProfileTab(selectedTab: $selectedTab)
+                    .tag(AppTab.profile)
+                    .toolbar(.hidden, for: .tabBar)
+            }
         }
         .ignoresSafeArea(edges: .bottom)
     }
@@ -42,24 +50,31 @@ struct HomeScreen: View {
 // MARK: - Speed Dating Tab
 
 private struct SpeedDatingTab: View {
-    @State private var speedDatingRouter = SpeedDatingRouter()
+    @Binding var selectedTab: AppTab
     var onMatchFound: (String) -> Void
+
+    @State private var speedDatingRouter = SpeedDatingRouter()
 
     var body: some View {
         NavigationStack(path: $speedDatingRouter.path) {
-            SpeedDatingRootScreen(selectedTab: .speedDating)
-                .navigationDestination(for: SpeedDatingRoute.self) { route in
-                    switch route {
-                    case .rules:        SpeedDatingRules()
-                    case .tests:        PersonalityTestView()
-                    case .joinQueue:    JoinQueueView()
-                    case .findingMatch:
-                        FindingMatchView { matchId in
-                            speedDatingRouter.popToRoot()
-                            onMatchFound(matchId)
-                        }
+            ZStack(alignment: .bottom) {
+                SpeedDatingPlaceholder()
+                CustomTabBar(selectedTab: $selectedTab)
+            }
+            .ignoresSafeArea(edges: .bottom)
+            .navigationBarBackButtonHidden(true)
+            .navigationDestination(for: SpeedDatingRoute.self) { route in
+                switch route {
+                case .rules:        SpeedDatingRules()
+                case .tests:        PersonalityTestView()
+                case .joinQueue:    JoinQueueView()
+                case .findingMatch:
+                    FindingMatchView { matchId in
+                        speedDatingRouter.popToRoot()
+                        onMatchFound(matchId)
                     }
                 }
+            }
         }
         .environment(speedDatingRouter)
         .environment(PersonalityTestData())
@@ -69,20 +84,27 @@ private struct SpeedDatingTab: View {
 // MARK: - Chat Tab
 
 private struct ChatTab: View {
+    @Binding var selectedTab: AppTab
     @Binding var pendingMatchId: String?
+
     @State private var chatRouter = ChatRouter()
 
     var body: some View {
         NavigationStack(path: $chatRouter.path) {
-            ChatRootScreen()
-                .navigationDestination(for: ChatRoute.self) { route in
-                    switch route {
-                    case .activeChat(let matchId):
-                        ActiveChatView(matchId: matchId) {
-                            chatRouter.popToRoot()
-                        }
+            ZStack(alignment: .bottom) {
+                ChatListPlaceholder()
+                CustomTabBar(selectedTab: $selectedTab)
+            }
+            .ignoresSafeArea(edges: .bottom)
+            .navigationBarBackButtonHidden(true)
+            .navigationDestination(for: ChatRoute.self) { route in
+                switch route {
+                case .activeChat(let matchId):
+                    ActiveChatView(matchId: matchId) {
+                        chatRouter.popToRoot()
                     }
                 }
+            }
         }
         .onChange(of: pendingMatchId) { _, newMatchId in
             guard let matchId = newMatchId else { return }
@@ -96,57 +118,30 @@ private struct ChatTab: View {
 // MARK: - Profile Tab
 
 private struct ProfileTab: View {
+    @Binding var selectedTab: AppTab
+
     var body: some View {
         NavigationStack {
-            ProfileRootScreen()
-        }
-    }
-}
-
-// MARK: - Root Screens (each owns the tab bar)
-
-struct SpeedDatingRootScreen: View {
-    let selectedTab: AppTab
-    @State private var tab: AppTab = .speedDating
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            SpeedDatingPlaceholder()
-            CustomTabBar(selectedTab: $tab)
-        }
-        .ignoresSafeArea(edges: .bottom)
-        .navigationBarBackButtonHidden(true)
-    }
-}
-
-struct ChatRootScreen: View {
-    @State private var tab: AppTab = .chat
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            ZStack {
-                AppTheme.primaryBackground.ignoresSafeArea()
-                Text("Chat")
-                    .foregroundStyle(.white.opacity(0.4))
-                    .font(.system(size: 18, weight: .semibold))
+            ZStack(alignment: .bottom) {
+                ProfileView()
+                CustomTabBar(selectedTab: $selectedTab)
             }
-            CustomTabBar(selectedTab: $tab)
+            .ignoresSafeArea(edges: .bottom)
+            .navigationBarBackButtonHidden(true)
         }
-        .ignoresSafeArea(edges: .bottom)
-        .navigationBarBackButtonHidden(true)
     }
 }
 
-struct ProfileRootScreen: View {
-    @State private var tab: AppTab = .profile
+// MARK: - Chat List Placeholder
 
+private struct ChatListPlaceholder: View {
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ProfileView()
-            CustomTabBar(selectedTab: $tab)
+        ZStack {
+            AppTheme.primaryBackground.ignoresSafeArea()
+            Text("Chat")
+                .foregroundStyle(.white.opacity(0.4))
+                .font(.system(size: 18, weight: .semibold))
         }
-        .ignoresSafeArea(edges: .bottom)
-        .navigationBarBackButtonHidden(true)
     }
 }
 
@@ -154,18 +149,18 @@ struct ProfileRootScreen: View {
 
 struct CustomTabBar: View {
     @Binding var selectedTab: AppTab
- 
+
     private struct TabItem {
         let tab: AppTab
         let systemImage: String
     }
- 
+
     private let items: [TabItem] = [
         TabItem(tab: .speedDating, systemImage: "stopwatch.fill"),
         TabItem(tab: .chat,        systemImage: "message.fill"),
         TabItem(tab: .profile,     systemImage: "person.fill"),
     ]
- 
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(items, id: \.tab) { item in
@@ -178,7 +173,7 @@ struct CustomTabBar: View {
                             .frame(maxWidth: 60)
                             .frame(height: 2)
                             .cornerRadius(1)
- 
+
                         Image(systemName: item.systemImage)
                             .font(.system(size: 26))
                             .foregroundStyle(

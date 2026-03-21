@@ -1,17 +1,15 @@
 import SwiftUI
 import Observation
 
-enum AuthRoute: Hashable {
-    case login
-    case register
-    case forgotPassword
+enum ChatRoute: Hashable {
+    case activeChat(matchId: String)
 }
 
 @Observable
-final class AuthRouter {
+final class ChatRouter {
     var path = NavigationPath()
 
-    func navigate(to route: AuthRoute) {
+    func navigate(to route: ChatRoute) {
         path.append(route)
     }
 

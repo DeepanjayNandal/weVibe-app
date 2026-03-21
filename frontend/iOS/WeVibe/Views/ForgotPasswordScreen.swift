@@ -2,8 +2,7 @@ import SwiftUI
 
 struct ForgotPasswordScreen: View {
 
-    @Binding var showForgotPassword: Bool
-
+    @Environment(AuthRouter.self) private var authRouter
     @Environment(AuthManager.self) private var authManager
 
     @State private var email: String = ""
@@ -17,7 +16,7 @@ struct ForgotPasswordScreen: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 10) {
-                Button(action: { showForgotPassword = false }) {
+                Button(action: { authRouter.pop() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .semibold))
@@ -42,6 +41,10 @@ struct ForgotPasswordScreen: View {
                 Spacer()
             }
             .padding(.horizontal, 19)
+        }
+        .navigationBarHidden(true)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 
@@ -73,6 +76,7 @@ struct ForgotPasswordScreen: View {
                     .keyboardType(.emailAddress)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .textContentType(.emailAddress)
                     .onChange(of: email) { _, _ in emailError = nil }
 
                 if let emailError {
@@ -122,7 +126,7 @@ struct ForgotPasswordScreen: View {
                 isLoading: false,
                 isDisabled: false
             ) {
-                showForgotPassword = false
+                authRouter.pop()
             }
             .padding(.top, 8)
         }

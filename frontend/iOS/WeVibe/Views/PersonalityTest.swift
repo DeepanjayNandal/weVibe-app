@@ -1,18 +1,17 @@
 import SwiftUI
 
-// MARK: - Main View
-
 struct PersonalityTestView: View {
-
 
     var onComplete: (([Int]) -> Void)?
 
     @State private var currentIndex: Int = 0
     @State private var selectedAnswers: [Int?] = Array(repeating: nil, count: StaticConfig.personalityQuestions.count)
 
-   
     @State private var contentOpacity: Double = 1
     @State private var contentOffset: CGFloat = 0
+
+    @Environment(SpeedDatingRouter.self) private var speedDatingRouter
+    @Environment(PersonalityTestData.self) private var testData
 
     private var current: PersonalityQuestion {
         StaticConfig.personalityQuestions[currentIndex]
@@ -33,7 +32,7 @@ struct PersonalityTestView: View {
 
             VStack(spacing: 0) {
 
-                // ── Top bar: back + progress
+                
                 HStack(spacing: 14) {
                     Button("Back", systemImage: "arrow.left") {
                         if currentIndex > 0 {
@@ -41,7 +40,7 @@ struct PersonalityTestView: View {
                                 currentIndex -= 1
                             }
                         } else {
-                           //
+                            speedDatingRouter.navigate(to: .rules)
                         }
                     }
                     .labelStyle(.iconOnly)
@@ -54,10 +53,8 @@ struct PersonalityTestView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
 
-                // ── Question + Options
                 VStack(alignment: .leading, spacing: 0) {
 
-                    // Question label
                     Text("Question \(currentIndex + 1) of \(StaticConfig.personalityQuestions.count)")
                         .font(.system(size: 12, weight: .semibold))
                         .tracking(1.5)
@@ -65,7 +62,6 @@ struct PersonalityTestView: View {
                         .foregroundStyle(AppTheme.smallText)
                         .padding(.bottom, 12)
 
-                    // Question text
                     Text(current.question)
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(.white)
@@ -73,7 +69,7 @@ struct PersonalityTestView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 28)
 
-                    // Answer options
+                    
                     VStack(spacing: 12) {
                         ForEach(Array(current.options.enumerated()), id: \.offset) { index, option in
                             OptionRowView(
@@ -91,7 +87,7 @@ struct PersonalityTestView: View {
 
                 Spacer()
 
-                // ── CTA button
+                
                 VStack(spacing: 0) {
                     LinearGradient(
                         colors: [AppTheme.primaryBackground.opacity(0), AppTheme.primaryBackground],
@@ -120,13 +116,17 @@ struct PersonalityTestView: View {
         .navigationBarHidden(true)
     }
 
-    // MARK: - Navigation
-
     private func handleNext() {
         guard selectedForCurrent != nil else { return }
 
         if isLastQuestion {
             let results = selectedAnswers.compactMap { $0 }
+            if results.count == StaticConfig.personalityQuestions.count {
+                testData.answers = selectedAnswers
+                testData.commitResult(testData.result)
+                speedDatingRouter.navigate(to: .joinQueue)
+            }
+            print("Is last question results", results)
             onComplete?(results)
         } else {
             transition {
@@ -135,7 +135,7 @@ struct PersonalityTestView: View {
         }
     }
 
-    // Slide out current → update → slide in next
+    
     private func transition(change: @escaping () -> Void) {
         withAnimation(.easeIn(duration: 0.18)) {
             contentOpacity = 0
@@ -163,7 +163,6 @@ struct OptionRowView: View {
         Button(action: onTap) {
             HStack(alignment: .top, spacing: 14) {
 
-                
                 ZStack {
                     Circle()
                         .strokeBorder(
@@ -181,7 +180,6 @@ struct OptionRowView: View {
                 .padding(.top, 2)
                 .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
 
-                
                 VStack(alignment: .leading, spacing: 3) {
                     Text(option.letter + ".")
                         .font(.system(size: 11, weight: .bold))

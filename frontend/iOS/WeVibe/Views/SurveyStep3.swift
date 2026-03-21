@@ -1,98 +1,86 @@
 import SwiftUI
 
 struct SurveyStep3: View {
-    
+
     @Environment(OnboardingRouter.self) private var onboardingRouter
-    
-    @State private var drinks: String = ""
-    @State private var smoking: String = ""
-    @State private var pets: String = ""
-    @State private var children: String = ""
-    @State private var workout: String = ""
-    @State private var sleepSchedule: String = ""
-    
+    @Environment(OnboardingData.self) private var onboardingData
+
     var body: some View {
         ZStack {
-            AppTheme.primaryBackground
-                .ignoresSafeArea()
-            
+            AppTheme.primaryBackground.ignoresSafeArea()
+
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
-                    
+
                     ProgressBarView(current: 3, total: 5)
-                    
-                    // Drinks
-                    HabitSection(title: "Drinks", selection: $drinks, options: [
-                        HabitOption(label: "Never", color: nil),
-                        HabitOption(label: "Sometimes", color: .yellow),
-                        HabitOption(label: "Often", color: .green),
+
+                    HabitSection(title: "Drinks", selection: Bindable(onboardingData).drinks, options: [
+                        HabitOption(label: "Never"),
+                        HabitOption(label: "Sometimes"),
+                        HabitOption(label: "Often"),
                     ])
-                    
-                    // Smoking
-                    HabitSection(title: "Smoking", selection: $smoking, options: [
-                        HabitOption(label: "Never", color: nil),
-                        HabitOption(label: "Sometimes", color: .yellow),
-                        HabitOption(label: "Often", color: .green),
+
+                    HabitSection(title: "Smoking", selection: Bindable(onboardingData).smoking, options: [
+                        HabitOption(label: "Never"),
+                        HabitOption(label: "Sometimes"),
+                        HabitOption(label: "Often"),
                     ])
-                    
-                    // Pets
-                    HabitSection(title: "Pets", selection: $pets, options: [
-                        HabitOption(label: "Don't want", color: .red),
-                        HabitOption(label: "Unsure", color: .yellow),
-                        HabitOption(label: "Want", color: .pink),
-                        HabitOption(label: "Have", color: .purple),
+
+                    HabitSection(title: "Pets", selection: Bindable(onboardingData).pets, options: [
+                        HabitOption(label: "Don't want"),
+                        HabitOption(label: "Unsure"),
+                        HabitOption(label: "Want"),
+                        HabitOption(label: "Have"),
                     ])
-                    
-                    // Children
-                    HabitSection(title: "Children", selection: $children, options: [
-                        HabitOption(label: "Don't want", color: .red),
-                        HabitOption(label: "Unsure", color: .yellow),
-                        HabitOption(label: "Want", color: .pink),
-                        HabitOption(label: "Have", color: .purple),
+
+                    HabitSection(title: "Children", selection: Bindable(onboardingData).children, options: [
+                        HabitOption(label: "Don't want"),
+                        HabitOption(label: "Unsure"),
+                        HabitOption(label: "Want"),
+                        HabitOption(label: "Have"),
                     ])
-                    
-                    // Workout
-                    HabitSection(title: "Workout", selection: $workout, options: [
-                        HabitOption(label: "Never", color: nil),
-                        HabitOption(label: "Sometimes", color: .yellow),
-                        HabitOption(label: "Often", color: .green),
+
+                    HabitSection(title: "Workout", selection: Bindable(onboardingData).workout, options: [
+                        HabitOption(label: "Never"),
+                        HabitOption(label: "Sometimes"),
+                        HabitOption(label: "Often"),
                     ])
-                    
-                    // Sleep Schedule
-                    HabitSection(title: "Sleep Schedule", selection: $sleepSchedule, options: [
-                        HabitOption(label: "Night Owl", color: nil),
-                        HabitOption(label: "Early Bird", color: nil),
-                        HabitOption(label: "Flexible", color: nil),
+
+                    HabitSection(title: "Sleep Schedule", selection: Bindable(onboardingData).sleepSchedule, options: [
+                        HabitOption(label: "Night Owl"),
+                        HabitOption(label: "Early Bird"),
+                        HabitOption(label: "Flexible"),
                     ])
-                    
-                    // Navigation buttons
+
                     HStack {
                         Button {
+                            onboardingData.save()
                             onboardingRouter.pop()
                         } label: {
                             Image(systemName: "chevron.left")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primaryBackground)
-                                        .frame(width: 48, height: 48)
-                                        .background(.white)
-                                        .clipShape(Circle())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                                .frame(width: 48, height: 48)
+                                .background(.white)
+                                .clipShape(Circle())
                         }
-                        
+
                         Spacer()
-                        
+
                         Button {
+                            onboardingData.save()
                             onboardingRouter.navigate(to: .step4)
                         } label: {
                             Image(systemName: "chevron.right")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primaryBackground)
-                                        .frame(width: 48, height: 48)
-                                        .background(.white)
-                                        .clipShape(Circle())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                                .frame(width: 48, height: 48)
+                                .background(.white)
+                                .clipShape(Circle())
                         }
                     }
                     .padding(.top, 16)
-                    
+
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal, 24)
@@ -100,6 +88,9 @@ struct SurveyStep3: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+        .scrollDismissesKeyboard(.interactively)
     }
 }
-

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum StaticConfig {
     static let personalityQuestions: [PersonalityQuestion] = [
@@ -57,4 +58,31 @@ enum StaticConfig {
                 ]
             ),
         ]
+    
+    static let personalityMeta: [Int: PersonalityMeta] = [
+        0: PersonalityMeta(
+            type: "Serene Soul",
+            emoji: "🌿",
+            color: Color(hex: "#3DFF9A"),
+            description: "You exude calm and grounded energy. Others might describe you as quiet and reserved because you take solace in hobbies like reading, baking, drawing, and solo sports. Due to your introverted nature, you can feel drained by socializing and overwhelmed by loud or high energy individuals. You seek someone with whom you can have deep intellectual conversations, relax, and unwind — a counterpart who will match your energy."
+        ),
+        1: PersonalityMeta(
+            type: "Empathetic Companion",
+            emoji: "💚",
+            color: Color(hex: "#00E5A0"),
+            description: "You are quiet and calm in your alone time, but equally enjoy the company of others — particularly those who are more outgoing than you. You are an exceptional listener with a great deal of empathy, making you the perfect confidant. Once people get to know you, you become incredibly talkative and engaging. You seek someone outgoing, adventurous, and willing to bring some spontaneity into your life."
+        ),
+        2: PersonalityMeta(
+            type: "Radiant Dreamer",
+            emoji: "✨",
+            color: Color(hex: "#B2F542"),
+            description: "You are very optimistic and friendly, even to strangers. You are the kind of person to start conversations on any random topic, full of creative ideas and in need of an audience to share them with. You want to feel like the center of attention, love going on adventures, but need a partner to help figure out the logistics. You seek someone to ground you at times."
+        ),
+        3: PersonalityMeta(
+            type: "Fierce Spark",
+            emoji: "🔥",
+            color: Color(hex: "#FFE066"),
+            description: "You are thrill-seeking with a fiery, high-energy personality. You need to socialize and be around others in order to feel recharged — you light up a room with your charisma. You need a partner in crime, someone who can handle your honesty and won't find you boring. You seek someone who can match your energy and keep up with your pace."
+        ),
+    ]
 }

@@ -7,6 +7,9 @@ import GoogleSignIn
 struct WeVibeApp: App {
 
     @State private var authManager = AuthManager()
+    @State private var onboardingData = OnboardingData()
+    @State private var profileStore = UserProfileStore()
+    @StateObject private var locationManager = LocationManager()
 
     init() {
         FirebaseApp.configure()
@@ -23,6 +26,9 @@ struct WeVibeApp: App {
         WindowGroup {
             RootView()
                 .environment(authManager)
+                .environment(onboardingData)
+                .environment(profileStore)
+                .environmentObject(locationManager)
                 .task {
                     // Restores a saved Firebase session on every launch.
                     await authManager.checkAuthState()

@@ -3,6 +3,8 @@ import SwiftUI
 struct ConfirmScreen: View {
 
     @Environment(AuthManager.self) private var authManager
+    @Environment(UserProfileStore.self) private var profileStore
+    @Environment(OnboardingData.self) private var onboardingData
 
     @State private var isResending: Bool = false
     @State private var isChecking: Bool = false
@@ -66,7 +68,7 @@ struct ConfirmScreen: View {
                 VStack(spacing: 12) {
                     // Escape hatch — sign out and return to login screen
                     Button {
-                        authManager.logout()
+                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
                     } label: {
                         Text("Use a different email")
                             .font(.system(size: 14))

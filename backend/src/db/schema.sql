@@ -6,7 +6,7 @@
 
 -- 1. Clean up existing tables and types (For a fresh start)
 -- Order matters due to Foreign Key constraints
-DROP TABLE IF EXISTS user_blocks, matching_queue, speed_dating_messages, speed_dating_sessions, messages, matches, profiles, users CASCADE;
+DROP TABLE IF EXISTS user_reports, user_blocks, matching_queue, speed_dating_messages, speed_dating_sessions, messages, matches, profiles, users CASCADE;
 DROP TYPE IF EXISTS enum_decision, enum_match_status, enum_sex, enum_meet_gender, enum_intent, enum_education, enum_frequency, enum_preference_level, enum_sleep_schedule, enum_user_status, enum_auth_provider, enum_msg_type CASCADE;
 
 -- 2. Enable PostGIS Extension (Critical for spatial queries/distance matching)
@@ -43,6 +43,8 @@ CREATE TABLE users (
     
     -- Status Management
     is_banned BOOLEAN DEFAULT FALSE,
+    is_registration_complete BOOLEAN DEFAULT FALSE,
+    is_personality_test_complete BOOLEAN DEFAULT FALSE,
     current_status enum_user_status DEFAULT 'offline',
 
     -- Search Preferences
@@ -161,7 +163,8 @@ CREATE TABLE speed_dating_messages (
     sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     type enum_msg_type DEFAULT 'text',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP
     -- Temporary messages during the 3-minute blind date
 );
 
@@ -182,6 +185,17 @@ CREATE TABLE user_blocks (
     CONSTRAINT uq_user_blocks_pair UNIQUE (blocker_user_id, blocked_user_id)
 );
 
+-- 12. User Report Table
+CREATE TABLE user_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    reported_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    match_id UUID REFERENCES matches(id) ON DELETE SET NULL,
+    reason VARCHAR(255) NOT NULL,
+    details VARCHAR(1000),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ==========================================================
 -- Performance Indexes
 -- ==========================================================
@@ -195,3 +209,6 @@ CREATE INDEX idx_sd_messages_session_id ON speed_dating_messages (session_id, cr
 CREATE INDEX idx_matching_queue_joined_at ON matching_queue (joined_at);
 CREATE INDEX idx_user_blocks_blocker ON user_blocks (blocker_user_id);
 CREATE INDEX idx_user_blocks_blocked ON user_blocks (blocked_user_id);
+CREATE INDEX idx_user_reports_reporter ON user_reports (reporter_user_id);
+CREATE INDEX idx_user_reports_reported ON user_reports (reported_user_id);
+CREATE INDEX idx_user_reports_match ON user_reports (match_id);

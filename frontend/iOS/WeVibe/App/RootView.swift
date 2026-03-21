@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
 
     @Environment(AuthManager.self) private var authManager
+    @EnvironmentObject private var locationManager: LocationManager
 
     var body: some View {
         ZStack {
@@ -20,6 +21,15 @@ struct RootView: View {
                 OnboardingFlowView()
             case .authenticated:
                 HomeScreen()
+            }
+
+            // Block the entire app when location permission is denied/restricted.
+            // Dismissed automatically when the user grants permission in Settings and returns.
+            if locationManager.authStatus == .denied || locationManager.authStatus == .restricted {
+                LocationPermissionScreen()
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: locationManager.authStatus)
+                    .zIndex(100)
             }
         }
         .overlay(alignment: .top) {
@@ -51,43 +61,29 @@ struct LaunchView: View {
 // Unauthenticated flow: Splash → Login/Register/ForgotPassword
 struct AuthFlowView: View {
     @State private var authRouter = AuthRouter()
-    @State private var showLogin = false
-    @State private var showRegister = false
-    @State private var showForgotPassword = false
 
     var body: some View {
-        ZStack {
-            SplashScreen(showLogin: $showLogin)
-
-            if showLogin {
-                LoginScreen(showLogin: $showLogin, showRegister: $showRegister, showForgotPassword: $showForgotPassword)
-                    .transition(.move(edge: .bottom))
-                    .zIndex(1)
-            }
-
-            if showRegister {
-                RegisterScreen(showRegister: $showRegister)
-                    .transition(.move(edge: .trailing))
-                    .zIndex(2)
-            }
-
-            if showForgotPassword {
-                ForgotPasswordScreen(showForgotPassword: $showForgotPassword)
-                    .transition(.move(edge: .trailing))
-                    .zIndex(3)
-            }
+        NavigationStack(path: $authRouter.path) {
+            SplashScreen()
+                .navigationDestination(for: AuthRoute.self) { route in
+                    switch route {
+                    case .login:         LoginScreen()
+                    case .register:      RegisterScreen()
+                    case .forgotPassword: ForgotPasswordScreen()
+                    }
+                }
         }
-        .animation(.easeInOut(duration: 0.5), value: showLogin)
-        .animation(.easeInOut(duration: 0.5), value: showRegister)
-        .animation(.easeInOut(duration: 0.5), value: showForgotPassword)
+        .navigationBarHidden(true)
         .environment(authRouter)
     }
 }
+
 // MARK: - Onboarding Flow
 
 // Onboarding flow: welcome screen → survey steps
 struct OnboardingFlowView: View {
     @State private var onboardingRouter = OnboardingRouter()
+    // OnboardingData is injected from WeVibeApp at app level
 
     var body: some View {
         NavigationStack(path: $onboardingRouter.path) {
@@ -105,4 +101,3 @@ struct OnboardingFlowView: View {
         .environment(onboardingRouter)
     }
 }
-

@@ -32,7 +32,6 @@ struct RegisterScreen: View {
 
     @Environment(AuthManager.self) private var authManager
     @Environment(AuthRouter.self) private var authRouter
-    @Binding var showRegister: Bool
 
 
     private var isFormEmpty: Bool {
@@ -48,7 +47,7 @@ struct RegisterScreen: View {
 
             ScrollView {
                 VStack(spacing: 10) {
-                    Button(action: { showRegister = false }) {
+                    Button(action: { authRouter.pop() }) {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 18, weight: .semibold))
@@ -84,6 +83,7 @@ struct RegisterScreen: View {
                                     .cornerRadius(14)
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.words)
+                                    .textContentType(.givenName)
                                     .onChange(of: firstName) { _, _ in firstNameError = nil }
 
                                 if let firstNameError {
@@ -106,6 +106,7 @@ struct RegisterScreen: View {
                                     .cornerRadius(14)
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.words)
+                                    .textContentType(.familyName)
                                     .onChange(of: lastName) { _, _ in lastNameError = nil }
 
                                 if let lastNameError {
@@ -131,6 +132,7 @@ struct RegisterScreen: View {
                                 .keyboardType(.emailAddress)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
+                                .textContentType(.emailAddress)
                                 .onChange(of: email) { _, _ in emailError = nil; authError = nil }
 
                             if let emailError {
@@ -156,6 +158,7 @@ struct RegisterScreen: View {
                                 .keyboardType(.emailAddress)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
+                                .textContentType(.none)
                                 .onChange(of: confirmEmail) { _, _ in confirmEmailError = nil }
 
                             if let confirmEmailError {
@@ -214,6 +217,7 @@ struct RegisterScreen: View {
                                         .cornerRadius(14)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
+                                        .textContentType(.newPassword)
                                         .focused($isPasswordFocused)
                                         .onChange(of: password) { _, _ in passwordError = nil }
                                 } else {
@@ -224,6 +228,7 @@ struct RegisterScreen: View {
                                         .background(.white)
                                         .foregroundStyle(.black)
                                         .cornerRadius(14)
+                                        .textContentType(.newPassword)
                                         .focused($isPasswordFocused)
                                         .onChange(of: password) { _, _ in passwordError = nil }
                                 }
@@ -264,6 +269,7 @@ struct RegisterScreen: View {
                                         .cornerRadius(14)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
+                                        .textContentType(.newPassword)
                                         .focused($isConfirmPasswordFocused)
                                         .onChange(of: confirmPassword) { _, _ in confirmPasswordError = nil }
                                 } else {
@@ -274,6 +280,7 @@ struct RegisterScreen: View {
                                         .background(.white)
                                         .foregroundStyle(.black)
                                         .cornerRadius(14)
+                                        .textContentType(.newPassword)
                                         .focused($isConfirmPasswordFocused)
                                         .onChange(of: confirmPassword) { _, _ in confirmPasswordError = nil }
                                 }
@@ -321,6 +328,11 @@ struct RegisterScreen: View {
                 }
                 .padding(.horizontal, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .navigationBarHidden(true)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 

@@ -45,6 +45,7 @@
 		A3AEC0E42F67C80800F7E31D /* FindingMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */; };
 		A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */; };
 		A3AEC19B2F6D0EEB00F7E31D /* LogoWithoutText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */; };
+		A3AEC1EB2F6E16DF00F7E31D /* ChatListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AEC1EA2F6E16DB00F7E31D /* ChatListScreen.swift */; };
 		BB45E47A2F5590F600178889 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */; };
 		BB45E4A12F59AE1100178889 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A02F59AE1100178889 /* FirebaseAnalytics */; };
 		BB45E4AA2F59B7FB00178889 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4A92F59B7FB00178889 /* FirebaseAuth */; };
@@ -92,6 +93,7 @@
 		A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingMatch.swift; sourceTree = "<group>"; };
 		A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChattingScreen.swift; sourceTree = "<group>"; };
 		A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoWithoutText.swift; sourceTree = "<group>"; };
+		A3AEC1EA2F6E16DB00F7E31D /* ChatListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListScreen.swift; sourceTree = "<group>"; };
 		A7B4F648DD566E9002F53EDA /* LocationPermissionScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationPermissionScreen.swift; sourceTree = "<group>"; };
 		B10001 /* WeVibeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeVibeApp.swift; sourceTree = "<group>"; };
 		B10002 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
@@ -180,6 +182,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A3AEC1EA2F6E16DB00F7E31D /* ChatListScreen.swift */,
 				A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */,
 				A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */,
 				A3AEC0DE2F663F9000F7E31D /* JoinQueue.swift */,
@@ -389,6 +392,7 @@
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
 				A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */,
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
+				A3AEC1EB2F6E16DF00F7E31D /* ChatListScreen.swift in Sources */,
 				BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,
 				A3AEC0DF2F663F9500F7E31D /* JoinQueue.swift in Sources */,

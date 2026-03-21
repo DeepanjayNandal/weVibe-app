@@ -92,7 +92,7 @@ private struct ChatTab: View {
     var body: some View {
         NavigationStack(path: $chatRouter.path) {
             ZStack(alignment: .bottom) {
-                ChatListPlaceholder()
+                ChatListView()
                 CustomTabBar(selectedTab: $selectedTab)
             }
             .ignoresSafeArea(edges: .bottom)
@@ -104,6 +104,7 @@ private struct ChatTab: View {
                         chatRouter.popToRoot()
                     }
                 }
+                
             }
         }
         .onChange(of: pendingMatchId) { _, newMatchId in
@@ -128,19 +129,6 @@ private struct ProfileTab: View {
             }
             .ignoresSafeArea(edges: .bottom)
             .navigationBarBackButtonHidden(true)
-        }
-    }
-}
-
-// MARK: - Chat List Placeholder
-
-private struct ChatListPlaceholder: View {
-    var body: some View {
-        ZStack {
-            AppTheme.primaryBackground.ignoresSafeArea()
-            Text("Chat")
-                .foregroundStyle(.white.opacity(0.4))
-                .font(.system(size: 18, weight: .semibold))
         }
     }
 }

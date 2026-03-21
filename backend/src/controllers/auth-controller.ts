@@ -40,6 +40,8 @@ function serializeUser(user: users): Record<string, unknown> {
     createdAt: user.created_at,
     lastActiveAt: user.last_active_at,
     isBanned: user.is_banned,
+    // iOS uses this to decide whether to route to onboarding or the main app after login
+    onboardingComplete: user.onboarding_complete,
   };
 }
 

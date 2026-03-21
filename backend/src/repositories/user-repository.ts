@@ -39,4 +39,13 @@ export class UserRepository {
       },
     });
   }
+
+  // Marks the user as having completed onboarding.
+  // Called after POST /api/v1/users/profile succeeds so iOS knows to skip onboarding on next login.
+  async setOnboardingComplete(userId: string): Promise<void> {
+    await prisma.users.update({
+      where: { id: userId },
+      data: { onboarding_complete: true },
+    });
+  }
 }

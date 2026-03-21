@@ -23,10 +23,12 @@ function buildDatabaseUrl(): string {
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.PORT ?? 3000),
+  port: Number(process.env.PORT ?? 8080),
   // 'mock' uses fake tokens for local dev; 'firebase' uses real Firebase Admin SDK
   authProviderMode: process.env.AUTH_PROVIDER_MODE ?? 'mock',
   databaseUrl: buildDatabaseUrl(),
   // Firebase project ID — required when AUTH_PROVIDER_MODE=firebase
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? '',
+  // Firebase Storage bucket — required when AUTH_PROVIDER_MODE=firebase
+  firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? '',
 };

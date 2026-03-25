@@ -605,7 +605,14 @@ export class ProfileController {
       }))
     );
 
-    res.status(200).json({ ...serialized, photos });
+    res.status(200).json({
+      ...serialized,
+      photos,
+      personality_type:              profile!.personality_type ?? null,
+      personality_primary:           profile!.personality_primary ?? null,
+      personality_secondary:         profile!.personality_secondary ?? null,
+      is_personality_test_complete:  user!.is_personality_test_complete ?? false,
+    });
   };
 
   // PATCH /api/v1/users/profile

@@ -264,10 +264,29 @@ struct PhotosEditSheet: View {
                     token: token, mimeType: "image/jpeg", sizeBytes: jpegData.count
                 )
                 try await client.uploadPhotoData(jpegData, to: urlResult.uploadURL)
-                let photo = try await client.finalizePhotoUpload(
-                    token: token, photoId: urlResult.photoId, order: i
-                )
-                uploadedPhotos.append(photo)
+
+                // Finalize with retry: the GCS bytes are already uploaded at this point.
+                // If finalize fails transiently, retrying avoids leaving an orphaned GCS file.
+                // Note: a server-side cleanup job should also sweep unfinalized photoIds older
+                // than ~1 hour to handle cases where all client retries are exhausted.
+                var photo: UserPhoto?
+                var finalizeError: Error?
+                for attempt in 1...3 {
+                    do {
+                        photo = try await client.finalizePhotoUpload(
+                            token: token, photoId: urlResult.photoId, order: i
+                        )
+                        finalizeError = nil
+                        break
+                    } catch {
+                        finalizeError = error
+                        if attempt < 3 {
+                            try? await Task.sleep(nanoseconds: UInt64(attempt) * 500_000_000)
+                        }
+                    }
+                }
+                if let err = finalizeError { throw err }
+                uploadedPhotos.append(photo!)
             } catch {
                 saveError = "Failed to upload photo \(i + 1). Please try again."
                 return
@@ -772,12 +791,7 @@ struct BackgroundEditSheet: View {
         "French", "Portuguese", "Russian", "Japanese", "Korean",
         "German", "Vietnamese", "Italian", "Other+"
     ]
-    private static let countries = [
-        "United States", "Canada", "United Kingdom", "Australia", "India",
-        "Mexico", "Brazil", "Germany", "France", "Japan", "South Korea",
-        "China", "Nigeria", "Philippines", "Vietnam", "Spain", "Italy",
-        "Pakistan", "Bangladesh", "Ethiopia", "Egypt", "Other"
-    ]
+    private static let countries = StaticConfig.countries
 
     var body: some View {
         editNav(title: "Background", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {

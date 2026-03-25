@@ -15,7 +15,7 @@ struct SplashScreen: View {
             VStack {
                 Spacer()
                 
-                LogoView(size: 130)
+                LogoView(size: 170)
                 
                 Spacer()
                 

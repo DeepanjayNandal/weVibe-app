@@ -59,6 +59,10 @@ struct ProfileCardView: View {
         return false
     }
 
+    private var photoHeight: CGFloat {
+        min(UIScreen.main.bounds.width * 0.9, 420)
+    }
+
     var body: some View {
         ZStack {
             t.bg.ignoresSafeArea()
@@ -117,7 +121,7 @@ struct ProfileCardView: View {
             if data.photoURLs.isEmpty {
                 t.sectionBg
                     .frame(maxWidth: .infinity)
-                    .frame(height: 340)
+                    .frame(height: photoHeight)
                     .overlay {
                         VStack(spacing: 12) {
                             ZStack {
@@ -150,7 +154,7 @@ struct ProfileCardView: View {
                         img.resizable().scaledToFill()
                     } placeholder: { t.sectionBg }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 340)
+                    .frame(height: photoHeight)
                     .clipped()
                 }
                 .buttonStyle(.plain)

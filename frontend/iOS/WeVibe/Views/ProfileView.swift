@@ -143,7 +143,17 @@ struct ProfileView: View {
                 Color.black.opacity(0.4).ignoresSafeArea()
                 ProgressView().tint(.white).scaleEffect(1.4)
             }
-            if store.fetchFailed {
+            if store.fetchFailed && store.firstName.isEmpty {
+                // First load failed with no cached data — show a full recovery screen
+                // rather than an empty profile with a small banner.
+                ErrorStateView(
+                    title: "Couldn't load your profile",
+                    message: "Check your connection and try again."
+                ) {
+                    Task { await store.fetchProfile() }
+                }
+                .transition(.opacity)
+            } else if store.fetchFailed {
                 Label("Couldn't refresh. Pull down to try again.", systemImage: "wifi.slash")
                     .font(.footnote)
                     .foregroundStyle(.white)
@@ -181,6 +191,11 @@ struct ProfileView: View {
         }
         .task {
             await store.fetchProfile()
+        }
+        .onChange(of: store.sessionExpired) { _, expired in
+            guard expired else { return }
+            // Token was rejected by the backend — force sign-out so the user re-authenticates.
+            authManager.logout(profileStore: store, onboardingData: onboarding)
         }
     }
 

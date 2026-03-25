@@ -19,8 +19,8 @@ struct ImageCropView: View {
 
     // MARK: - Constants
 
-    /// Fixed pixel dimensions of every cropped output image.
-    static let outputSize = CGSize(width: 1080, height: 1350)
+    /// Fixed pixel dimensions of every cropped output image (4:5, matches compress maxDimension=1200).
+    static let outputSize = CGSize(width: 960, height: 1200)
 
     /// Aspect ratio of the crop window (width ÷ height).
     private static let cropAspect: CGFloat = outputSize.width / outputSize.height   // 0.8 (4:5)
@@ -261,11 +261,18 @@ struct ImageCropView: View {
     ///
     /// Uses cached container / cropFrame / baseSize set by the GeometryReader.
     private func renderCrop() -> UIImage? {
-        let bs        = cachedBaseSize
-        let cf        = cachedCropFrame
-        let c         = cachedContainer
+        let bs = cachedBaseSize
+        let cf = cachedCropFrame
+        let c  = cachedContainer
 
         guard bs.width > 0, bs.height > 0, c.width > 0, c.height > 0 else { return nil }
+        // Always use the CGImage's actual pixel dimensions — NOT image.size (points).
+        // image.size is in logical points and can differ from pixel dimensions by the
+        // image's scale factor (e.g., 3× on a Retina device), causing the crop rect
+        // to land at the wrong position / wrong size inside the CGImage.
+        guard let cgSource = image.cgImage else { return nil }
+        let srcW = CGFloat(cgSource.width)
+        let srcH = CGFloat(cgSource.height)
 
         let displayW = bs.width  * scale
         let displayH = bs.height * scale
@@ -278,9 +285,9 @@ struct ImageCropView: View {
         let cropInDisplayX = cf.minX - imageOriginX
         let cropInDisplayY = cf.minY - imageOriginY
 
-        // Scale factors: display pixels → source image pixels
-        let toSrcX = image.size.width  / displayW
-        let toSrcY = image.size.height / displayH
+        // Scale factors: display points → source image pixels
+        let toSrcX = srcW / displayW
+        let toSrcY = srcH / displayH
 
         let srcRect = CGRect(
             x:      cropInDisplayX * toSrcX,
@@ -290,15 +297,17 @@ struct ImageCropView: View {
         )
 
         // Guard against floating-point drift taking us outside image bounds
-        let imageBounds = CGRect(origin: .zero, size: image.size)
+        let imageBounds = CGRect(origin: .zero, size: CGSize(width: srcW, height: srcH))
         let clampedSrc  = srcRect.intersection(imageBounds)
         guard !clampedSrc.isNull, !clampedSrc.isEmpty,
-              let cgCropped = image.cgImage?.cropping(to: clampedSrc) else {
+              let cgCropped = cgSource.cropping(to: clampedSrc) else {
             return nil
         }
 
-        // Render the cropped region at exactly outputSize
-        let renderer = UIGraphicsImageRenderer(size: Self.outputSize)
+        // Render the cropped region at exactly outputSize (scale=1 → size == pixels)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: Self.outputSize, format: format)
         return renderer.image { _ in
             UIImage(cgImage: cgCropped).draw(
                 in: CGRect(origin: .zero, size: Self.outputSize)

@@ -159,7 +159,7 @@ struct ProfileCardView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
-                .frame(height: 340)
+                .frame(height: photoHeight)
                 .overlay(alignment: .bottom) {
                     LinearGradient(
                         colors: [.clear, t.bg],

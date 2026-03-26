@@ -273,11 +273,18 @@ Authorization: Bearer <firebase-id-token>
       "userId": "uuid",
       "displayName": "Alice Smith",
       "birthDate": "1998-05-20T00:00:00.000Z",
-      "gender": "Female"
+      "gender": "Female",
+      "personality_type": "Serene Soul",
+      "personality_primary": "A",
+      "personality_secondary": null,
+      "is_personality_test_complete": true
     }
   }
 }
 ```
+
+> `personality_type`, `personality_primary`, `personality_secondary` are `null` until the personality test is submitted.
+> `is_personality_test_complete` is `false` until the test is submitted.
 
 **Error Responses**
 
@@ -1277,6 +1284,58 @@ Content-Type: application/json
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
 | 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 28. Submit Personality Test
+
+Submits the user's 6 quiz answers, computes their personality type, and saves it to their profile. After this call, `GET /users/profile` will return the personality fields populated.
+
+```
+POST /api/v1/users/profile/personality
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "answers": [0, 2, 1, 3, 0, 2]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answers` | number[] | yes | Exactly 6 integers, each between 0–3 (0=A, 1=B, 2=C, 3=D) |
+
+**Response 200 — Success**
+```json
+{
+  "personality_type": "Serene Soul",
+  "personality_primary": "A",
+  "personality_secondary": null
+}
+```
+
+> If two letters tie, `personality_secondary` will be the second letter and `personality_type` will be `"Hybrid (A/B)"` (example).
+
+**Personality Type Labels**
+
+| Letter | Label |
+|---|---|
+| A | Serene Soul |
+| B | Empathetic Companion |
+| C | Radiant Dreamer |
+| D | Fierce Spark |
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `INVALID_ANSWERS` | `answers` is not an array of exactly 6 integers each between 0 and 3 |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 
 ---
 

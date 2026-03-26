@@ -127,7 +127,6 @@ struct PersonalityTestView: View {
                 testData.commitResult(testData.result)
                 speedDatingRouter.navigate(to: .joinQueue)
             }
-            print("Is last question results", results)
             Task {
                 await profileStore.postPersonalityTest(answers: results)
                 onComplete?(results)

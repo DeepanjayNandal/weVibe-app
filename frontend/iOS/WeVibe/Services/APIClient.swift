@@ -229,27 +229,16 @@ struct APIClient {
         let bodyObject: [String: Any] = ["answers": answers]
         req.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
      
-        print("🌐 [Personality] Sending request...")
         let (data, response) = try await perform(req)
         let status = response.statusCode
-     
-        print("📥 [Personality] Response status: \(status)")
-     
-        if let rawString = String(data: data, encoding: .utf8) {
-            print("📥 [Personality] Raw response body: \(rawString)")
-        } else {
-            print("📥 [Personality] Raw response body: (could not decode as UTF-8, \(data.count) bytes)")
-        }
      
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
      
         do {
             let resp = try JSONDecoder().decode(PersonalityResponse.self, from: data)
-            print("✅ [Personality] Decoded response:", resp)
             return resp
         } catch {
-            print("❌ [Personality] JSON decoding failed: \(error)")
             throw APIError.decoding(error)
         }
     }

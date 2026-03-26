@@ -221,7 +221,6 @@ final class UserProfileStore {
             let response = try await apiClient.updatePersonalityData(token: token, answers: answers)
      
             personalityType = response.personalityType
-            print("API personalityType", personalityType)
      
         } catch {
             patchError = "Failed to save personality test. Please try again."

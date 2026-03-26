@@ -169,9 +169,10 @@ final class UserProfileStore {
     var showPets: Bool = true
 
     // MARK: - Load State
-    var isLoading: Bool = false
-    var fetchFailed: Bool = false
+    var loadState: ViewState<Void> = .idle
     var patchError: String? = nil
+    /// Set to true when the backend rejects the token (401) — observed by ProfileView to force re-auth.
+    var sessionExpired: Bool = false
 
     private let apiClient = APIClient()
 
@@ -179,16 +180,17 @@ final class UserProfileStore {
 
     /// GET /users/profile — fetches full profile from backend and updates the store.
     func fetchProfile() async {
-        isLoading = true
-        fetchFailed = false
-        defer { isLoading = false }
+        loadState = .loading
         guard let user = Auth.auth().currentUser else { return }
         do {
             let token = try await user.getIDToken()
             let response = try await apiClient.getProfile(token: token)
             apply(response: response)
+            loadState = .loaded(())
+        } catch APIError.unauthorized {
+            sessionExpired = true
         } catch {
-            fetchFailed = true
+            loadState = .failed("Check your connection and try again.")
         }
     }
 
@@ -204,6 +206,8 @@ final class UserProfileStore {
             try await apiClient.updateProfile(token: token, payload: p)
             // Re-fetch so the store reflects exactly what the backend saved
             await fetchProfile()
+        } catch APIError.unauthorized {
+            sessionExpired = true
         } catch {
             patchError = "Failed to save. Please try again."
         }
@@ -308,8 +312,9 @@ final class UserProfileStore {
         socialMediaLinks = ["", "", ""]; spotifyPlaylistURL = ""; photos = []
         showSex = true; showLocation = true; showPersonalityTrait = true
         showInterests = true; showLifestyle = true; showCareer = true; showPets = true
-        fetchFailed = false
+        loadState = .idle
         patchError = nil
+        sessionExpired = false
     }
 }
 

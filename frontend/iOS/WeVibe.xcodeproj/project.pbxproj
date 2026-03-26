@@ -57,6 +57,9 @@
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
 		BBB2B9982F5134E5002190F2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9962F5134E5002190F2 /* RootView.swift */; };
 		BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9992F513510002190F2 /* ErrorToast.swift */; };
+		BBCCB08D2F73D685000F4B34 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCCB08C2F73D685000F4B34 /* ImageCropView.swift */; };
+		BBCCB0912F73F9E7000F4B34 /* BackButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCCB0902F73F9E7000F4B34 /* BackButton.swift */; };
+		BBCCB0932F73FB86000F4B34 /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCCB0922F73FB86000F4B34 /* ErrorStateView.swift */; };
 		BC0EAC226082C5EBF535945C /* ProfileEditSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F92B7A3FD14EC5E8A83765 /* ProfileEditSheets.swift */; };
 		C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A84C032F57A7250060DFD1 /* AppConfig.swift */; };
 		E8B15669B6C798425208C3EE /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE30F494E5F588BCCED4BF27 /* ProfileView.swift */; };
@@ -108,6 +111,9 @@
 		BBB2B9952F5134E5002190F2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		BBB2B9962F5134E5002190F2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BBB2B9992F513510002190F2 /* ErrorToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToast.swift; sourceTree = "<group>"; };
+		BBCCB08C2F73D685000F4B34 /* ImageCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropView.swift; sourceTree = "<group>"; };
+		BBCCB0902F73F9E7000F4B34 /* BackButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackButton.swift; sourceTree = "<group>"; };
+		BBCCB0922F73FB86000F4B34 /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorStateView.swift; sourceTree = "<group>"; };
 		C10001 /* WeVibe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WeVibe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5F92B7A3FD14EC5E8A83765 /* ProfileEditSheets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileEditSheets.swift; sourceTree = "<group>"; };
 		C6A84C032F57A7250060DFD1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -214,6 +220,9 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				BBCCB0922F73FB86000F4B34 /* ErrorStateView.swift */,
+				BBCCB0902F73F9E7000F4B34 /* BackButton.swift */,
+				BBCCB08C2F73D685000F4B34 /* ImageCropView.swift */,
 				A3AEC19A2F6D0EE300F7E31D /* LogoWithoutText.swift */,
 				BBB2B9992F513510002190F2 /* ErrorToast.swift */,
 				BBB2B97D2F503025002190F2 /* PrimaryButton.swift */,
@@ -379,14 +388,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BBCCB0912F73F9E7000F4B34 /* BackButton.swift in Sources */,
 				A38BAB2B2F47E16200E908DB /* DualSlider.swift in Sources */,
 				C6A84C042F57A7270060DFD1 /* AppConfig.swift in Sources */,
 				A38BAACA2F478AAA00E908DB /* ThankAndBegin.swift in Sources */,
 				A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
+				BBCCB0932F73FB86000F4B34 /* ErrorStateView.swift in Sources */,
 				A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
+				BBCCB08D2F73D685000F4B34 /* ImageCropView.swift in Sources */,
 				A38BAAD02F47B6AA00E908DB /* SurveyStep1.swift in Sources */,
 				BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */,
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,

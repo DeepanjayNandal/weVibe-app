@@ -13,6 +13,10 @@ func editNav<Content: View>(
         ZStack {
             AppTheme.primaryBackground.ignoresSafeArea()
             ScrollView { VStack(spacing: 20) { body() }.padding(20) }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)

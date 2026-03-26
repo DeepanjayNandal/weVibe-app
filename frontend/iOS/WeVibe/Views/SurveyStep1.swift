@@ -60,12 +60,16 @@ struct SurveyStep1: View {
     }
 
     private var locationError: String? {
-        guard showValidation, onboardingData.locationCity.isEmpty else { return nil }
-        return "Location is required to find you matches"
+        guard showValidation else { return nil }
+        if onboardingData.locationCity.isEmpty { return "Location is required to find you matches" }
+        if onboardingData.locationZip.isEmpty { return "Location data is incomplete — tap Refresh to try again" }
+        return nil
     }
 
     private var isStep1Valid: Bool {
-        dobFilled && age18OrOlder && !onboardingData.sex.isEmpty && !onboardingData.locationCity.isEmpty
+        dobFilled && age18OrOlder && !onboardingData.sex.isEmpty
+            && !onboardingData.locationCity.isEmpty
+            && !onboardingData.locationZip.isEmpty
     }
 
     var body: some View {
@@ -103,7 +107,7 @@ struct SurveyStep1: View {
                                         .font(.system(size: 11))
                                 }
                                 .padding(.horizontal, 12)
-                                .frame(width: 85, height: 48)
+                                .frame(maxWidth: .infinity, minHeight: 48)
                                 .background(.white.opacity(0.1))
                                 .cornerRadius(12)
                                 .overlay(
@@ -128,7 +132,7 @@ struct SurveyStep1: View {
                                         .font(.system(size: 11))
                                 }
                                 .padding(.horizontal, 12)
-                                .frame(width: 105, height: 48)
+                                .frame(maxWidth: .infinity, minHeight: 48)
                                 .background(.white.opacity(0.1))
                                 .cornerRadius(12)
                                 .overlay(
@@ -153,7 +157,7 @@ struct SurveyStep1: View {
                                         .font(.system(size: 11))
                                 }
                                 .padding(.horizontal, 12)
-                                .frame(width: 110, height: 48)
+                                .frame(maxWidth: .infinity, minHeight: 48)
                                 .background(.white.opacity(0.1))
                                 .cornerRadius(12)
                                 .overlay(

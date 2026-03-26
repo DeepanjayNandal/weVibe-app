@@ -1339,6 +1339,287 @@ Content-Type: application/json
 
 ---
 
+### 29. Chat WebSocket (Realtime Message Events)
+
+Provides realtime push for new chat messages. This is a backend push channel and does not replace existing REST APIs.
+
+```
+WS /ws/chat
+```
+
+**Authentication**
+
+Use either one:
+
+1) Header (recommended)
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+2) Query param
+```
+/ws/chat?token=<firebase-id-token>
+```
+
+If authentication fails, the server sends an error event and closes the socket.
+
+**Server Events**
+
+`connected`
+```json
+{
+  "type": "connected",
+  "data": {
+    "userId": "uuid"
+  }
+}
+```
+
+`permanent.message.created`
+```json
+{
+  "type": "permanent.message.created",
+  "data": {
+    "message": {
+      "id": "123",
+      "matchId": "uuid",
+      "senderId": "uuid",
+      "content": "hello",
+      "createdAt": "2026-03-26T10:00:00.000Z",
+      "readAt": null
+    },
+    "match": {
+      "matchId": "uuid"
+    }
+  }
+}
+```
+
+`speed_dating.message.created`
+```json
+{
+  "type": "speed_dating.message.created",
+  "data": {
+    "message": {
+      "id": "456",
+      "sessionId": "uuid",
+      "senderId": "uuid",
+      "content": "hi",
+      "createdAt": "2026-03-26T10:00:00.000Z",
+      "readAt": null
+    },
+    "session": {
+      "sessionId": "uuid"
+    }
+  }
+}
+```
+
+`permanent.match.read_updated`
+```json
+{
+  "type": "permanent.match.read_updated",
+  "data": {
+    "match": {
+      "matchId": "uuid",
+      "unreadCount": 0
+    }
+  }
+}
+```
+
+`permanent.match.removed`
+```json
+{
+  "type": "permanent.match.removed",
+  "data": {
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "unmatched"
+    }
+  }
+}
+```
+
+`permanent.match.blocked`
+```json
+{
+  "type": "permanent.match.blocked",
+  "data": {
+    "blockId": "uuid",
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "unmatched"
+    }
+  }
+}
+```
+
+`permanent.match.reported`
+```json
+{
+  "type": "permanent.match.reported",
+  "data": {
+    "reportId": "uuid",
+    "counterpartUserId": "uuid",
+    "match": {
+      "matchId": "uuid",
+      "status": "reported"
+    }
+  }
+}
+```
+
+`speed_dating.session.read_updated`
+```json
+{
+  "type": "speed_dating.session.read_updated",
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "unreadCount": 0
+    }
+  }
+}
+```
+
+`speed_dating.session.move_to_permanent_updated`
+```json
+{
+  "type": "speed_dating.session.move_to_permanent_updated",
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "moveToPermanent": {
+        "requestStatus": "sent"
+      }
+    },
+    "match": null
+  }
+}
+```
+
+`speed_dating.session.final_decision_updated`
+```json
+{
+  "type": "speed_dating.session.final_decision_updated",
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "status": "awaiting_decision"
+    },
+    "match": null
+  }
+}
+```
+
+`speed_dating.session.ended`
+```json
+{
+  "type": "speed_dating.session.ended",
+  "data": {
+    "session": {
+      "sessionId": "uuid",
+      "status": "ended_early"
+    },
+    "match": null
+  }
+}
+```
+
+`matching.queue.matched`
+```json
+{
+  "type": "matching.queue.matched",
+  "data": {
+    "state": "matched",
+    "sessionId": "uuid",
+    "sessionExpiresAt": "2026-03-27T10:00:00.000Z",
+    "participantUserIds": ["uuid-a", "uuid-b"],
+    "queueJoinedAt": "2026-03-26T10:00:00.000Z"
+  }
+}
+```
+
+`chat.badge.updated`
+```json
+{
+  "type": "chat.badge.updated",
+  "data": {
+    "speedDatingUnread": 2,
+    "matchesUnread": 5,
+    "totalUnread": 7
+  }
+}
+```
+
+`permanent.typing.updated`
+```json
+{
+  "type": "permanent.typing.updated",
+  "data": {
+    "chatType": "permanent",
+    "chatId": "uuid",
+    "senderUserId": "uuid",
+    "isTyping": true,
+    "sentAt": "2026-03-26T10:00:00.000Z"
+  }
+}
+```
+
+`speed_dating.typing.updated`
+```json
+{
+  "type": "speed_dating.typing.updated",
+  "data": {
+    "chatType": "speed_dating",
+    "chatId": "uuid",
+    "senderUserId": "uuid",
+    "isTyping": false,
+    "sentAt": "2026-03-26T10:00:00.000Z"
+  }
+}
+```
+
+`error`
+```json
+{
+  "type": "error",
+  "data": {
+    "code": "WS_UNAUTHORIZED",
+    "message": "Unauthorized websocket connection"
+  }
+}
+```
+
+**Client Messages**
+
+`ping` (optional keepalive)
+```json
+{ "type": "ping" }
+```
+
+`typing` (client typing signal)
+```json
+{
+  "type": "typing",
+  "data": {
+    "chatType": "permanent",
+    "chatId": "uuid",
+    "isTyping": true
+  }
+}
+```
+
+Server responds with:
+```json
+{ "type": "pong" }
+```
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

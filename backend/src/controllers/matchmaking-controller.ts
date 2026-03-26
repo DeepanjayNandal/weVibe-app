@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { UserRepository } from '../repositories/user-repository';
 import { MatchmakingService } from '../services/matchmaking-service';
+import { chatWebSocketBroker } from '../realtime/chat-websocket';
 import { unauthorized } from '../utils/errors';
 
 export class MatchmakingController {
@@ -21,6 +22,20 @@ export class MatchmakingController {
     }
 
     const result = await this.matchmakingService.joinQueueAndMatch(user.id);
+
+    if (result.state === 'matched') {
+      const counterpartUserId = result.selectedCandidate.userId;
+      chatWebSocketBroker.publishMatchingQueueMatched({
+        recipientUserIds: [user.id, counterpartUserId],
+        payload: {
+          state: 'matched',
+          sessionId: result.sessionId,
+          sessionExpiresAt: result.sessionExpiresAt,
+          participantUserIds: [user.id, counterpartUserId],
+          queueJoinedAt: result.queueJoinedAt,
+        },
+      });
+    }
 
     res.status(200).json({
       success: true,

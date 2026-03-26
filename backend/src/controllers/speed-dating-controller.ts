@@ -1,11 +1,14 @@
 import { Request, Response } from 'express';
 import { UserRepository } from '../repositories/user-repository';
 import { SpeedDatingService } from '../services/speed-dating-service';
+import { PermanentChatService } from '../services/permanent-chat-service';
+import { chatWebSocketBroker } from '../realtime/chat-websocket';
 import { badRequest, unauthorized } from '../utils/errors';
 
 export class SpeedDatingController {
   constructor(
     private readonly speedDatingService: SpeedDatingService,
+    private readonly permanentChatService: PermanentChatService,
     private readonly userRepository: UserRepository,
   ) {}
 
@@ -53,6 +56,12 @@ export class SpeedDatingController {
 
     const session = await this.speedDatingService.markSessionMessagesRead(userId, sessionId);
 
+    chatWebSocketBroker.publishSpeedDatingReadUpdated({
+      recipientUserIds: [userId, session.counterpart.userId],
+      payload: { session },
+    });
+    await this.publishBadgeUpdates([userId, session.counterpart.userId]);
+
     res.status(200).json({
       success: true,
       data: {
@@ -71,6 +80,12 @@ export class SpeedDatingController {
 
     const result = await this.speedDatingService.sendMessage(userId, sessionId, req.body.content);
 
+    chatWebSocketBroker.publishSpeedDatingMessage({
+      recipientUserIds: [userId, result.session.counterpart.userId],
+      payload: result,
+    });
+    await this.publishBadgeUpdates([userId, result.session.counterpart.userId]);
+
     res.status(201).json({
       success: true,
       data: result,
@@ -82,6 +97,12 @@ export class SpeedDatingController {
     const sessionId = this.readSessionId(req.params.sessionId);
 
     const result = await this.speedDatingService.requestMoveToPermanent(userId, sessionId);
+
+    chatWebSocketBroker.publishSpeedDatingMoveToPermanentUpdated({
+      recipientUserIds: [userId, result.session.counterpart.userId],
+      payload: result,
+    });
+    await this.publishBadgeUpdates([userId, result.session.counterpart.userId]);
 
     res.status(200).json({
       success: true,
@@ -103,6 +124,12 @@ export class SpeedDatingController {
       req.body.accept,
     );
 
+    chatWebSocketBroker.publishSpeedDatingMoveToPermanentUpdated({
+      recipientUserIds: [userId, result.session.counterpart.userId],
+      payload: result,
+    });
+    await this.publishBadgeUpdates([userId, result.session.counterpart.userId]);
+
     res.status(200).json({
       success: true,
       data: result,
@@ -123,6 +150,12 @@ export class SpeedDatingController {
       req.body.decision,
     );
 
+    chatWebSocketBroker.publishSpeedDatingFinalDecisionUpdated({
+      recipientUserIds: [userId, result.session.counterpart.userId],
+      payload: result,
+    });
+    await this.publishBadgeUpdates([userId, result.session.counterpart.userId]);
+
     res.status(200).json({
       success: true,
       data: result,
@@ -134,6 +167,12 @@ export class SpeedDatingController {
     const sessionId = this.readSessionId(req.params.sessionId);
 
     const result = await this.speedDatingService.endSession(userId, sessionId);
+
+    chatWebSocketBroker.publishSpeedDatingEnded({
+      recipientUserIds: [userId, result.session.counterpart.userId],
+      payload: result,
+    });
+    await this.publishBadgeUpdates([userId, result.session.counterpart.userId]);
 
     res.status(200).json({
       success: true,
@@ -161,5 +200,27 @@ export class SpeedDatingController {
     }
 
     return value.trim();
+  }
+
+  private async publishBadgeUpdates(userIds: Array<string | null | undefined>): Promise<void> {
+    const uniqueUserIds = [...new Set(userIds.filter((value): value is string => !!value))];
+
+    await Promise.all(
+      uniqueUserIds.map(async (targetUserId) => {
+        const [speedDatingUnread, matchesUnread] = await Promise.all([
+          this.speedDatingService.getUnreadCount(targetUserId),
+          this.permanentChatService.getUnreadCount(targetUserId),
+        ]);
+
+        chatWebSocketBroker.publishChatBadgeUpdated({
+          recipientUserIds: [targetUserId],
+          payload: {
+            speedDatingUnread,
+            matchesUnread,
+            totalUnread: speedDatingUnread + matchesUnread,
+          },
+        });
+      }),
+    );
   }
 }

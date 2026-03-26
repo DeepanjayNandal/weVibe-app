@@ -363,7 +363,7 @@ struct UserProfilePayload: Encodable {
 
         locationCity = data.locationCity
         locationState = data.locationState
-        locationZip = "85281"
+        locationZip = data.locationZip
         latitude = data.latitude
         longitude = data.longitude
 

@@ -12,6 +12,7 @@ struct PersonalityTestView: View {
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
     @Environment(PersonalityTestData.self) private var testData
+    @Environment(UserProfileStore.self) private var profileStore
 
     private var current: PersonalityQuestion {
         StaticConfig.personalityQuestions[currentIndex]
@@ -127,7 +128,11 @@ struct PersonalityTestView: View {
                 speedDatingRouter.navigate(to: .joinQueue)
             }
             print("Is last question results", results)
-            onComplete?(results)
+            Task {
+                await profileStore.postPersonalityTest(answers: results)
+                onComplete?(results)
+            }
+
         } else {
             transition {
                 currentIndex += 1

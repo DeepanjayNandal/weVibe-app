@@ -7,6 +7,19 @@ struct UserPhoto: Identifiable, Decodable {
     let url: String
 }
 
+struct PersonalityResponse: Decodable {
+    let personalityType: String
+    let personalityPrimary: String
+    let personalitySecondary: String?
+ 
+    enum CodingKeys: String, CodingKey {
+        case personalityType        = "personality_type"
+        case personalityPrimary     = "personality_primary"
+        case personalitySecondary   = "personality_secondary"
+    }
+}
+ 
+
 private struct ErrorResponse: Decodable {
     struct ErrorBody: Decodable { let code: String }
     let error: ErrorBody
@@ -200,6 +213,46 @@ struct APIClient {
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
+    
+    // MARK: - Personality Test
+    
+    /// POST /users/profile/personality - update the personality test data of user
+    func updatePersonalityData(token: String, answers: [Int]) async throws -> PersonalityResponse {
+     
+        guard answers.count == 6, answers.allSatisfy({ (0...3).contains($0) }) else {
+            throw APIError.serverError(400)
+        }
+     
+        var req = request(path: "/users/profile/personality", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+     
+        let bodyObject: [String: Any] = ["answers": answers]
+        req.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
+     
+        print("🌐 [Personality] Sending request...")
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+     
+        print("📥 [Personality] Response status: \(status)")
+     
+        if let rawString = String(data: data, encoding: .utf8) {
+            print("📥 [Personality] Raw response body: \(rawString)")
+        } else {
+            print("📥 [Personality] Raw response body: (could not decode as UTF-8, \(data.count) bytes)")
+        }
+     
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+     
+        do {
+            let resp = try JSONDecoder().decode(PersonalityResponse.self, from: data)
+            print("✅ [Personality] Decoded response:", resp)
+            return resp
+        } catch {
+            print("❌ [Personality] JSON decoding failed: \(error)")
+            throw APIError.decoding(error)
+        }
+    }
 
     // MARK: - Helpers
 
@@ -321,7 +374,7 @@ struct UserProfilePayload: Encodable {
 
         locationCity = data.locationCity
         locationState = data.locationState
-        locationZip = data.locationZip
+        locationZip = "85281"
         latitude = data.latitude
         longitude = data.longitude
 
@@ -429,6 +482,7 @@ struct UserProfileResponse: Decodable {
     let locationState: String?
     let prompts: [PromptEntry]?
     let photos: [UserPhoto]?
+    
 
     enum CodingKeys: String, CodingKey {
         case firstName = "first_name"
@@ -540,6 +594,7 @@ struct ProfileUpdatePayload: Encodable {
     var minAgePreference: Int?
     var maxAgePreference: Int?
     var distancePreferenceMiles: Int?
+    var isPersonalityTestComplete: Bool?
     var prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -587,6 +642,7 @@ struct ProfileUpdatePayload: Encodable {
         case minAgePreference = "min_age_preference"
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
+        case isPersonalityTestComplete = "is_personality_test_complete"
         case prompts
     }
 
@@ -634,6 +690,7 @@ struct ProfileUpdatePayload: Encodable {
         isSleepFlexible    = store.isSleepFlexible
         isCannabisFlexible = store.isCannabisFlexible
         isKidsFlexible     = store.isKidsFlexible
+        isPersonalityTestComplete = store.isPersonalityTestComplete
         loveLanguage = store.loveLanguage.isEmpty ? nil : store.loveLanguage
         zodiacSign   = store.zodiacSign.isEmpty   ? nil : store.zodiacSign
         // Empty string = neutral slider position — only send if non-empty

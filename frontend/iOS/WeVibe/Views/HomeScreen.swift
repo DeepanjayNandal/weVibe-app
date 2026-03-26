@@ -62,9 +62,9 @@ private struct SpeedDatingTab: View {
                 CustomTabBar(selectedTab: $selectedTab)
             }
             .ignoresSafeArea(edges: .bottom)
-            .navigationBarBackButtonHidden(true)
             .navigationDestination(for: SpeedDatingRoute.self) { route in
                 switch route {
+                case .main:         SpeedDatingPlaceholder()
                 case .rules:        SpeedDatingRules()
                 case .tests:        PersonalityTestView()
                 case .joinQueue:    JoinQueueView()

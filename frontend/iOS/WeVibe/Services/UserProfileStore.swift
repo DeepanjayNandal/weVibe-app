@@ -167,6 +167,9 @@ final class UserProfileStore {
     var showLifestyle: Bool = true
     var showCareer: Bool = true
     var showPets: Bool = true
+    
+    // MARK: Personality Test Data
+    var isPersonalityTestComplete: Bool = true
 
     // MARK: - Load State
     var isLoading: Bool = false
@@ -206,6 +209,22 @@ final class UserProfileStore {
             await fetchProfile()
         } catch {
             patchError = "Failed to save. Please try again."
+        }
+    }
+    
+    /// POST /users/profile/personality - update field personality test data
+    func postPersonalityTest(answers: [Int]) async {
+        patchError = nil
+        guard let user = Auth.auth().currentUser else { return }
+        do {
+            let token = try await user.getIDToken()
+            let response = try await apiClient.updatePersonalityData(token: token, answers: answers)
+     
+            personalityType = response.personalityType
+            print("API personalityType", personalityType)
+     
+        } catch {
+            patchError = "Failed to save personality test. Please try again."
         }
     }
 

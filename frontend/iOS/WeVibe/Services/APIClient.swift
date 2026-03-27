@@ -27,33 +27,50 @@ private struct ErrorResponse: Decodable {
 
 private struct MeResponse: Decodable {
     struct DataBody: Decodable {
-        struct UserBody: Decodable { let onboardingComplete: Bool }
+        struct UserBody: Decodable {
+            let onboardingComplete: Bool?
+            let isBanned: Bool?
+        }
         let user: UserBody
     }
     let data: DataBody
 }
 
+struct SessionStatus {
+    let onboardingComplete: Bool
+    let isBanned: Bool
+}
+
 enum APIError: LocalizedError {
-    case noProfile          // 404 — user has no profile yet
-    case unauthorized       // 401
-    case serverError(Int)   // any other non-2xx
+    case noProfile                      // 404 — user has no profile yet
+    case unauthorized                   // 401
+    case banned                         // 403 USER_BANNED
+    case validationError([String: String]) // 422 — field-level errors from backend
+    case serverError(Int)               // any other non-2xx
     case network(Error)
     case decoding(Error)
 
     var errorDescription: String? {
         switch self {
-        case .noProfile:            return "No profile found."
-        case .unauthorized:         return "Session expired. Please sign in again."
-        case .serverError(let c):   return "Server error (\(c)). Please try again."
-        case .network(let e):       return e.localizedDescription
-        case .decoding(let e):      return "Response error: \(e.localizedDescription)"
+        case .noProfile:                return "No profile found."
+        case .unauthorized:             return "Session expired. Please sign in again."
+        case .banned:                   return "Your account has been suspended. Please contact support."
+        case .validationError(let e):   return e.values.first
+        case .serverError(let c):       return "Server error (\(c)). Please try again."
+        case .network(let e):           return e.localizedDescription
+        case .decoding(let e):          return "Response error: \(e.localizedDescription)"
         }
     }
 }
 
 struct APIClient {
 
-    private let base = URL(string: AppConfig.apiBaseURL)!
+    private let base: URL = {
+        guard let url = URL(string: AppConfig.apiBaseURL) else {
+            fatalError("Invalid API base URL: \(AppConfig.apiBaseURL)")
+        }
+        return url
+    }()
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = 15
@@ -62,14 +79,17 @@ struct APIClient {
 
     // MARK: - Auth
 
-    /// GET /auth/me — returns true if onboarding is complete, false if not yet done.
-    func checkProfile(token: String) async throws -> Bool {
+    /// GET /auth/me — returns session status (onboardingComplete + isBanned).
+    func checkProfile(token: String) async throws -> SessionStatus {
         let req = request(path: "/auth/me", method: "GET", token: token)
         let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 200 {
             let me = try JSONDecoder().decode(MeResponse.self, from: data)
-            return me.data.user.onboardingComplete
+            return SessionStatus(
+                onboardingComplete: me.data.user.onboardingComplete ?? false,
+                isBanned: me.data.user.isBanned ?? false
+            )
         }
         if status == 401 { throw APIError.unauthorized }
         throw APIError.serverError(status)
@@ -80,9 +100,16 @@ struct APIClient {
         var req = request(path: "/users/profile", method: "POST", token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(payload)
-        let (_, response) = try await perform(req)
+        let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
+        if status == 422 {
+            struct ValidationResponse: Decodable { let errors: [String: String] }
+            if let resp = try? JSONDecoder().decode(ValidationResponse.self, from: data) {
+                throw APIError.validationError(resp.errors)
+            }
+            throw APIError.serverError(422)
+        }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
@@ -96,6 +123,7 @@ struct APIClient {
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
+        if status == 403 { throw APIError.banned }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 

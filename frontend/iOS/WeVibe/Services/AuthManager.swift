@@ -10,12 +10,14 @@ import CryptoKit
 enum AuthError: LocalizedError {
     case notVerified
     case sessionExpired
+    case banned
     case unknown(String)
 
     var errorDescription: String? {
         switch self {
         case .notVerified:      return "Email not yet verified. Please check your inbox."
         case .sessionExpired:   return "Your session has expired. Please sign in again."
+        case .banned:           return "Your account has been suspended. Please contact support."
         case .unknown(let msg): return msg
         }
     }
@@ -82,6 +84,9 @@ final class AuthManager {
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
             try await apiClient.loginUser(idToken: token, provider: "email")
             await resolvePostAuthState()
+        } catch APIError.banned {
+            try? Auth.auth().signOut()
+            throw AuthError.banned
         } catch {
             throw AuthError.unknown(mapAuthError(error))
         }
@@ -117,6 +122,9 @@ final class AuthManager {
         // Errors silenced intentionally — always show the same success message
         // to prevent email enumeration attacks. Firebase throws userNotFound
         // for unregistered emails; we don't want to leak that information.
+        // Note: a timing side channel still exists because Firebase responds faster
+        // for unregistered emails (no email sent). Mitigating this fully requires
+        // a fixed server-side delay, which is outside client control.
         try? await Auth.auth().sendPasswordReset(withEmail: email)
     }
 
@@ -155,6 +163,9 @@ final class AuthManager {
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
             try await apiClient.loginUser(idToken: token, provider: "google")
             await resolvePostAuthState()
+        } catch APIError.banned {
+            try? Auth.auth().signOut()
+            throw AuthError.banned
         } catch {
             throw AuthError.unknown(mapAuthError(error))
         }
@@ -196,6 +207,9 @@ final class AuthManager {
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
             try await apiClient.loginUser(idToken: token, provider: "apple")
             await resolvePostAuthState()
+        } catch APIError.banned {
+            try? Auth.auth().signOut()
+            throw AuthError.banned
         } catch {
             throw AuthError.unknown(mapAuthError(error))
         }
@@ -248,8 +262,13 @@ final class AuthManager {
                 try await apiClient.submitProfile(token: token, payload: payload)
                 data.clear()
                 appState = .authenticated
+            } catch APIError.validationError(let errors) {
+                // Surface the first field error from the backend so it's debuggable.
+                globalError = errors.values.first ?? "Some profile fields are invalid. Please go back and check your answers."
+            } catch APIError.network {
+                globalError = "No internet connection. Please check your connection and try again."
             } catch {
-                globalError = "Couldn't save your profile. Please check your connection and try again."
+                globalError = "Couldn't save your profile. Please try again."
             }
         }
     }
@@ -270,10 +289,18 @@ final class AuthManager {
         appState = .unauthenticated
     }
 
+    // MARK: - Network Retry
+
+    /// Called by NetworkErrorView "Try Again" button — re-runs the post-auth check.
+    func retryConnection() async {
+        appState = .launching
+        await resolvePostAuthState()
+    }
+
     // MARK: - Private Helpers
 
-    /// After sign-in: verify email, then check backend for an existing profile.
-    /// Routes to .authenticated (returning user) or .onboarding (new user).
+    /// After sign-in: verify email, check backend session status, and route accordingly.
+    /// Routes to: .authenticated, .onboarding, .pendingVerification, or .unauthenticated.
     private func resolvePostAuthState() async {
         guard let user = Auth.auth().currentUser else {
             appState = .unauthenticated
@@ -286,14 +313,37 @@ final class AuthManager {
         }
         do {
             let token = try await user.getIDToken()
-            let onboardingComplete = try await apiClient.checkProfile(token: token)
-            appState = onboardingComplete ? .authenticated : .onboarding
+            let session = try await apiClient.checkProfile(token: token)
+
+            if session.isBanned {
+                // Sign out of Firebase immediately so the user cannot bypass the ban
+                // by relaunching the app with an existing session.
+                try? Auth.auth().signOut()
+                globalError = AuthError.banned.errorDescription
+                appState = .unauthenticated
+                return
+            }
+
+            appState = session.onboardingComplete ? .authenticated : .onboarding
+
         } catch APIError.unauthorized {
+            // Token rejected — session is invalid, force back to login.
+            try? Auth.auth().signOut()
             appState = .unauthenticated
+
+        } catch APIError.network {
+            // Genuine connectivity failure — show retry screen rather than routing into the app blindly.
+            appState = .networkError
+
+        } catch APIError.serverError(let code) {
+            // Backend error (5xx etc) — don't assume the user is authenticated.
+            globalError = "We're having trouble connecting (error \(code)). Please try again."
+            appState = .unauthenticated
+
         } catch {
-            // Network failure — assume returning user and let them into the app.
-            // ProfileView will show the fetch error and offer a retry.
-            appState = .authenticated
+            // Decoding or unexpected error — fail safe, don't route into the app.
+            globalError = "Something went wrong signing you in. Please try again."
+            appState = .unauthenticated
         }
     }
 
@@ -318,7 +368,9 @@ final class AuthManager {
     // MARK: - Apple Sign-In Helpers
 
     private func randomNonceString(length: Int = 32) -> String {
-        precondition(length > 0)
+        guard length > 0 else {
+            fatalError("randomNonceString(length:) requires a positive length, got \(length)")
+        }
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         // Use rejection sampling to eliminate modulo bias:
         // charset.count (66) does not divide 256 evenly, so bytes >= 66 are discarded.

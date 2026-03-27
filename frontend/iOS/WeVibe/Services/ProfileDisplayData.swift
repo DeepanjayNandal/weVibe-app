@@ -15,7 +15,11 @@ struct ProfileDisplayData {
     var birthCountry: String
     var orientation: String
     var identity: String
+    // personality test data
+
     var personalityType: String
+    var personalityPrimary: String
+    var personalitySecondary: String;  var isPersonalityTestComplete: Bool
     var loveLanguage: String
     var zodiacSign: String
     var communicationStyle: String
@@ -58,6 +62,7 @@ struct ProfileDisplayData {
     var showLifestyle: Bool
     var showCareer: Bool
     var showPets: Bool
+    
 }
 
 // MARK: - Init from MatchProfile
@@ -75,7 +80,10 @@ extension ProfileDisplayData {
         birthCountry         = ""
         orientation          = match.orientation ?? ""
         identity             = match.identity ?? ""
+        isPersonalityTestComplete = false
         personalityType      = match.personalityType ?? ""
+        personalityPrimary   = match.personalityPrimary ?? ""
+        personalitySecondary = match.personalitySecondary ?? ""
         loveLanguage         = match.loveLanguage ?? ""
         zodiacSign           = match.zodiacSign ?? ""
         communicationStyle   = ""

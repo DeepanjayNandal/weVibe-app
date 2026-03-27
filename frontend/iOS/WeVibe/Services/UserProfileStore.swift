@@ -18,7 +18,11 @@ struct MatchProfile: Identifiable {
     var locationState: String
     var orientation: String?
     var identity: String?
+    
+    var isPersonalityTestCompelte: Bool
     var personalityType: String?
+    var personalityPrimary: String?
+    var personalitySecondary: String?
     var loveLanguage: String?
     var zodiacSign: String?
     var interests: [String]
@@ -120,7 +124,6 @@ final class UserProfileStore {
     var zodiacSign: String = ""
     var communicationStyle: String = ""     // "Texter" or "Phone Person"
     var conflictStyle: String = ""          // "Quiet & Reserved" or "Address it head-on"
-    var personalityType: String = ""        // 16personalities result
 
     // MARK: - Interests & Activities
     var interests: [String] = []
@@ -167,6 +170,12 @@ final class UserProfileStore {
     var showLifestyle: Bool = true
     var showCareer: Bool = true
     var showPets: Bool = true
+    
+    // MARK: Personality Test Data
+    var isPersonalityTestComplete: Bool = false
+    var personalityType: String = "" 
+    var personalityPrimary: String = ""
+    var personalitySecondary: String = ""
 
     // MARK: - Load State
     var loadState: ViewState<Void> = .idle
@@ -210,6 +219,23 @@ final class UserProfileStore {
             sessionExpired = true
         } catch {
             patchError = "Failed to save. Please try again."
+        }
+    }
+    
+    /// POST /users/profile/personality - update field personality test data
+    func postPersonalityTest(answers: [Int]) async {
+        patchError = nil
+        guard let user = Auth.auth().currentUser else { return }
+        do {
+            let token = try await user.getIDToken()
+            let response = try await apiClient.updatePersonalityData(token: token, answers: answers)
+     
+            personalityType = response.personalityType
+            personalityPrimary = response.personalityPrimary
+            personalitySecondary = response.personalitySecondary ?? ""
+     
+        } catch {
+            patchError = "Failed to save personality test. Please try again."
         }
     }
 
@@ -269,7 +295,11 @@ final class UserProfileStore {
         if let v = r.zodiacSign            { zodiacSign            = v }
         if let v = r.communicationStyle    { communicationStyle    = v }
         if let v = r.conflictStyle         { conflictStyle         = v }
+        if let v = r.isPersonalityTestComplete {isPersonalityTestComplete = v}
         if let v = r.personalityType       { personalityType       = v }
+        if let v = r.personalityPrimary    {personalityPrimary     = v }
+        if let v = r.personalitySecondary  {personalitySecondary   = v }
+        
         if let v = r.interests             { interests             = v }
         if let v = r.preferredDateActivities { preferredDateActivities = v }
         if let v = r.wouldNotDoActivities  { wouldNotDoActivities  = v }
@@ -303,7 +333,7 @@ final class UserProfileStore {
         cannabis = ""; isCannabisFlexible = false; petTypes = ""; petsName = ""
         isDrinksFlexible = false; isSmokingFlexible = false; isWorkoutFlexible = false
         isSleepFlexible = false; isKidsFlexible = false
-        loveLanguage = ""; zodiacSign = ""; communicationStyle = ""; conflictStyle = ""; personalityType = ""
+        loveLanguage = ""; zodiacSign = ""; communicationStyle = ""; conflictStyle = ""; personalityType = ""; isPersonalityTestComplete = false; personalityPrimary = ""; personalitySecondary = "";
         interests = []; preferredDateActivities = []; wouldNotDoActivities = []
         relationshipGoals = []; meetPreference = ""; minAge = 18; maxAge = 50; distance = 25
         firstName = ""; lastName = ""; birthDate = ""; sex = ""; locationCity = ""; locationState = ""

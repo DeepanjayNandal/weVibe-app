@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SpeedDatingPlaceholder: View {
 
-    // Entrance animation states
     @State private var pillOpacity: Double    = 0
     @State private var logoOpacity: Double    = 0
     @State private var logoScale: CGFloat     = 0.75
@@ -12,7 +11,9 @@ struct SpeedDatingPlaceholder: View {
     @State private var buttonOpacity: Double  = 0
     @State private var buttonOffset: CGFloat  = 16
     
+    
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
+    @Environment(UserProfileStore.self) private var store
 
     var body: some View {
         ZStack {
@@ -106,9 +107,16 @@ struct SpeedDatingPlaceholder: View {
                         background: AppTheme.primaryButton,
                         foreground: .white,
                         height: 52,
-                        isLoading: false,
-                        isDisabled: false
-                    ) { speedDatingRouter.navigate(to: .rules) }
+                        isLoading: store.loadState.isLoading,
+                        isDisabled: store.loadState.isLoading
+                    ) {
+                        if(store.isPersonalityTestComplete) {
+                            speedDatingRouter.navigate(to: .joinQueue)
+                        } else {
+                            speedDatingRouter.navigate(to: .rules)
+                        }
+                        
+                    }
                     .padding(.horizontal, 24)
                     .opacity(buttonOpacity)
                     .offset(y: buttonOffset)
@@ -117,7 +125,11 @@ struct SpeedDatingPlaceholder: View {
     }
         }
         .onAppear { animateIn() }
+        .task {
+            await store.fetchProfile()
+        }
     }
+
 
     // MARK: - Entrance Animations
     private func animateIn() {

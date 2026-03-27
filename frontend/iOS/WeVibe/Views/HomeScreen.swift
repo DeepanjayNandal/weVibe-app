@@ -65,7 +65,8 @@ private struct SpeedDatingTab: View {
             .navigationBarBackButtonHidden(true)
             .navigationDestination(for: SpeedDatingRoute.self) { route in
                 switch route {
-                case .rules:        SpeedDatingRules()
+                case .main:         SpeedDatingPlaceholder()
+                case .rules:        SpeedDatingRules().navigationBarBackButtonHidden(true)
                 case .tests:        PersonalityTestView()
                 case .joinQueue:    JoinQueueView()
                 case .findingMatch:

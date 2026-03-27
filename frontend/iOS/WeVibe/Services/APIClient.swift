@@ -456,7 +456,10 @@ struct UserProfileResponse: Decodable {
     let zodiacSign: String?
     let communicationStyle: String?
     let conflictStyle: String?
+    let isPersonalityTestComplete: Bool?
     let personalityType: String?
+    let personalityPrimary: String?
+    let personalitySecondary: String?
     let interests: [String]?
     let preferredDateActivities: [String]?
     let wouldNotDoActivities: [String]?
@@ -511,6 +514,9 @@ struct UserProfileResponse: Decodable {
         case communicationStyle = "communication_style"
         case conflictStyle = "conflict_style"
         case personalityType = "personality_type"
+        case personalityPrimary = "personality_primary"
+        case personalitySecondary = "personality_secondary"
+        case isPersonalityTestComplete = "is_personality_test_complete"
         case interests
         case preferredDateActivities = "preferred_date_activities"
         case wouldNotDoActivities = "would_not_do_activities"

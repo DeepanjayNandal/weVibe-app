@@ -122,14 +122,9 @@ struct PersonalityTestView: View {
 
         if isLastQuestion {
             let results = selectedAnswers.compactMap { $0 }
-            if results.count == StaticConfig.personalityQuestions.count {
-                testData.answers = selectedAnswers
-                testData.commitResult(testData.result)
-                speedDatingRouter.navigate(to: .joinQueue)
-            }
             Task {
                 await profileStore.postPersonalityTest(answers: results)
-                onComplete?(results)
+                speedDatingRouter.navigate(to: .joinQueue)
             }
 
         } else {

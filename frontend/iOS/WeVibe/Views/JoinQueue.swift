@@ -258,6 +258,28 @@ struct JoinQueueView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
+                    HStack {
+                        Spacer()
+                        Button {
+                            speedDatingRouter.popToRoot()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Circle()
+                                        .fill(Color.white.opacity(0.08))
+                                        .overlay(
+                                            Circle()
+                                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                                        )
+                                )
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    
                     Text(result.isHybrid ? "🎭" : result.primary.emoji)
                         .font(.system(size: 80))
                         .scaleEffect(emojiScale)

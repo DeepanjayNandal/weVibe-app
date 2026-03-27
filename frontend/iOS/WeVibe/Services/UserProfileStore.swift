@@ -172,7 +172,7 @@ final class UserProfileStore {
     var showPets: Bool = true
     
     // MARK: Personality Test Data
-    var isPersonalityTestComplete: Bool = true
+    var isPersonalityTestComplete: Bool = false
     var personalityType: String = ""        // 16personalities result
     var personalityPrimary: String = ""
     var personalitySecondary: String = ""

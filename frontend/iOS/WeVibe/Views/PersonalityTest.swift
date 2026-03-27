@@ -38,11 +38,11 @@ struct PersonalityTestView: View {
                     Button("Back", systemImage: "arrow.left") {
                         if currentIndex > 0 {
                             transition {
-                                currentIndex -= 1
-                            }
+                               currentIndex -= 1
+                          }
                         } else {
-                            speedDatingRouter.navigate(to: .rules)
-                        }
+                         speedDatingRouter.navigate(to: .rules)
+                     }
                     }
                     .labelStyle(.iconOnly)
                     .font(.system(size: 17, weight: .semibold))

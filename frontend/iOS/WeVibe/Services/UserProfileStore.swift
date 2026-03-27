@@ -173,7 +173,7 @@ final class UserProfileStore {
     
     // MARK: Personality Test Data
     var isPersonalityTestComplete: Bool = false
-    var personalityType: String = ""        // 16personalities result
+    var personalityType: String = "" 
     var personalityPrimary: String = ""
     var personalitySecondary: String = ""
 
@@ -195,6 +195,7 @@ final class UserProfileStore {
         do {
             let token = try await user.getIDToken()
             let response = try await apiClient.getProfile(token: token)
+            print("in call api", response)
             apply(response: response)
         } catch {
             fetchFailed = true
@@ -291,6 +292,7 @@ final class UserProfileStore {
         if let v = r.zodiacSign            { zodiacSign            = v }
         if let v = r.communicationStyle    { communicationStyle    = v }
         if let v = r.conflictStyle         { conflictStyle         = v }
+        if let v = r.isPersonalityTestComplete {isPersonalityTestComplete = v}
         if let v = r.personalityType       { personalityType       = v }
         if let v = r.personalityPrimary    {personalityPrimary     = v }
         if let v = r.personalitySecondary  {personalitySecondary   = v }
@@ -314,6 +316,9 @@ final class UserProfileStore {
             customPromptQuestion = prompts.count > 3 ? prompts[3].question : ""
             customPromptAnswer   = prompts.count > 3 ? prompts[3].answer   : ""
         }
+        print("📋 apply() called")
+        print("   r.isPersonalityTestComplete:", r.isPersonalityTestComplete as Any)
+        print("   r.personalityPrimary:", r.personalityPrimary as Any)
     }
 
     // MARK: - Clear (called on logout)

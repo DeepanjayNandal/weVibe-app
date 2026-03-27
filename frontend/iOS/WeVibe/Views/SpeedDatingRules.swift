@@ -45,13 +45,21 @@ struct SpeedDatingRules: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
                         VStack(alignment: .leading, spacing: 8) {
-                            LogoView(size: 48)
-                                .padding(.bottom, 4)
+                            HStack {
+                                Button("Back", systemImage: "arrow.left") {
+                                    speedDatingRouter.popToRoot()
+                                }
+                                .labelStyle(.iconOnly)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(.white)
+                                
+                                LogoView(size: 48)
+                                    .padding(.bottom, 4)
+                            }
 
                             Text("The Vibe Code")
                                 .foregroundStyle(.white)

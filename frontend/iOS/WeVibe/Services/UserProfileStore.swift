@@ -195,7 +195,6 @@ final class UserProfileStore {
         do {
             let token = try await user.getIDToken()
             let response = try await apiClient.getProfile(token: token)
-            print("in call api", response)
             apply(response: response)
         } catch {
             fetchFailed = true
@@ -316,9 +315,6 @@ final class UserProfileStore {
             customPromptQuestion = prompts.count > 3 ? prompts[3].question : ""
             customPromptAnswer   = prompts.count > 3 ? prompts[3].answer   : ""
         }
-        print("📋 apply() called")
-        print("   r.isPersonalityTestComplete:", r.isPersonalityTestComplete as Any)
-        print("   r.personalityPrimary:", r.personalityPrimary as Any)
     }
 
     // MARK: - Clear (called on logout)

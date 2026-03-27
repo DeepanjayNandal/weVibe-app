@@ -11,7 +11,6 @@ struct SpeedDatingPlaceholder: View {
     @State private var buttonOpacity: Double  = 0
     @State private var buttonOffset: CGFloat  = 16
     
-    @State private var isLoadingProfile = true
     
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
     @Environment(UserProfileStore.self) private var store
@@ -108,8 +107,8 @@ struct SpeedDatingPlaceholder: View {
                         background: AppTheme.primaryButton,
                         foreground: .white,
                         height: 52,
-                        isLoading: isLoadingProfile,
-                        isDisabled: isLoadingProfile
+                        isLoading: store.loadState.isLoading,
+                        isDisabled: store.loadState.isLoading
                     ) {
                         if(store.isPersonalityTestComplete) {
                             speedDatingRouter.navigate(to: .joinQueue)
@@ -128,7 +127,6 @@ struct SpeedDatingPlaceholder: View {
         .onAppear { animateIn() }
         .task {
             await store.fetchProfile()
-            isLoadingProfile = false
         }
     }
 

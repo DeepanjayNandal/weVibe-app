@@ -365,9 +365,6 @@ struct JoinQueueView: View {
         .onAppear { animateIn() }
         .task {
             await store.fetchProfile()
-            print("store primary", store.personalityPrimary)
-            print("store secondary", store.personalitySecondary)
-            print("store test", store.personalityType)
         }
     }
 

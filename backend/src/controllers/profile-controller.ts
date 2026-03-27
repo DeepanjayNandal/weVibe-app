@@ -623,6 +623,11 @@ export class ProfileController {
   // Returns 422 with field errors if any provided value fails validation.
   updateProfile = async (req: Request, res: Response): Promise<void> => {
     const user = await this.resolveUser(req);
+    const existingProfile = await this.profileService.getProfile(user!.id);
+    if (!existingProfile) {
+      unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
+    }
+
     const body = req.body ?? {};
     const errors: ErrorMap = {};
 
@@ -804,13 +809,24 @@ export class ProfileController {
       updateData.maxAgePreference = optionalInt(errors, body.max_age_preference, 'max_age_preference', 18, 80,
         'max_age_preference must be between 18 and 80');
     }
-    // If both age preferences are sent together, check max >= min
-    if (
-      updateData.minAgePreference !== undefined && updateData.maxAgePreference !== undefined &&
-      updateData.minAgePreference !== null && updateData.maxAgePreference !== null &&
-      (updateData.maxAgePreference as number) < (updateData.minAgePreference as number)
-    ) {
-      errors['max_age_preference'] = 'max_age_preference must be greater than or equal to min_age_preference';
+    // For single-field age updates, compare against the persisted counterpart to prevent invalid ranges.
+    if (body.min_age_preference !== undefined || body.max_age_preference !== undefined) {
+      const effectiveMinAge =
+        updateData.minAgePreference !== undefined
+          ? (updateData.minAgePreference as number | null)
+          : existingProfile!.min_age_preference;
+      const effectiveMaxAge =
+        updateData.maxAgePreference !== undefined
+          ? (updateData.maxAgePreference as number | null)
+          : existingProfile!.max_age_preference;
+
+      if (
+        effectiveMinAge !== null &&
+        effectiveMaxAge !== null &&
+        effectiveMaxAge < effectiveMinAge
+      ) {
+        errors['max_age_preference'] = 'max_age_preference must be greater than or equal to min_age_preference';
+      }
     }
     if (body.distance_preference_miles !== undefined) {
       updateData.distancePreferenceMiles = optionalInt(errors, body.distance_preference_miles, 'distance_preference_miles', 1, 100,
@@ -828,7 +844,6 @@ export class ProfileController {
       return;
     }
 
-    // updateProfile returns null if profile doesn't exist yet
     const updated = await this.profileService.updateProfile(user!.id, updateData as any);
     if (!updated) {
       unauthorized('Profile not found', 'PROFILE_NOT_FOUND');

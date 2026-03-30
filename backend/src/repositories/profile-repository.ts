@@ -1,5 +1,77 @@
-import { Prisma, profiles } from '@prisma/client';
+import { Prisma, enum_meet_gender, profiles } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
+
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
+function mapMeetPreferenceToSearchGender(value: string | null | undefined): enum_meet_gender | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  if (value === 'Men') return 'men';
+  if (value === 'Women') return 'women';
+  if (value === 'Open to both') return 'both';
+
+  return undefined;
+}
+
+function milesToKilometers(miles: number | null): number | null {
+  if (miles === null) return null;
+  return Math.max(1, Math.round(miles * 1.60934));
+}
+
+function buildUserSearchUpdate(data: {
+  meetPreference?: string | null;
+  minAgePreference?: number | null;
+  maxAgePreference?: number | null;
+  distancePreferenceMiles?: number | null;
+}): Prisma.usersUncheckedUpdateInput {
+  const userUpdate: Prisma.usersUncheckedUpdateInput = {};
+
+  const mappedGender = mapMeetPreferenceToSearchGender(data.meetPreference);
+  if (mappedGender !== undefined) {
+    userUpdate.search_gender = mappedGender;
+  }
+
+  if (data.minAgePreference !== undefined) {
+    userUpdate.search_age_min = data.minAgePreference;
+  }
+
+  if (data.maxAgePreference !== undefined) {
+    userUpdate.search_age_max = data.maxAgePreference;
+  }
+
+  if (data.distancePreferenceMiles !== undefined) {
+    userUpdate.search_radius_km = milesToKilometers(data.distancePreferenceMiles);
+  }
+
+  return userUpdate;
+}
+
+async function updateLocationPoint(
+  db: DbClient,
+  userId: string,
+  latitude: number | null,
+  longitude: number | null,
+): Promise<void> {
+  if (latitude === null || longitude === null) {
+    await db.$executeRaw(
+      Prisma.sql`
+        UPDATE profiles
+        SET location_point = NULL
+        WHERE user_id = CAST(${userId} AS uuid)
+      `,
+    );
+    return;
+  }
+
+  await db.$executeRaw(
+    Prisma.sql`
+      UPDATE profiles
+      SET location_point = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+      WHERE user_id = CAST(${userId} AS uuid)
+    `,
+  );
+}
 
 // Data required to create a new profile (full onboarding payload)
 export interface CreateProfileData {
@@ -130,11 +202,11 @@ export interface UpdateProfileData {
   wouldNotDoActivities?: string[] | null;
 
   // Dating preferences
-  meetPreference?: string;
+  meetPreference?: string | null;
   relationshipGoals?: string[];
-  minAgePreference?: number;
-  maxAgePreference?: number;
-  distancePreferenceMiles?: number;
+  minAgePreference?: number | null;
+  maxAgePreference?: number | null;
+  distancePreferenceMiles?: number | null;
 
   // Prompts (0–4 items)
   prompts?: Array<{ question: string; answer: string }> | null;
@@ -146,54 +218,69 @@ export class ProfileRepository {
   }
 
   async create(data: CreateProfileData): Promise<profiles> {
-    return prisma.profiles.create({
-      data: {
-        user_id:                   data.userId,
-        first_name:                data.firstName,
-        last_name:                 data.lastName,
-        display_name:              data.displayName ?? null,
-        birth_date:                data.birthDate,
-        gender:                    data.gender,
-        ethnicity:                 data.ethnicity ?? Prisma.JsonNull,
+    return prisma.$transaction(async (tx) => {
+      const profile = await tx.profiles.create({
+        data: {
+          user_id:                   data.userId,
+          first_name:                data.firstName,
+          last_name:                 data.lastName,
+          display_name:              data.displayName ?? null,
+          birth_date:                data.birthDate,
+          gender:                    data.gender,
+          ethnicity:                 data.ethnicity ?? Prisma.JsonNull,
 
-        // Career & education — saved at onboarding if iOS sends them
-        education:                 data.education ?? null,
-        career_field:              data.careerField ?? null,
-        languages:                 data.languages ?? Prisma.JsonNull,
+          // Career & education — saved at onboarding if iOS sends them
+          education:                 data.education ?? null,
+          career_field:              data.careerField ?? null,
+          languages:                 data.languages ?? Prisma.JsonNull,
 
-        // Height
-        height_unit:               data.heightUnit,
-        height_ft:                 data.heightFt ?? null,
-        height_in:                 data.heightIn ?? null,
-        height_cm:                 data.heightCm ?? null,
+          // Height
+          height_unit:               data.heightUnit,
+          height_ft:                 data.heightFt ?? null,
+          height_in:                 data.heightIn ?? null,
+          height_cm:                 data.heightCm ?? null,
 
-        // Location (lat/lng stored as plain floats; location_point left null here
-        // — updated separately via raw SQL when PostGIS queries are needed)
-        latitude:                  data.latitude,
-        longitude:                 data.longitude,
-        location_city:             data.locationCity,
-        state:                     data.locationState,   // DB column name is state
-        zip_code:                  data.locationZip,     // DB column name is zip_code
+          // Location
+          latitude:                  data.latitude,
+          longitude:                 data.longitude,
+          location_city:             data.locationCity,
+          state:                     data.locationState,   // DB column name is state
+          zip_code:                  data.locationZip,     // DB column name is zip_code
 
-        // Dating preferences
-        meet_preference:           data.meetPreference,
-        relationship_goals:        data.relationshipGoals,
-        min_age_preference:        data.minAgePreference,
-        max_age_preference:        data.maxAgePreference,
-        distance_preference_miles: data.distancePreferenceMiles,
+          // Dating preferences
+          meet_preference:           data.meetPreference,
+          relationship_goals:        data.relationshipGoals,
+          min_age_preference:        data.minAgePreference,
+          max_age_preference:        data.maxAgePreference,
+          distance_preference_miles: data.distancePreferenceMiles,
 
-        // Lifestyle habits — stored as plain strings matching iOS values
-        lifestyle_drinks:          data.drinks ?? null,
-        lifestyle_smoking:         data.smoking ?? null,
-        lifestyle_pets:            data.pets ?? null,
-        lifestyle_children:        data.children ?? null,
-        lifestyle_workout:         data.workout ?? null,
-        lifestyle_sleep:           data.sleepSchedule ?? null,
+          // Lifestyle habits — stored as plain strings matching iOS values
+          lifestyle_drinks:          data.drinks ?? null,
+          lifestyle_smoking:         data.smoking ?? null,
+          lifestyle_pets:            data.pets ?? null,
+          lifestyle_children:        data.children ?? null,
+          lifestyle_workout:         data.workout ?? null,
+          lifestyle_sleep:           data.sleepSchedule ?? null,
 
-        // Bio and prompts
-        bio:                       data.bio ?? null,
-        prompts:                   data.prompts ?? Prisma.JsonNull,
-      },
+          // Bio and prompts
+          bio:                       data.bio ?? null,
+          prompts:                   data.prompts ?? Prisma.JsonNull,
+        },
+      });
+
+      await tx.users.update({
+        where: { id: data.userId },
+        data: buildUserSearchUpdate({
+          meetPreference: data.meetPreference,
+          minAgePreference: data.minAgePreference,
+          maxAgePreference: data.maxAgePreference,
+          distancePreferenceMiles: data.distancePreferenceMiles,
+        }),
+      });
+
+      await updateLocationPoint(tx, data.userId, data.latitude, data.longitude);
+
+      return profile;
     });
   }
 
@@ -285,9 +372,41 @@ export class ProfileRepository {
     // Prompts
     if (data.prompts !== undefined) p.prompts = data.prompts;
 
-    return prisma.profiles.update({
-      where: { user_id: userId },
-      data: p as any,
+    return prisma.$transaction(async (tx) => {
+      const existingProfile = await tx.profiles.findUnique({
+        where: { user_id: userId },
+        select: {
+          latitude: true,
+          longitude: true,
+        },
+      });
+
+      const updatedProfile = await tx.profiles.update({
+        where: { user_id: userId },
+        data: p as any,
+      });
+
+      const userSearchUpdate = buildUserSearchUpdate({
+        meetPreference: data.meetPreference,
+        minAgePreference: data.minAgePreference,
+        maxAgePreference: data.maxAgePreference,
+        distancePreferenceMiles: data.distancePreferenceMiles,
+      });
+
+      if (Object.keys(userSearchUpdate).length > 0) {
+        await tx.users.update({
+          where: { id: userId },
+          data: userSearchUpdate,
+        });
+      }
+
+      if (data.latitude !== undefined || data.longitude !== undefined) {
+        const latitude = data.latitude ?? existingProfile?.latitude ?? null;
+        const longitude = data.longitude ?? existingProfile?.longitude ?? null;
+        await updateLocationPoint(tx, userId, latitude, longitude);
+      }
+
+      return updatedProfile;
     });
   }
 }

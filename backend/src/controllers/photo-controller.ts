@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
@@ -62,7 +62,7 @@ export const getUploadURL = async (req: Request, res: Response) => {
     return res.status(400).json({ code: 'MAX_PHOTOS_EXCEEDED', message: 'Maximum of 6 photos allowed' });
   }
 
-  const photoId = uuidv4();
+  const photoId = randomUUID();
   const ext = mimeType === 'image/png' ? 'png' : 'jpg';
   const storagePath = `users/${uid}/photos/${photoId}.${ext}`;
 

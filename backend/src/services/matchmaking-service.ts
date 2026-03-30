@@ -39,6 +39,14 @@ const DEFAULT_AGE_MIN = 18;
 const DEFAULT_AGE_MAX = 35;
 const DEFAULT_RADIUS_KM = 50;
 const SPEED_DATING_EXPIRY_HOURS = 24;
+const OPEN_SPEED_DATING_STATUSES = [
+  'active',
+  'active_counter_pending',
+  'active_request_locked',
+  'awaiting_decision',
+  'awaiting_counter_decision',
+  'awaiting_decision_locked',
+];
 
 function calculateAge(birthDate: Date | null): number | null {
   if (!birthDate) return null;
@@ -113,6 +121,8 @@ export class MatchmakingService {
 
   async joinQueueAndMatch(userId: string): Promise<JoinQueueResult> {
     return prisma.$transaction(async (tx) => {
+      await this.acquireTransactionLock(userId, tx);
+
       const requester = await tx.users.findUnique({
         where: { id: userId },
         include: { profiles: true },
@@ -120,6 +130,10 @@ export class MatchmakingService {
 
       if (!requester || !requester.profiles) {
         badRequest('A completed profile is required before joining queue', 'PROFILE_REQUIRED');
+      }
+
+      if (await this.hasOpenSpeedDatingSession(userId, tx)) {
+        badRequest('Finish your current speed dating session before joining queue', 'ACTIVE_SESSION_EXISTS');
       }
 
       await this.queueRepository.enqueue(userId, tx);
@@ -134,6 +148,10 @@ export class MatchmakingService {
 
       for (const candidateEntry of queueCandidates) {
         const candidate = candidateEntry.users;
+        if (await this.hasOpenSpeedDatingSession(candidate.id, tx)) {
+          continue;
+        }
+
         const isEligible = await this.passesHardFilter(requester, candidate, tx);
         if (!isEligible || !candidate.profiles) {
           continue;
@@ -167,30 +185,103 @@ export class MatchmakingService {
         };
       }
 
-      const picked = scoredPool[0];
+      for (const picked of scoredPool) {
+        await this.acquireTransactionLock(this.buildPairLockKey(userId, picked.userId), tx);
 
-      const expiresAt = new Date(Date.now() + SPEED_DATING_EXPIRY_HOURS * 60 * 60 * 1000);
-      const session = await tx.speed_dating_sessions.create({
-        data: {
-          user_a_id: userId,
-          user_b_id: picked.userId,
-          started_at: new Date(),
-          expires_at: expiresAt,
-          status: 'active',
-        },
-      });
+        const [requesterQueueRow, candidateQueueRow] = await Promise.all([
+          tx.matching_queue.findUnique({ where: { user_id: userId }, select: { user_id: true } }),
+          tx.matching_queue.findUnique({ where: { user_id: picked.userId }, select: { user_id: true } }),
+        ]);
 
-      await this.queueRepository.dequeuePair(userId, picked.userId, tx);
+        if (!requesterQueueRow || !candidateQueueRow) {
+          continue;
+        }
+
+        const existingPairSession = await this.findOpenSessionBetweenUsers(userId, picked.userId, tx);
+        if (existingPairSession) {
+          continue;
+        }
+
+        const expiresAt = new Date(Date.now() + SPEED_DATING_EXPIRY_HOURS * 60 * 60 * 1000);
+        const session = await tx.speed_dating_sessions.create({
+          data: {
+            user_a_id: userId,
+            user_b_id: picked.userId,
+            started_at: new Date(),
+            expires_at: expiresAt,
+            status: 'active',
+          },
+        });
+
+        await this.queueRepository.dequeuePair(userId, picked.userId, tx);
+
+        return {
+          state: 'matched',
+          queueJoinedAt: queueEntry.joined_at,
+          poolSize: scoredPool.length,
+          selectedCandidate: picked,
+          sessionId: session.id,
+          sessionExpiresAt: session.expires_at,
+        };
+      }
 
       return {
-        state: 'matched',
+        state: 'waiting',
         queueJoinedAt: queueEntry.joined_at,
         poolSize: scoredPool.length,
-        selectedCandidate: picked,
-        sessionId: session.id,
-        sessionExpiresAt: session.expires_at,
       };
     });
+  }
+
+  private buildPairLockKey(userAId: string, userBId: string): string {
+    const [first, second] = [userAId, userBId].sort();
+    return `${first}:${second}`;
+  }
+
+  private async acquireTransactionLock(lockKey: string, db: DbClient): Promise<void> {
+    await db.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+    );
+  }
+
+  private async findOpenSessionBetweenUsers(
+    userAId: string,
+    userBId: string,
+    db: DbClient,
+  ): Promise<{ id: string } | null> {
+    return db.speed_dating_sessions.findFirst({
+      where: {
+        status: { in: OPEN_SPEED_DATING_STATUSES },
+        expires_at: {
+          gt: new Date(),
+        },
+        OR: [
+          {
+            user_a_id: userAId,
+            user_b_id: userBId,
+          },
+          {
+            user_a_id: userBId,
+            user_b_id: userAId,
+          },
+        ],
+      },
+      select: { id: true },
+    });
+  }
+
+  private async hasOpenSpeedDatingSession(userId: string, db: DbClient): Promise<boolean> {
+    const openSessionCount = await db.speed_dating_sessions.count({
+      where: {
+        status: { in: OPEN_SPEED_DATING_STATUSES },
+        expires_at: {
+          gt: new Date(),
+        },
+        OR: [{ user_a_id: userId }, { user_b_id: userId }],
+      },
+    });
+
+    return openSessionCount > 0;
   }
 
   private async passesHardFilter(

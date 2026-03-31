@@ -126,26 +126,28 @@ final class SocketService {
         // TODO (V1.1): recreate SocketManager with a fresh token on reconnect failure.
 
         socket?.on("matching.queue.matched") { [weak self] data, _ in
-            guard let dict = data.first as? [String: Any] else { return }
-            // Accept both camelCase and snake_case session ID keys
-            let sessionId = dict["sessionId"] as? String ?? dict["session_id"] as? String
-            guard let sessionId else { return }
+            // All events use envelope: { v: 1, data: { ... } }
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let sessionId = payload["sessionId"] as? String else { return }
             Task { @MainActor [weak self] in
                 self?.lastMatchEvent = MatchFoundEvent(sessionId: sessionId)
             }
         }
 
         socket?.on("speed_dating.message.created") { [weak self] data, _ in
-            guard let dict = data.first as? [String: Any],
-                  let msg = IncomingSpeedDatingMessage(dict) else { return }
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let msg = IncomingSpeedDatingMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastSpeedDatingMessage = msg
             }
         }
 
         socket?.on("permanent.message.created") { [weak self] data, _ in
-            guard let dict = data.first as? [String: Any],
-                  let msg = IncomingPermanentMessage(dict) else { return }
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let msg = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
             }

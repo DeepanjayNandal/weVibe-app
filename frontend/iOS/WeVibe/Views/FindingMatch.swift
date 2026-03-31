@@ -128,6 +128,8 @@ struct FindingMatchView: View {
     var onMatchFound: (String) -> Void
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
+    @Environment(SocketService.self) private var socketService
+    @Environment(MatchmakingService.self) private var matchmakingService
 
     @State private var logoScale: CGFloat    = 0.7
     @State private var logoOpacity: Double   = 0
@@ -139,12 +141,7 @@ struct FindingMatchView: View {
     @State private var glowScale: CGFloat    = 1.0
     @State private var glowOpacity: Double   = 0.15
 
-
-    @State private var errorMessage: String?  = nil
-    @State private var isSearching: Bool      = true
-    @State private var matchTask: Task<Void, Never>? = nil
-
-    private let matchmakingService = MatchmakingService()
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         ZStack {
@@ -168,6 +165,7 @@ struct FindingMatchView: View {
                 HStack {
                     Spacer()
                     Button {
+                        matchmakingService.cancelSearch()
                         speedDatingRouter.popToRoot()
                     } label: {
                         Image(systemName: "xmark")
@@ -199,7 +197,7 @@ struct FindingMatchView: View {
                         Text("Finding A Match")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
-                        if isSearching { LoadingDots() }
+                        if matchmakingService.isSearching { LoadingDots() }
                     }
 
                     if let error = errorMessage {
@@ -212,7 +210,6 @@ struct FindingMatchView: View {
 
                             Button {
                                 errorMessage = nil
-                                isSearching  = true
                                 startMatchmaking()
                             } label: {
                                 Text("try again")
@@ -238,6 +235,11 @@ struct FindingMatchView: View {
                     .offset(y: gridOffset)
 
                 Spacer()
+
+                Text("Leaving this app will remove you from the queue")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .padding(.bottom, 24)
             }
         }
         .navigationBarHidden(true)
@@ -245,27 +247,21 @@ struct FindingMatchView: View {
             animateIn()
             startMatchmaking()
         }
+        .onDisappear {
+            // Guard: only cancel if still searching (navigating forward to a match should not cancel)
+            if matchmakingService.isSearching {
+                matchmakingService.cancelSearch()
+            }
+        }
     }
 
     // MARK: - Matchmaking
 
     private func startMatchmaking() {
-        matchTask?.cancel()
-        matchTask = Task {
-            do {
-                let matchId = try await matchmakingService.findMatch()
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    isSearching = false
-                    onMatchFound(matchId)
-                }
-            } catch {
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    isSearching  = false
-                    errorMessage = error.localizedDescription
-                }
-            }
+        matchmakingService.startSearch(socketService: socketService) { sessionId in
+            onMatchFound(sessionId)
+        } onError: { message in
+            errorMessage = message
         }
     }
 

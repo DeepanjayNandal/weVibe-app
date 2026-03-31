@@ -52,6 +52,7 @@
 		BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AC2F59B8B100178889 /* GoogleSignIn */; };
 		BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */; };
 		BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */; };
+		BB6D2DD52F7B6A8000CB615A /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = BB6D2DD42F7B6A8000CB615A /* SocketIO */; };
 		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
 		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
@@ -135,6 +136,7 @@
 				BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */,
 				BB45E4AD2F59B8B100178889 /* GoogleSignIn in Frameworks */,
 				BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */,
+				BB6D2DD52F7B6A8000CB615A /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -284,6 +286,7 @@
 				BB45E4AC2F59B8B100178889 /* GoogleSignIn */,
 				BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */,
 				BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */,
+				BB6D2DD42F7B6A8000CB615A /* SocketIO */,
 			);
 			productName = WeVibe;
 			productReference = C10001 /* WeVibe.app */;
@@ -316,6 +319,7 @@
 			packageReferences = (
 				BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				BB45E4AB2F59B8B100178889 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				BB6D2DD32F7B6A8000CB615A /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			productRefGroup = E10006 /* Products */;
 			projectDirPath = "";
@@ -625,6 +629,14 @@
 				minimumVersion = 9.1.0;
 			};
 		};
+		BB6D2DD32F7B6A8000CB615A /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 16.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -652,6 +664,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BB45E49F2F59AE1100178889 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		BB6D2DD42F7B6A8000CB615A /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB6D2DD32F7B6A8000CB615A /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

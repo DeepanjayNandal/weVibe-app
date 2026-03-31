@@ -27,12 +27,6 @@ function asyncHandler(
 export const speedDatingRouter = Router();
 
 speedDatingRouter.get(
-  '/sessions',
-  authenticate(authVerifier),
-  asyncHandler(speedDatingController.listSessions),
-);
-
-speedDatingRouter.get(
   '/sessions/:sessionId',
   authenticate(authVerifier),
   asyncHandler(speedDatingController.getSessionDetail),

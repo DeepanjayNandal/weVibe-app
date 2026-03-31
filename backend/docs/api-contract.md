@@ -1339,58 +1339,51 @@ Content-Type: application/json
 
 ---
 
-### 29. Chat WebSocket (Realtime Message Events)
+### 29. Chat Socket.IO (Realtime Events)
 
-Provides realtime push for new chat messages. This is a backend push channel and does not replace existing REST APIs.
+Provides realtime push for matching, speed dating, permanent chat, and badge updates.
+Client uses REST for write operations; socket is mainly server-to-client notifications.
 
 ```
-WS /ws/chat
+Socket.IO /socket.io
 ```
 
 **Authentication**
 
-Use either one:
+Use socket.io handshake auth payload and send Firebase ID token via auth.token:
 
-1) Header (recommended)
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-2) Query param
-```
-/ws/chat?token=<firebase-id-token>
-```
-
-If authentication fails, the server sends an error event and closes the socket.
-
-**Server Events**
-
-`connected`
 ```json
 {
-  "type": "connected",
-  "data": {
-    "userId": "uuid"
+  "auth": {
+    "token": "<firebase-id-token>"
   }
 }
 ```
 
-`permanent.message.created`
+If authentication fails, server rejects the connection during handshake with one of:
+- AUTH_MISSING
+- AUTH_INVALID
+- AUTH_USER_NOT_FOUND
+- AUTH_BANNED
+
+**Payload Envelope (required for all server events)**
+
 ```json
 {
-  "type": "permanent.message.created",
+  "v": 1,
+  "data": {}
+}
+```
+
+**Server Events**
+
+`matching.queue.matched`
+```json
+{
+  "v": 1,
   "data": {
-    "message": {
-      "id": "123",
-      "matchId": "uuid",
-      "senderId": "uuid",
-      "content": "hello",
-      "createdAt": "2026-03-26T10:00:00.000Z",
-      "readAt": null
-    },
-    "match": {
-      "matchId": "uuid"
-    }
+    "sessionId": "uuid",
+    "sessionExpiresAt": "2026-03-27T10:00:00.000Z"
   }
 }
 ```
@@ -1398,18 +1391,87 @@ If authentication fails, the server sends an error event and closes the socket.
 `speed_dating.message.created`
 ```json
 {
-  "type": "speed_dating.message.created",
+  "v": 1,
   "data": {
+    "sessionId": "uuid",
+    "message": {
+      "id": "123",
+      "content": "hello",
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
+    }
+  }
+}
+```
+
+`speed_dating.session.ended`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.read_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "lastReadMessageId": "123",
+    "readByUserId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.move_to_permanent_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "matchId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.final_decision_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "decision": "yes"
+  }
+}
+```
+
+`speed_dating.typing.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "isTyping": true
+  }
+}
+```
+
+`permanent.message.created`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
     "message": {
       "id": "456",
-      "sessionId": "uuid",
-      "senderId": "uuid",
       "content": "hi",
-      "createdAt": "2026-03-26T10:00:00.000Z",
-      "readAt": null
-    },
-    "session": {
-      "sessionId": "uuid"
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
     }
   }
 }
@@ -1418,12 +1480,11 @@ If authentication fails, the server sends an error event and closes the socket.
 `permanent.match.read_updated`
 ```json
 {
-  "type": "permanent.match.read_updated",
+  "v": 1,
   "data": {
-    "match": {
-      "matchId": "uuid",
-      "unreadCount": 0
-    }
+    "matchId": "uuid",
+    "lastReadMessageId": "789",
+    "readByUserId": "uuid"
   }
 }
 ```
@@ -1431,13 +1492,9 @@ If authentication fails, the server sends an error event and closes the socket.
 `permanent.match.removed`
 ```json
 {
-  "type": "permanent.match.removed",
+  "v": 1,
   "data": {
-    "counterpartUserId": "uuid",
-    "match": {
-      "matchId": "uuid",
-      "status": "unmatched"
-    }
+    "matchId": "uuid"
   }
 }
 ```
@@ -1445,14 +1502,10 @@ If authentication fails, the server sends an error event and closes the socket.
 `permanent.match.blocked`
 ```json
 {
-  "type": "permanent.match.blocked",
+  "v": 1,
   "data": {
-    "blockId": "uuid",
-    "counterpartUserId": "uuid",
-    "match": {
-      "matchId": "uuid",
-      "status": "unmatched"
-    }
+    "matchId": "uuid",
+    "blockedByUserId": "uuid"
   }
 }
 ```
@@ -1460,85 +1513,21 @@ If authentication fails, the server sends an error event and closes the socket.
 `permanent.match.reported`
 ```json
 {
-  "type": "permanent.match.reported",
+  "v": 1,
   "data": {
-    "reportId": "uuid",
-    "counterpartUserId": "uuid",
-    "match": {
-      "matchId": "uuid",
-      "status": "reported"
-    }
+    "matchId": "uuid"
   }
 }
 ```
 
-`speed_dating.session.read_updated`
+`permanent.typing.updated`
 ```json
 {
-  "type": "speed_dating.session.read_updated",
+  "v": 1,
   "data": {
-    "session": {
-      "sessionId": "uuid",
-      "unreadCount": 0
-    }
-  }
-}
-```
-
-`speed_dating.session.move_to_permanent_updated`
-```json
-{
-  "type": "speed_dating.session.move_to_permanent_updated",
-  "data": {
-    "session": {
-      "sessionId": "uuid",
-      "moveToPermanent": {
-        "requestStatus": "sent"
-      }
-    },
-    "match": null
-  }
-}
-```
-
-`speed_dating.session.final_decision_updated`
-```json
-{
-  "type": "speed_dating.session.final_decision_updated",
-  "data": {
-    "session": {
-      "sessionId": "uuid",
-      "status": "awaiting_decision"
-    },
-    "match": null
-  }
-}
-```
-
-`speed_dating.session.ended`
-```json
-{
-  "type": "speed_dating.session.ended",
-  "data": {
-    "session": {
-      "sessionId": "uuid",
-      "status": "ended_early"
-    },
-    "match": null
-  }
-}
-```
-
-`matching.queue.matched`
-```json
-{
-  "type": "matching.queue.matched",
-  "data": {
-    "state": "matched",
-    "sessionId": "uuid",
-    "sessionExpiresAt": "2026-03-27T10:00:00.000Z",
-    "participantUserIds": ["uuid-a", "uuid-b"],
-    "queueJoinedAt": "2026-03-26T10:00:00.000Z"
+    "matchId": "uuid",
+    "userId": "uuid",
+    "isTyping": false
   }
 }
 ```
@@ -1546,7 +1535,7 @@ If authentication fails, the server sends an error event and closes the socket.
 `chat.badge.updated`
 ```json
 {
-  "type": "chat.badge.updated",
+  "v": 1,
   "data": {
     "speedDatingUnread": 2,
     "matchesUnread": 5,
@@ -1555,68 +1544,33 @@ If authentication fails, the server sends an error event and closes the socket.
 }
 ```
 
-`permanent.typing.updated`
-```json
-{
-  "type": "permanent.typing.updated",
-  "data": {
-    "chatType": "permanent",
-    "chatId": "uuid",
-    "senderUserId": "uuid",
-    "isTyping": true,
-    "sentAt": "2026-03-26T10:00:00.000Z"
-  }
-}
-```
-
-`speed_dating.typing.updated`
-```json
-{
-  "type": "speed_dating.typing.updated",
-  "data": {
-    "chatType": "speed_dating",
-    "chatId": "uuid",
-    "senderUserId": "uuid",
-    "isTyping": false,
-    "sentAt": "2026-03-26T10:00:00.000Z"
-  }
-}
-```
-
 `error`
 ```json
 {
-  "type": "error",
+  "v": 1,
   "data": {
     "code": "WS_UNAUTHORIZED",
-    "message": "Unauthorized websocket connection"
+    "message": "Unauthorized socket connection"
   }
 }
 ```
 
 **Client Messages**
 
-`ping` (optional keepalive)
-```json
-{ "type": "ping" }
-```
+`ping` (keepalive)
+- client emits ping
+- server replies pong (no payload)
 
 `typing` (client typing signal)
 ```json
 {
-  "type": "typing",
-  "data": {
-    "chatType": "permanent",
-    "chatId": "uuid",
-    "isTyping": true
-  }
+  "chatType": "permanent",
+  "chatId": "uuid",
+  "isTyping": true
 }
 ```
 
-Server responds with:
-```json
-{ "type": "pong" }
-```
+Invalid typing payloads are silently ignored.
 
 ---
 

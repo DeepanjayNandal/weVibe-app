@@ -82,6 +82,7 @@ final class AuthManager {
         do {
             try await Auth.auth().signIn(withEmail: email, password: password)
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
+            print("token", token)
             try await apiClient.loginUser(idToken: token, provider: "email")
             await resolvePostAuthState()
         } catch APIError.banned {

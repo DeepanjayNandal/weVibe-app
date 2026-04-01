@@ -14,7 +14,7 @@ declare module 'socket.io' {
 
 export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void) {
   try {
-    const token = socket.handshake.auth?.token;
+    const token = socket.handshake.query?.token;
 
     if (!token) {
       return next(new Error('AUTH_MISSING'));

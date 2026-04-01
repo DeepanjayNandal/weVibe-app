@@ -7,6 +7,19 @@ struct UserPhoto: Identifiable, Decodable {
     let url: String
 }
 
+struct PersonalityResponse: Decodable {
+    let personalityType: String
+    let personalityPrimary: String
+    let personalitySecondary: String?
+ 
+    enum CodingKeys: String, CodingKey {
+        case personalityType        = "personality_type"
+        case personalityPrimary     = "personality_primary"
+        case personalitySecondary   = "personality_secondary"
+    }
+}
+ 
+
 private struct ErrorResponse: Decodable {
     struct ErrorBody: Decodable { let code: String }
     let error: ErrorBody
@@ -227,6 +240,35 @@ struct APIClient {
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+    
+    // MARK: - Personality Test
+    
+    /// POST /users/profile/personality - update the personality test data of user
+    func updatePersonalityData(token: String, answers: [Int]) async throws -> PersonalityResponse {
+     
+        guard answers.count == 6, answers.allSatisfy({ (0...3).contains($0) }) else {
+            throw APIError.serverError(400)
+        }
+     
+        var req = request(path: "/users/profile/personality", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+     
+        let bodyObject: [String: Any] = ["answers": answers]
+        req.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
+     
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+     
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+     
+        do {
+            let resp = try JSONDecoder().decode(PersonalityResponse.self, from: data)
+            return resp
+        } catch {
+            throw APIError.decoding(error)
+        }
     }
 
     // MARK: - Matchmaking
@@ -479,7 +521,10 @@ struct UserProfileResponse: Decodable {
     let zodiacSign: String?
     let communicationStyle: String?
     let conflictStyle: String?
+    let isPersonalityTestComplete: Bool?
     let personalityType: String?
+    let personalityPrimary: String?
+    let personalitySecondary: String?
     let interests: [String]?
     let preferredDateActivities: [String]?
     let wouldNotDoActivities: [String]?
@@ -494,6 +539,7 @@ struct UserProfileResponse: Decodable {
     let locationState: String?
     let prompts: [PromptEntry]?
     let photos: [UserPhoto]?
+    
 
     enum CodingKeys: String, CodingKey {
         case firstName = "first_name"
@@ -533,6 +579,9 @@ struct UserProfileResponse: Decodable {
         case communicationStyle = "communication_style"
         case conflictStyle = "conflict_style"
         case personalityType = "personality_type"
+        case personalityPrimary = "personality_primary"
+        case personalitySecondary = "personality_secondary"
+        case isPersonalityTestComplete = "is_personality_test_complete"
         case interests
         case preferredDateActivities = "preferred_date_activities"
         case wouldNotDoActivities = "would_not_do_activities"
@@ -605,6 +654,7 @@ struct ProfileUpdatePayload: Encodable {
     var minAgePreference: Int?
     var maxAgePreference: Int?
     var distancePreferenceMiles: Int?
+    var isPersonalityTestComplete: Bool?
     var prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -652,6 +702,7 @@ struct ProfileUpdatePayload: Encodable {
         case minAgePreference = "min_age_preference"
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
+        case isPersonalityTestComplete = "is_personality_test_complete"
         case prompts
     }
 
@@ -699,6 +750,7 @@ struct ProfileUpdatePayload: Encodable {
         isSleepFlexible    = store.isSleepFlexible
         isCannabisFlexible = store.isCannabisFlexible
         isKidsFlexible     = store.isKidsFlexible
+        isPersonalityTestComplete = store.isPersonalityTestComplete
         loveLanguage = store.loveLanguage.isEmpty ? nil : store.loveLanguage
         zodiacSign   = store.zodiacSign.isEmpty   ? nil : store.zodiacSign
         // Empty string = neutral slider position — only send if non-empty

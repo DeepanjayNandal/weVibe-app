@@ -12,6 +12,7 @@ struct PersonalityTestView: View {
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
     @Environment(PersonalityTestData.self) private var testData
+    @Environment(UserProfileStore.self) private var profileStore
 
     private var current: PersonalityQuestion {
         StaticConfig.personalityQuestions[currentIndex]
@@ -37,11 +38,11 @@ struct PersonalityTestView: View {
                     Button("Back", systemImage: "arrow.left") {
                         if currentIndex > 0 {
                             transition {
-                                currentIndex -= 1
-                            }
+                               currentIndex -= 1
+                          }
                         } else {
-                            speedDatingRouter.navigate(to: .rules)
-                        }
+                         speedDatingRouter.navigate(to: .rules)
+                     }
                     }
                     .labelStyle(.iconOnly)
                     .font(.system(size: 17, weight: .semibold))
@@ -121,13 +122,11 @@ struct PersonalityTestView: View {
 
         if isLastQuestion {
             let results = selectedAnswers.compactMap { $0 }
-            if results.count == StaticConfig.personalityQuestions.count {
-                testData.answers = selectedAnswers
-                testData.commitResult(testData.result)
+            Task {
+                await profileStore.postPersonalityTest(answers: results)
                 speedDatingRouter.navigate(to: .joinQueue)
             }
-            print("Is last question results", results)
-            onComplete?(results)
+
         } else {
             transition {
                 currentIndex += 1

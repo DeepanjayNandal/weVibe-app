@@ -89,7 +89,7 @@ final class SocketService {
             .reconnects(true),
             .reconnectWait(2),
             .reconnectWaitMax(30),
-            .auth(["token": token]),
+            .connectParams(["token": token]),
         ])
         socket = manager?.defaultSocket
         registerHandlers()

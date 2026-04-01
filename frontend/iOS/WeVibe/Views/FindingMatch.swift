@@ -253,6 +253,14 @@ struct FindingMatchView: View {
                 matchmakingService.cancelSearch()
             }
         }
+        .onChange(of: matchmakingService.isSearching) { _, isSearching in
+            // When search is cancelled externally (e.g. app backgrounded), pop back to main screen.
+            // Match path sets isSearching=false then immediately calls onMatchFound which pops the
+            // stack — so by the time this fires for a match, popToRoot() is a safe no-op.
+            if !isSearching && errorMessage == nil {
+                speedDatingRouter.popToRoot()
+            }
+        }
     }
 
     // MARK: - Matchmaking

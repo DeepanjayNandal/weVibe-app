@@ -36,7 +36,7 @@ final class MatchmakingService {
 
         searchTask = Task {
             // Request notification permission on first queue join (needed for EC2 background alert)
-            await UNUserNotificationCenter.current()
+            _ = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound])
 
             guard let token = try? await Auth.auth().currentUser?.getIDToken() else {

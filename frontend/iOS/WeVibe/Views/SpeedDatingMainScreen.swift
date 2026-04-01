@@ -107,7 +107,7 @@ struct SpeedDatingPlaceholder: View {
                         background: AppTheme.primaryButton,
                         foreground: .white,
                         height: 52,
-                        isLoading: store.loadState.isLoaded
+                        isLoading: store.loadState.isLoading
                     ) {
                         if(store.isPersonalityTestComplete) {
                             speedDatingRouter.navigate(to: .joinQueue)

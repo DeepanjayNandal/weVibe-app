@@ -140,6 +140,7 @@ export interface UpdateProfileData {
   showSex?: boolean;
   showOrientation?: boolean;
   showIdentity?: boolean;
+  showPersonalityTrait?: boolean;
 
   // Background
   ethnicity?: string[] | null;
@@ -301,6 +302,7 @@ export class ProfileRepository {
     if (data.showSex          !== undefined) p.show_sex            = data.showSex;
     if (data.showOrientation  !== undefined) p.show_orientation    = data.showOrientation;
     if (data.showIdentity     !== undefined) p.show_identity       = data.showIdentity;
+    if (data.showPersonalityTrait !== undefined) p.show_personality_trait = data.showPersonalityTrait;
 
     // Background
     if (data.ethnicity        !== undefined) p.ethnicity           = data.ethnicity;

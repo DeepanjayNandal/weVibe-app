@@ -65,6 +65,7 @@ model profiles {
   show_sex              Boolean?                  @default(true)
   show_orientation      Boolean?                  @default(true)
   show_identity         Boolean?                  @default(true)
+  show_personality_trait Boolean?                 @default(true)
   // ethnicity stored as JSON array — users can select multiple (e.g. ["White", "Asian"])
   ethnicity             Json?
   // birth_country: single-select country of origin — set via profile edit

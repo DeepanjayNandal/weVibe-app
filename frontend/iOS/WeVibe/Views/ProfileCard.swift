@@ -310,15 +310,19 @@ struct ProfileCardView: View {
                 }
             }
 
-            let personalityHasContent = !data.personalityType.isEmpty || !data.loveLanguage.isEmpty
-                || !data.zodiacSign.isEmpty || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
+            let personalityHasContent = !data.personalityPrimary.isEmpty || !data.personalityType.isEmpty
+                || !data.loveLanguage.isEmpty || !data.zodiacSign.isEmpty
+                || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
             section(id: .personality, title: "Personality", isVisible: data.showPersonalityTrait, hasContent: personalityHasContent) {
-                if data.personalityType.isEmpty && data.loveLanguage.isEmpty && data.zodiacSign.isEmpty
-                    && data.communicationStyle.isEmpty && data.conflictStyle.isEmpty && isOwnProfile {
+                if !personalityHasContent && isOwnProfile {
                     emptyHint("Add your personality details")
                 } else {
                     rowGrid {
-                        if !data.personalityType.isEmpty { infoRow("brain.head.profile", "Type", data.personalityType) }
+                        let typeDisplay = personalityTypeDisplay(
+                            primary: data.personalityPrimary,
+                            secondary: data.personalitySecondary,
+                            fallback: data.personalityType
+                        )
                         if !data.loveLanguage.isEmpty    { infoRow("heart.fill", "Love Language", data.loveLanguage) }
                         if !data.zodiacSign.isEmpty      { infoRow("moon.stars.fill", "Zodiac", data.zodiacSign) }
                         if !data.communicationStyle.isEmpty {
@@ -327,6 +331,7 @@ struct ProfileCardView: View {
                         if !data.conflictStyle.isEmpty {
                             infoRow("bolt.fill", "Conflict Style", data.conflictStyle)
                         }
+                        if !typeDisplay.isEmpty { infoRow("brain.head.profile", "Type", typeDisplay) }
                     }
                 }
             }
@@ -551,11 +556,12 @@ struct ProfileCardView: View {
 
     @ViewBuilder
     private func infoRow(_ icon: String, _ label: String, _ value: String) -> some View {
-        GridRow {
+        GridRow(alignment: .top) {
             Image(systemName: icon)
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.primaryButton)
                 .gridColumnAlignment(.center)
+                .padding(.top, 2)
             Text(label)
                 .font(.system(size: 15))
                 .foregroundStyle(t.secondary)
@@ -630,6 +636,16 @@ struct ProfileCardView: View {
                 }
             }
         }
+    }
+
+    private func personalityTypeDisplay(primary: String, secondary: String, fallback: String) -> String {
+        guard !primary.isEmpty, let primaryName = StaticConfig.personalityMeta[primary]?.type else {
+            return fallback
+        }
+        if !secondary.isEmpty, let secondaryName = StaticConfig.personalityMeta[secondary]?.type {
+            return "\(primaryName) & \(secondaryName)"
+        }
+        return primaryName
     }
 
     @ViewBuilder

@@ -53,6 +53,8 @@
 		BB45E4AF2F59B8B100178889 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4AE2F59B8B100178889 /* GoogleSignInSwift */; };
 		BB45E4C92F59D5A000178889 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB45E4C82F59D5A000178889 /* FirebaseCrashlytics */; };
 		BB6D2DD52F7B6A8000CB615A /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = BB6D2DD42F7B6A8000CB615A /* SocketIO */; };
+		BB6D2DD72F7CDB8900CB615A /* PersonalityDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6D2DD62F7CDB8900CB615A /* PersonalityDisplay.swift */; };
+		BB6D2DD92F7CDBA400CB615A /* ContentStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6D2DD82F7CDBA400CB615A /* ContentStateView.swift */; };
 		BBB2B97C2F5023A0002190F2 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97B2F50239A002190F2 /* HomeScreen.swift */; };
 		BBB2B97E2F503025002190F2 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B97D2F503025002190F2 /* PrimaryButton.swift */; };
 		BBB2B9972F5134E5002190F2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB2B9952F5134E5002190F2 /* AppState.swift */; };
@@ -106,6 +108,8 @@
 		B10007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10008 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		BB45E4792F5590F600178889 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
+		BB6D2DD62F7CDB8900CB615A /* PersonalityDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityDisplay.swift; sourceTree = "<group>"; };
+		BB6D2DD82F7CDBA400CB615A /* ContentStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentStateView.swift; sourceTree = "<group>"; };
 		BBB2B97B2F50239A002190F2 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		BBB2B97D2F503025002190F2 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
 		BBB2B9932F51330E002190F2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -222,6 +226,8 @@
 		E10005 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				BB6D2DD82F7CDBA400CB615A /* ContentStateView.swift */,
+				BB6D2DD62F7CDB8900CB615A /* PersonalityDisplay.swift */,
 				BBCCB0922F73FB86000F4B34 /* ErrorStateView.swift */,
 				BBCCB0902F73F9E7000F4B34 /* BackButton.swift */,
 				BBCCB08C2F73D685000F4B34 /* ImageCropView.swift */,
@@ -399,6 +405,7 @@
 				A351B5532F5A8CFB007C6412 /* StaticConfig.swift in Sources */,
 				A38BAAC82F46FC1700E908DB /* ConfirmScreen.swift in Sources */,
 				BBCCB0932F73FB86000F4B34 /* ErrorStateView.swift in Sources */,
+				BB6D2DD72F7CDB8900CB615A /* PersonalityDisplay.swift in Sources */,
 				A3AEC1992F6CC9A300F7E31D /* ActiveChattingScreen.swift in Sources */,
 				A10001 /* WeVibeApp.swift in Sources */,
 				A38BAAE42F47CE1800E908DB /* EthnicityChip.swift in Sources */,
@@ -408,6 +415,7 @@
 				A38BAAEC2F47CEDE00E908DB /* DatePartField.swift in Sources */,
 				A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */,
 				A38BAB692F48215C00E908DB /* PromptField.swift in Sources */,
+				BB6D2DD92F7CDBA400CB615A /* ContentStateView.swift in Sources */,
 				A3AEC1EB2F6E16DF00F7E31D /* ChatListScreen.swift in Sources */,
 				BBB2B99A2F513510002190F2 /* ErrorToast.swift in Sources */,
 				A38BAB2F2F47E71100E908DB /* SurveyStep4.swift in Sources */,

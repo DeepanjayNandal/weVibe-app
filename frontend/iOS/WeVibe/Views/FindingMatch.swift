@@ -187,7 +187,10 @@ struct FindingMatchView: View {
 
                 Spacer()
 
-                LogoView(size: 72)
+                Image("LogoApp")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
                     .scaleEffect(logoScale)
                     .opacity(logoOpacity)
                     .padding(.bottom, 24)

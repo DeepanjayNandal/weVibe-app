@@ -522,6 +522,7 @@ struct UserProfileResponse: Decodable {
     let communicationStyle: String?
     let conflictStyle: String?
     let isPersonalityTestComplete: Bool?
+    let showPersonalityTrait: Bool?
     let personalityType: String?
     let personalityPrimary: String?
     let personalitySecondary: String?
@@ -582,6 +583,7 @@ struct UserProfileResponse: Decodable {
         case personalityPrimary = "personality_primary"
         case personalitySecondary = "personality_secondary"
         case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case interests
         case preferredDateActivities = "preferred_date_activities"
         case wouldNotDoActivities = "would_not_do_activities"
@@ -655,6 +657,7 @@ struct ProfileUpdatePayload: Encodable {
     var maxAgePreference: Int?
     var distancePreferenceMiles: Int?
     var isPersonalityTestComplete: Bool?
+    var showPersonalityTrait: Bool?
     var prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -703,6 +706,7 @@ struct ProfileUpdatePayload: Encodable {
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
         case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case prompts
     }
 

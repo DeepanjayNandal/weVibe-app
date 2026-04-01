@@ -295,10 +295,11 @@ final class UserProfileStore {
         if let v = r.zodiacSign            { zodiacSign            = v }
         if let v = r.communicationStyle    { communicationStyle    = v }
         if let v = r.conflictStyle         { conflictStyle         = v }
-        if let v = r.isPersonalityTestComplete {isPersonalityTestComplete = v}
-        if let v = r.personalityType       { personalityType       = v }
-        if let v = r.personalityPrimary    {personalityPrimary     = v }
-        if let v = r.personalitySecondary  {personalitySecondary   = v }
+        if let v = r.isPersonalityTestComplete { isPersonalityTestComplete = v }
+        if let v = r.showPersonalityTrait   { showPersonalityTrait  = v }
+        if let v = r.personalityType        { personalityType       = v }
+        if let v = r.personalityPrimary     { personalityPrimary    = v }
+        if let v = r.personalitySecondary   { personalitySecondary  = v }
         
         if let v = r.interests             { interests             = v }
         if let v = r.preferredDateActivities { preferredDateActivities = v }

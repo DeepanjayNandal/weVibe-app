@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+function parseCsvEnv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 function buildDatabaseUrl(): string {
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL;
@@ -31,4 +39,7 @@ export const env = {
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? '',
   // Firebase Storage bucket — required when AUTH_PROVIDER_MODE=firebase
   firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? '',
+  // Optional comma-separated CORS allowlist for socket.io browser clients.
+  // Leave empty for native apps (iOS) where CORS does not apply.
+  wsCorsOrigins: parseCsvEnv(process.env.WS_CORS_ORIGINS),
 };

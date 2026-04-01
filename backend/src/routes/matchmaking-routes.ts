@@ -41,3 +41,9 @@ matchmakingRouter.get(
   authenticate(authVerifier),
   asyncHandler(matchmakingController.getQueueStatus),
 );
+
+matchmakingRouter.get(
+  '/sessions',
+  authenticate(authVerifier),
+  asyncHandler(matchmakingController.listSessions),
+);

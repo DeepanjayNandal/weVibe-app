@@ -1339,6 +1339,241 @@ Content-Type: application/json
 
 ---
 
+### 29. Chat Socket.IO (Realtime Events)
+
+Provides realtime push for matching, speed dating, permanent chat, and badge updates.
+Client uses REST for write operations; socket is mainly server-to-client notifications.
+
+```
+Socket.IO /socket.io
+```
+
+**Authentication**
+
+Use socket.io handshake auth payload and send Firebase ID token via auth.token:
+
+```json
+{
+  "auth": {
+    "token": "<firebase-id-token>"
+  }
+}
+```
+
+If authentication fails, server rejects the connection during handshake with one of:
+- AUTH_MISSING
+- AUTH_INVALID
+- AUTH_USER_NOT_FOUND
+- AUTH_BANNED
+
+**Payload Envelope (required for all server events)**
+
+```json
+{
+  "v": 1,
+  "data": {}
+}
+```
+
+**Server Events**
+
+`matching.queue.matched`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "sessionExpiresAt": "2026-03-27T10:00:00.000Z"
+  }
+}
+```
+
+`speed_dating.message.created`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "message": {
+      "id": "123",
+      "content": "hello",
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
+    }
+  }
+}
+```
+
+`speed_dating.session.ended`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.read_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "lastReadMessageId": "123",
+    "readByUserId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.move_to_permanent_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "matchId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.final_decision_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "decision": "yes"
+  }
+}
+```
+
+`speed_dating.typing.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "isTyping": true
+  }
+}
+```
+
+`permanent.message.created`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "message": {
+      "id": "456",
+      "content": "hi",
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
+    }
+  }
+}
+```
+
+`permanent.match.read_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "lastReadMessageId": "789",
+    "readByUserId": "uuid"
+  }
+}
+```
+
+`permanent.match.removed`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid"
+  }
+}
+```
+
+`permanent.match.blocked`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "blockedByUserId": "uuid"
+  }
+}
+```
+
+`permanent.match.reported`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid"
+  }
+}
+```
+
+`permanent.typing.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "userId": "uuid",
+    "isTyping": false
+  }
+}
+```
+
+`chat.badge.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "speedDatingUnread": 2,
+    "matchesUnread": 5,
+    "totalUnread": 7
+  }
+}
+```
+
+`error`
+```json
+{
+  "v": 1,
+  "data": {
+    "code": "WS_UNAUTHORIZED",
+    "message": "Unauthorized socket connection"
+  }
+}
+```
+
+**Client Messages**
+
+`ping` (keepalive)
+- client emits ping
+- server replies pong (no payload)
+
+`typing` (client typing signal)
+```json
+{
+  "chatType": "permanent",
+  "chatId": "uuid",
+  "isTyping": true
+}
+```
+
+Invalid typing payloads are silently ignored.
+
+---
+
 ## Error Response Shape
 
 All errors follow this structure:

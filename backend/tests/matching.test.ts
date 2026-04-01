@@ -375,4 +375,59 @@ describe('Matching Queue API', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.state).toBe('waiting');
   });
+
+  test('recent permanent match prevents rematch in queue', async () => {
+    const tokenA = 'mock:google:mq-a-008:mq-a-008@matching.test';
+    const tokenB = 'mock:google:mq-b-008:mq-b-008@matching.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const uidA = tokenA.split(':')[2];
+    const uidB = tokenB.split(':')[2];
+    const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
+    const userB = await prisma.users.findUnique({ where: { firebase_uid: uidB } });
+    if (!userA || !userB) {
+      throw new Error('Users not found for rematch test');
+    }
+
+    // Create a recent match
+    await prisma.matches.create({
+      data: {
+        user_a_id: userA.id,
+        user_b_id: userB.id,
+        status: 'active',
+        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // a day ago
+      },
+    });
+
+    await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    const response = await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.state).toBe('waiting');
+
+    const queueCount = await prisma.matching_queue.count();
+    expect(queueCount).toBe(2);
+  });
 });

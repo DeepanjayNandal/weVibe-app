@@ -1,0 +1,1 @@
+process.env.AUTH_PROVIDER_MODE = 'mock';

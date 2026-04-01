@@ -309,6 +309,29 @@ export class MatchmakingService {
 
     if (blockedPair) return false;
 
+    // Check if users have been matched within the last 2 days
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const recentMatch = await db.matches.findFirst({
+      where: {
+        OR: [
+          {
+            user_a_id: requester.id,
+            user_b_id: candidate.id,
+          },
+          {
+            user_a_id: candidate.id,
+            user_b_id: requester.id,
+          },
+        ],
+        created_at: {
+          gt: twoDaysAgo,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (recentMatch) return false;
+
     const requesterAge = calculateAge(requester.profiles.birth_date);
     const candidateAge = calculateAge(candidate.profiles.birth_date);
 

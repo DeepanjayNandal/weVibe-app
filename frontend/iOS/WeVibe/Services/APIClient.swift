@@ -271,6 +271,43 @@ struct APIClient {
         }
     }
 
+    // MARK: - Matchmaking
+
+    struct JoinQueueResult {
+        let state: String        // "waiting" or "matched"
+        let sessionId: String?
+    }
+
+    /// POST /matching/queue/join — joins the speed dating queue.
+    /// Returns immediately with state "matched" (sessionId present) or "waiting" (no match yet).
+    func joinQueue(token: String) async throws -> JoinQueueResult {
+        let req = request(path: "/matching/queue/join", method: "POST", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                let state: String
+                let sessionId: String?
+            }
+            let data: DataBody
+        }
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return JoinQueueResult(state: resp.data.state, sessionId: resp.data.sessionId)
+    }
+
+    /// POST /matching/queue/leave — removes the user from the queue.
+    /// Safe to call when not in queue (404 treated as success).
+    func leaveQueue(token: String) async throws {
+        let req = request(path: "/matching/queue/leave", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 { return }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     // MARK: - Helpers
 
     private func request(path: String, method: String, token: String) -> URLRequest {
@@ -485,6 +522,7 @@ struct UserProfileResponse: Decodable {
     let communicationStyle: String?
     let conflictStyle: String?
     let isPersonalityTestComplete: Bool?
+    let showPersonalityTrait: Bool?
     let personalityType: String?
     let personalityPrimary: String?
     let personalitySecondary: String?
@@ -545,6 +583,7 @@ struct UserProfileResponse: Decodable {
         case personalityPrimary = "personality_primary"
         case personalitySecondary = "personality_secondary"
         case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case interests
         case preferredDateActivities = "preferred_date_activities"
         case wouldNotDoActivities = "would_not_do_activities"
@@ -618,6 +657,7 @@ struct ProfileUpdatePayload: Encodable {
     var maxAgePreference: Int?
     var distancePreferenceMiles: Int?
     var isPersonalityTestComplete: Bool?
+    var showPersonalityTrait: Bool?
     var prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -666,6 +706,7 @@ struct ProfileUpdatePayload: Encodable {
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
         case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case prompts
     }
 

@@ -18,6 +18,9 @@ packages:
   GoogleSignIn-iOS:
     url: https://github.com/google/GoogleSignIn-iOS
     from: "9.1.0"
+  socket.io-client-swift:
+    url: https://github.com/socketio/socket.io-client-swift
+    from: "16.1.0"
 
 targets:
   WeVibe:
@@ -44,10 +47,13 @@ targets:
         product: GoogleSignIn
       - package: GoogleSignIn-iOS
         product: GoogleSignInSwift
+      - package: socket.io-client-swift
+        product: SocketIO
 
     # Runs after Compile Sources, before Resources — mirrors original build phase order
     postCompileScripts:
       - name: Firebase Plist Copy
+        basedOnDependencyAnalysis: false
         script: |
           PLIST_FILENAME="GoogleService-Info.plist"
           FIREBASE_DIR="${SRCROOT}/WeVibe/Firebase"
@@ -67,6 +73,7 @@ targets:
     # Runs after all build phases — Crashlytics dSYM upload
     postBuildScripts:
       - name: Crashlytics dSYM Upload
+        basedOnDependencyAnalysis: false
         script: |
           "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
         inputFiles:

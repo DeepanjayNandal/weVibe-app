@@ -313,7 +313,7 @@ struct ProfileCardView: View {
             let personalityHasContent = !data.personalityPrimary.isEmpty || !data.personalityType.isEmpty
                 || !data.loveLanguage.isEmpty || !data.zodiacSign.isEmpty
                 || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
-            section(id: .personality, title: "Personality", isVisible: data.showPersonalityTrait, hasContent: personalityHasContent) {
+            section(id: .personality, title: "Personality", isVisible: true, hasContent: personalityHasContent) {
                 if !personalityHasContent && isOwnProfile {
                     emptyHint("Add your personality details")
                 } else {
@@ -331,7 +331,7 @@ struct ProfileCardView: View {
                         if !data.conflictStyle.isEmpty {
                             infoRow("bolt.fill", "Conflict Style", data.conflictStyle)
                         }
-                        if !typeDisplay.isEmpty { infoRow("brain.head.profile", "Type", typeDisplay) }
+                        if !typeDisplay.isEmpty && data.showPersonalityTrait { infoRow("brain.head.profile", "Type", typeDisplay) }
                     }
                 }
             }

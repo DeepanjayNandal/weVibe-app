@@ -96,6 +96,7 @@ targets:
         DEVELOPMENT_ASSET_PATHS: '"WeVibe/Preview Content"'
         DEVELOPMENT_TEAM: 55X7CQGG3N
         ENABLE_PREVIEWS: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: WeVibe/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: "WeVibe Dev"

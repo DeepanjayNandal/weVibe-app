@@ -47,6 +47,8 @@ final class AuthManager {
     /// Nonce used for Apple Sign-In — must be stored for Firebase credential creation.
     private var currentNonce: String?
 
+    private var authStateListener: AuthStateDidChangeListenerHandle?
+
     private let apiClient = APIClient()
 
     // MARK: - Launch
@@ -69,7 +71,7 @@ final class AuthManager {
 
         // Persistent listener: only handles external sign-out after launch.
         // All explicit auth operations route themselves — they don't rely on this.
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
             guard user == nil else { return }
             Task { @MainActor in self.appState = .unauthenticated }

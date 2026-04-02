@@ -25,6 +25,8 @@ export class UserService {
     // This is best-effort — soft delete has already been committed above.
     if (admin.apps.length > 0) {
       await admin.auth().revokeRefreshTokens(firebaseUid);
+    } else {
+      console.warn('[user_service] Firebase Admin not initialized — Firebase tokens were NOT revoked for uid:', firebaseUid);
     }
   }
 }

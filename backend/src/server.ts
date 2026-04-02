@@ -110,7 +110,7 @@ const speedDatingExpirySweepHandle = setInterval(() => {
   })();
 }, SPEED_DATING_EXPIRY_SWEEP_INTERVAL_MS);
 
-(speedDatingExpirySweepHandle as any).unref();
+speedDatingExpirySweepHandle.unref();
 
 // Purge soft-deleted users whose deleted_at is older than 30 days.
 // CASCADE deletes all related rows (profiles, matches, messages, etc.).
@@ -127,7 +127,7 @@ const deletedUserPurgeHandle = setInterval(() => {
   })();
 }, DELETED_USER_PURGE_INTERVAL_MS);
 
-(deletedUserPurgeHandle as any).unref();
+deletedUserPurgeHandle.unref();
 
 const server = httpServer.listen(env.port, '0.0.0.0', () => {
   console.log(`API server running on port ${env.port}`);

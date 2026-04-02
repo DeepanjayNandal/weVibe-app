@@ -1,132 +1,5 @@
 import SwiftUI
 
-// MARK: - Result Logic
-
-struct PersonalityResult {
-    let primary: PersonalityMeta
-    let secondary: PersonalityMeta?
-
-    var isHybrid: Bool { secondary != nil }
-}
-
-func calculatePersonalityResult(from answers: [Int]) -> PersonalityResult {
-    let fallback = StaticConfig.personalityMeta.values.first!
-    let letterMap = [0: "A", 1: "B", 2: "C", 3: "D"]
-
-    guard !answers.isEmpty else {
-        return PersonalityResult(primary: fallback, secondary: nil)
-    }
-
-    var counts = [0, 0, 0, 0]
-    for answer in answers {
-        if answer >= 0 && answer < 4 { counts[answer] += 1 }
-    }
-
-    let max1 = counts.max() ?? 0
-
-    let topLetters = counts.enumerated()
-        .filter { $0.element == max1 && $0.element > 0 }
-        .compactMap { letterMap[$0.offset] }
-
-    guard let primaryLetter = topLetters.first,
-          let primary = StaticConfig.personalityMeta[primaryLetter]
-    else {
-        return PersonalityResult(primary: fallback, secondary: nil)
-    }
-
-    if topLetters.count >= 2,
-       let secondary = StaticConfig.personalityMeta[topLetters[1]] {
-        return PersonalityResult(primary: primary, secondary: secondary)
-    } else {
-        let sortedCounts = counts.enumerated().sorted { $0.element > $1.element }
-        let max2 = sortedCounts[1].element
-        if max1 - max2 <= 1 && max2 > 0,
-           let secondaryLetter = letterMap[sortedCounts[1].offset],
-           let secondary = StaticConfig.personalityMeta[secondaryLetter] {
-            return PersonalityResult(primary: primary, secondary: secondary)
-        }
-    }
-
-    return PersonalityResult(primary: primary, secondary: nil)
-}
-
-// MARK: - Info Tooltip
-
-private struct InfoTooltip: View {
-    let text: String
-    @Binding var isShowing: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Spacer()
-                Button { isShowing = false } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            .padding(.bottom, 8)
-
-            Text(text)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.85))
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(16)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.regularMaterial)
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(hex: "#1A3025").opacity(0.85))
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1)
-            }
-        }
-        .frame(maxWidth: 260)
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.85).combined(with: .opacity),
-            removal:   .scale(scale: 0.9).combined(with: .opacity)
-        ))
-    }
-}
-
-// MARK: - Type Label with Info Button
-
-private struct TypeLabelView: View {
-    let meta: PersonalityMeta
-    @State private var showTooltip = false
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            HStack(alignment: .center, spacing: 8) {
-                Text(meta.type)
-                    .font(.system(size: 34, weight: .black))
-                    .foregroundStyle(meta.color)
-                    .multilineTextAlignment(.center)
-
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        showTooltip.toggle()
-                    }
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(meta.color.opacity(0.7))
-                }
-            }
-
-            if showTooltip {
-                InfoTooltip(text: meta.description, isShowing: $showTooltip)
-                    .offset(x: 20, y: 44)
-                    .zIndex(10)
-            }
-        }
-    }
-}
-
 // MARK: - Confetti
 
 private struct ResultParticle: Identifiable {
@@ -214,10 +87,9 @@ private struct ResultConfetti: View {
 struct JoinQueueView: View {
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
+    @Environment(UserProfileStore.self) private var store
 
-    @State private var showTraitOnProfile = true
-
-    // Entrance
+    // Entrance animations
     @State private var emojiScale: CGFloat   = 0.5
     @State private var emojiOpacity: Double  = 0
     @State private var titleOpacity: Double  = 0
@@ -228,26 +100,15 @@ struct JoinQueueView: View {
 
     // Looping emoji bob
     @State private var emojiOffsetY: CGFloat = 0
-    @Environment(UserProfileStore.self) private var store
 
-    private var result: PersonalityResult {
-        let fallback = StaticConfig.personalityMeta.values.first!
-
-        guard !store.personalityPrimary.isEmpty,
-              let primary = StaticConfig.personalityMeta[store.personalityPrimary]
-        else {
-            return PersonalityResult(primary: fallback, secondary: nil)
-        }
-
-        if !store.personalitySecondary.isEmpty ,
-           let secondary = StaticConfig.personalityMeta[store.personalitySecondary] {
-            return PersonalityResult(primary: primary, secondary: secondary)
-        }
-
-        return PersonalityResult(primary: primary, secondary: nil)
+    private var resultEmoji: String {
+        guard !store.personalityPrimary.isEmpty else { return "🎭" }
+        if !store.personalitySecondary.isEmpty { return "🎭" }
+        return StaticConfig.personalityMeta[store.personalityPrimary]?.emoji ?? "🎭"
     }
 
     var body: some View {
+        @Bindable var bindableStore = store
         ZStack {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
@@ -279,8 +140,8 @@ struct JoinQueueView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
-                    
-                    Text(result.isHybrid ? "🎭" : result.primary.emoji)
+
+                    Text(resultEmoji)
                         .font(.system(size: 80))
                         .scaleEffect(emojiScale)
                         .opacity(emojiOpacity)
@@ -289,32 +150,10 @@ struct JoinQueueView: View {
                         .padding(.bottom, 28)
 
                     // ── Result text
-                    VStack(spacing: 12) {
-                        if result.isHybrid, let secondary = result.secondary {
-                            // ── HYBRID
-                            Text("you are a hybrid of")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.55))
-
-                            TypeLabelView(meta: result.primary)
-
-                            Text("and")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.55))
-                                .padding(.vertical, 2)
-
-                            TypeLabelView(meta: secondary)
-
-                        } else {
-                            // ── SINGLE
-                            Text("you are a")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.55))
-
-                            TypeLabelView(meta: result.primary)
-                        }
-                    }
-                    .multilineTextAlignment(.center)
+                    PersonalityFullDisplay(
+                        primaryKey: store.personalityPrimary,
+                        secondaryKey: store.personalitySecondary
+                    )
                     .opacity(titleOpacity)
                     .offset(y: titleOffset)
                     .padding(.horizontal, 32)
@@ -326,9 +165,14 @@ struct JoinQueueView: View {
                             .font(.system(size: 15))
                             .foregroundStyle(.white.opacity(0.7))
                         Spacer()
-                        Toggle("", isOn: $showTraitOnProfile)
+                        Toggle("", isOn: $bindableStore.showPersonalityTrait)
                             .tint(AppTheme.primaryButton)
                             .labelsHidden()
+                            .onChange(of: store.showPersonalityTrait) { _, newValue in
+                                var payload = ProfileUpdatePayload()
+                                payload.showPersonalityTrait = newValue
+                                Task { await store.patchProfile(payload) }
+                            }
                     }
                     .padding(.horizontal, 32)
                     .padding(.vertical, 16)

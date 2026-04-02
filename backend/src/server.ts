@@ -5,6 +5,7 @@ import { env } from './config/env';
 import { socketServer } from './websocket/socket-server';
 import { SpeedDatingService } from './services/speed-dating-service';
 import { PermanentChatService } from './services/permanent-chat-service';
+import { UserRepository } from './repositories/user-repository';
 
 const EXPIRABLE_SPEED_DATING_STATUSES = [
   'active',
@@ -16,8 +17,12 @@ const EXPIRABLE_SPEED_DATING_STATUSES = [
 ] as const;
 
 const SPEED_DATING_EXPIRY_SWEEP_INTERVAL_MS = 30_000;
+// Run the deleted-user purge once per day
+const DELETED_USER_PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 const speedDatingService = new SpeedDatingService();
 const permanentChatService = new PermanentChatService();
+const userRepository = new UserRepository();
 
 const app = createApp();
 
@@ -107,6 +112,23 @@ const speedDatingExpirySweepHandle = setInterval(() => {
 
 speedDatingExpirySweepHandle.unref();
 
+// Purge soft-deleted users whose deleted_at is older than 30 days.
+// CASCADE deletes all related rows (profiles, matches, messages, etc.).
+const deletedUserPurgeHandle = setInterval(() => {
+  void (async () => {
+    try {
+      const count = await userRepository.purgeDeletedUsers();
+      if (count > 0) {
+        console.log(`[user_purge] hard-deleted ${count} expired account(s)`);
+      }
+    } catch (error) {
+      console.error('[user_purge] purge sweep failed:', error);
+    }
+  })();
+}, DELETED_USER_PURGE_INTERVAL_MS);
+
+deletedUserPurgeHandle.unref();
+
 const server = httpServer.listen(env.port, '0.0.0.0', () => {
   console.log(`API server running on port ${env.port}`);
 });
@@ -114,6 +136,7 @@ const server = httpServer.listen(env.port, '0.0.0.0', () => {
 async function shutdown(signal: string) {
   console.log(`${signal} received. Shutting down...`);
   clearInterval(speedDatingExpirySweepHandle);
+  clearInterval(deletedUserPurgeHandle);
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

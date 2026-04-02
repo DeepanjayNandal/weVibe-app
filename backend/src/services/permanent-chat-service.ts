@@ -137,6 +137,11 @@ export class PermanentChatService {
     const rows = await prisma.matches.findMany({
       where: {
         OR: [{ user_a_id: userId }, { user_b_id: userId }],
+        // Hide matches where the other user has been soft-deleted
+        AND: [
+          { users_matches_user_a_idTousers: { deleted_at: null } },
+          { users_matches_user_b_idTousers: { deleted_at: null } },
+        ],
       },
       include: {
         users_matches_user_a_idTousers: {

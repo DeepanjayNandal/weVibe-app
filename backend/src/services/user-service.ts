@@ -1,0 +1,30 @@
+import * as admin from 'firebase-admin';
+import { UserRepository } from '../repositories/user-repository';
+import { badRequest, notFound } from '../utils/errors';
+
+export class UserService {
+  constructor(private readonly userRepository: UserRepository) {}
+
+  // Soft-deletes the authenticated user's account.
+  // - Sets deleted_at to now (blocks login immediately)
+  // - Revokes all Firebase refresh tokens (forces logout on all devices)
+  // The row is hard-deleted after 30 days by the purge sweep in server.ts.
+  async deleteAccount(firebaseUid: string): Promise<void> {
+    const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+    if (!user) {
+      notFound('User not found', 'USER_NOT_FOUND');
+    }
+
+    if (user.deleted_at) {
+      badRequest('Account is already deleted', 'ACCOUNT_ALREADY_DELETED');
+    }
+
+    await this.userRepository.softDeleteUser(user.id);
+
+    // Revoke Firebase tokens so the user is logged out on all devices immediately.
+    // This is best-effort — soft delete has already been committed above.
+    if (admin.apps.length > 0) {
+      await admin.auth().revokeRefreshTokens(firebaseUid);
+    }
+  }
+}

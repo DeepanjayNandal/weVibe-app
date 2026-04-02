@@ -43,6 +43,7 @@ export class MatchingQueueRepository {
     return db.matching_queue.findMany({
       where: {
         user_id: { not: userId },
+        users: { deleted_at: null },
       },
       orderBy: {
         joined_at: 'asc',

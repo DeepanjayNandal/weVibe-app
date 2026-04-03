@@ -66,10 +66,6 @@ CREATE TABLE profiles (
     birth_date DATE,
     gender VARCHAR(50), -- Gender identity
     sex enum_sex, -- Biological sex
-    show_sex BOOLEAN DEFAULT TRUE,
-    show_orientation BOOLEAN DEFAULT TRUE,
-    show_identity BOOLEAN DEFAULT TRUE,
-    show_personality_trait BOOLEAN DEFAULT TRUE,
     ethnicity VARCHAR(100), -- e.g., White, Asian, Hispanic, Black, Pacific Islander
     height_cm INT, -- Stored in cm to maintain a standard unit
     

@@ -25,7 +25,6 @@ Current implementation supports three providers: `google`, `apple`, `email`.
 | POST | `/api/v1/auth/login` | Bearer | Verify token, return user record |
 | POST | `/api/v1/auth/logout` | Bearer | Logout |
 | GET | `/api/v1/auth/me` | Bearer | Get current user |
-| DELETE | `/api/v1/auth/me` | Bearer | Delete account and related data |
 | POST | `/api/v1/users/profile` | Bearer | Submit full onboarding survey — creates profile |
 | GET | `/api/v1/users/profile` | Bearer | Get profile (401 PROFILE_NOT_FOUND if not created yet) |
 | PATCH | `/api/v1/users/profile` | Bearer | Partial profile update — only fields sent are updated |

@@ -24,4 +24,3 @@ authRouter.post('/register', asyncHandler(authController.register));
 authRouter.post('/login', asyncHandler(authController.login));
 authRouter.post('/logout', authenticate(authVerifier), asyncHandler(authController.logout));
 authRouter.get('/me', authenticate(authVerifier), asyncHandler(authController.me));
-authRouter.delete('/me', authenticate(authVerifier), asyncHandler(authController.deleteAccount));

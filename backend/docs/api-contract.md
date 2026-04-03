@@ -172,30 +172,7 @@ Authorization: Bearer <firebase-id-token>
 
 ---
 
-### 4. Delete Account
-
-Deletes the authenticated user's account and related backend records. This removes the user row, profile row, match history, queue entry, and other cascade-linked records. Any stored photo files are cleaned up by the backend as part of account removal.
-
-```
-DELETE /api/v1/auth/me
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response 204 — Success**
-
-No body.
-
-**Error Responses**
-
-| Status | `error.code` | Cause |
-|---|---|---|
-| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
-| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
-| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
-
----
-
-### 5. Logout
+### 4. Logout
 
 Stateless logout. Verifies the token is valid and returns 204. Firebase session revocation is handled client-side.
 
@@ -217,7 +194,7 @@ No body.
 
 ---
 
-### 6. Create Profile
+### 5. Create Profile
 
 Creates the dating profile for an authenticated user. Must be called after `/auth/register`.
 `first_name` and `last_name` are concatenated into `display_name` on the backend.

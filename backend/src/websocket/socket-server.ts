@@ -222,15 +222,6 @@ export class SocketServer {
     this.io.to(roomName).emit(event, payload);
   }
 
-  disconnectUser(dbUserId: string): void {
-    if (!this.io) {
-      return;
-    }
-
-    const roomName = `user:${dbUserId}`;
-    void this.io.in(roomName).disconnectSockets(true);
-  }
-
   /**
    * Get the socket.io instance for advanced usage
    */

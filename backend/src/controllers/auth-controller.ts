@@ -100,15 +100,4 @@ export class AuthController {
       },
     });
   };
-
-  deleteAccount = async (req: Request, res: Response): Promise<void> => {
-    // req.idToken is typed via src/types/express.d.ts — set by authenticate middleware
-    const idToken = req.idToken;
-    if (!idToken) {
-      badRequest('idToken not found in request context', 'MISSING_REQUEST_TOKEN');
-    }
-
-    await this.authService.deleteAccount(idToken);
-    res.status(204).send();
-  };
 }

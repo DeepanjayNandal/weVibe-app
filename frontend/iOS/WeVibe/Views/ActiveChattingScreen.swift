@@ -96,6 +96,8 @@ struct ActiveChatView: View {
     // Countdown — starts at 24 hours in seconds
     @State private var secondsRemaining: Int = 86400
     @State private var timerTask: Task<Void, Never>? = nil
+    @State private var showMatchPopup: Bool = false
+    @State private var isSessionEnded: Bool = false
 
     @State private var messages: [ChatMessage] = [
         ChatMessage(text: "Hi Emelie!", isMine: true,  time: "3:02 PM", messagesLeft: 19),
@@ -108,6 +110,7 @@ struct ActiveChatView: View {
 
     private var showLowMessagesBanner: Bool { messagesLeft > 0 && messagesLeft <= 5 }
     private var isTimerWarning: Bool { secondsRemaining <= 600 }
+    private var isChatDisabled: Bool { isSessionEnded || messagesLeft == 0 }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -135,10 +138,12 @@ struct ActiveChatView: View {
                             CountdownTimerView(secondsRemaining: secondsRemaining)
                                 .padding(.bottom, 20)
 
+
                             if showLowMessagesBanner {
                                 MessagesLeftBanner(count: messagesLeft)
                                     .padding(.bottom, 12)
                             }
+
 
                             ForEach(messages) { message in
                                 MessageBubble(message: message)
@@ -156,6 +161,26 @@ struct ActiveChatView: View {
                 }
 
                 inputBar
+            }
+        }
+        .overlay {
+            if isSessionEnded {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showMatchPopup {
+                MatchDecisionSheet(onMatch: {
+                    showMatchPopup = false
+                    onClose()
+                }, onSkip: {
+                    showMatchPopup = false
+                    onClose()
+                })
+                .transition(.move(edge: .bottom))
+                .ignoresSafeArea(edges: .bottom)
             }
         }
         .navigationBarHidden(true)
@@ -208,6 +233,30 @@ struct ActiveChatView: View {
     private var inputBar: some View {
         VStack(spacing: 8) {
             HStack(spacing: 10) {
+
+                // ── Early match button
+                Button {
+                    triggerSessionEnd()
+                } label: {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color(hex: "#1A8C4E").opacity(0.4), radius: 8, x: 0, y: 3)
+                        )
+                }
+                .disabled(isChatDisabled)
+                .opacity(isChatDisabled ? 0.4 : 1)
+
                 TextField(
                     messagesLeft > 0 ? "Your message" : "No messages left",
                     text: $messageText,
@@ -217,7 +266,7 @@ struct ActiveChatView: View {
                 .foregroundStyle(Color(hex: "#1A3A1A"))
                 .lineLimit(1...4)
                 .focused($inputFocused)
-                .disabled(messagesLeft == 0)
+                .disabled(isChatDisabled)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(
@@ -254,7 +303,21 @@ struct ActiveChatView: View {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     secondsRemaining -= 1
+                    if secondsRemaining == 0 {
+                        triggerSessionEnd()
+                    }
                 }
+            }
+        }
+    }
+
+    private func triggerSessionEnd() {
+        withAnimation(.easeInOut(duration: 0.4)) {
+            isSessionEnded = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                showMatchPopup = true
             }
         }
     }
@@ -277,6 +340,11 @@ struct ActiveChatView: View {
             messages.append(newMessage)
         }
         messageText = ""
+        if messagesLeft == 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                triggerSessionEnd()
+            }
+        }
     }
 
     private func formattedTime() -> String {
@@ -324,5 +392,110 @@ private struct MessageBubble: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Match Decision Sheet
+
+private struct MatchDecisionSheet: View {
+    var onMatch: () -> Void
+    var onSkip: () -> Void
+
+    @State private var sheetOpacity: Double = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+
+            LogoWithoutText(size: 44)
+                .padding(.bottom, 14)
+
+            Text("Session's over! 🎉")
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A"))
+                .padding(.bottom, 6)
+
+            Text("Did you vibe with this person?\nLet them know before they disappear.")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#5A8A5A"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 28)
+
+            HStack(spacing: 16) {
+
+                Button(action: onSkip) {
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#F5F5F5"))
+                                .overlay(Circle().strokeBorder(Color(hex: "#E0E0E0"), lineWidth: 1.5))
+                                .frame(width: 64, height: 64)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(Color(hex: "#9E9E9E"))
+                        }
+                        Text("Nah")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color(hex: "#9E9E9E"))
+                    }
+                }
+                .buttonStyle(ScaleButtonStyle())
+
+                Button(action: onMatch) {
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(Circle().strokeBorder(Color(hex: "#1A8C4E").opacity(0.3), lineWidth: 1.5))
+                                .frame(width: 64, height: 64)
+                                .shadow(color: Color(hex: "#1A8C4E").opacity(0.4), radius: 12, x: 0, y: 4)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        Text("Match!")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color(hex: "#1A8C4E"))
+                    }
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+            .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            Color.white
+                .ignoresSafeArea(edges: .bottom)
+                .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8)
+        )
+        .opacity(sheetOpacity)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.25)) {
+                sheetOpacity = 1.0
+            }
+        }
+    }
+}
+
+// MARK: - Scale Button Style
+
+private struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }

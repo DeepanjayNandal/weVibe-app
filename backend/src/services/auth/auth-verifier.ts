@@ -60,24 +60,33 @@ class RealFirebaseVerifier implements AuthVerifier {
         );
       }
 
+      const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
       const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      if (!credentialsPath) {
-        throw new Error(
-          'GOOGLE_APPLICATION_CREDENTIALS is not set. Required when AUTH_PROVIDER_MODE=firebase.',
-        );
+      
+      if (serviceAccountJson) {
+        // Cloud Run: parse env JSON
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          projectId: env.firebaseProjectId,
+          storageBucket: env.firebaseStorageBucket,
+        });
+      } else if (credentialsPath) {
+        // Local Dev
+        const serviceAccount = require(require('path').resolve(credentialsPath));
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          projectId: env.firebaseProjectId,
+          storageBucket: env.firebaseStorageBucket,
+        });
+      } else {
+        // Fallback:  GCP ADC
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          projectId: env.firebaseProjectId,
+          storageBucket: env.firebaseStorageBucket,
+        });
       }
-
-      // Load service account JSON from the path in GOOGLE_APPLICATION_CREDENTIALS.
-      // Place dev key at secrets/firebase-service-account-dev.json
-      // Place prod key at secrets/firebase-service-account-prod.json (gitignored)
-      // Switch environments by updating FIREBASE_PROJECT_ID + GOOGLE_APPLICATION_CREDENTIALS in .env
-      const serviceAccount = require(require('path').resolve(credentialsPath));
-
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: env.firebaseProjectId,
-        storageBucket: env.firebaseStorageBucket,
-      });
     }
   }
 

@@ -51,8 +51,8 @@ export class SocketServer {
 
       pubClient.on('connect', () => console.log('🟢 [Socket.IO] PubClient connected to Upstash Redis'));
       subClient.on('connect', () => console.log('🟢 [Socket.IO] SubClient connected to Upstash Redis'));
-      pubClient.on('error', (err) => console.error('🔴 [Socket.IO] PubClient Redis Error:', err));
-      subClient.on('error', (err) => console.error('🔴 [Socket.IO] SubClient Redis Error:', err));
+      pubClient.on('error', (err: any) => console.error('🔴 [Socket.IO] PubClient Redis Error:', err));
+      subClient.on('error', (err: any) => console.error('🔴 [Socket.IO] SubClient Redis Error:', err));
 
       this.io.adapter(createAdapter(pubClient, subClient));
     }

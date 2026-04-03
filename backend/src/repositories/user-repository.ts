@@ -48,4 +48,10 @@ export class UserRepository {
       data: { onboarding_complete: true },
     });
   }
+
+  async deleteById(userId: string): Promise<void> {
+    await prisma.users.delete({
+      where: { id: userId },
+    });
+  }
 }

@@ -93,7 +93,6 @@ struct ActiveChatView: View {
     @State private var messageText: String = ""
     @FocusState private var inputFocused: Bool
 
-    // Countdown — starts at 24 hours in seconds
     @State private var secondsRemaining: Int = 86400
     @State private var timerTask: Task<Void, Never>? = nil
     @State private var showMatchPopup: Bool = false

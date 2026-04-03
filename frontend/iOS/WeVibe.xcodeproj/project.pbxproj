@@ -18,6 +18,7 @@
 		A10005 /* LogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005 /* LogoView.swift */; };
 		A10007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10007 /* Assets.xcassets */; };
 		A10008 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10008 /* Preview Assets.xcassets */; };
+		A30ECFBB2F7F7EDF00BF0A0B /* PermanentChattingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30ECFBA2F7F7ECC00BF0A0B /* PermanentChattingScreen.swift */; };
 		A351B53A2F578B84007C6412 /* SpeedDatingMainScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */; };
 		A351B54B2F5A4EB4007C6412 /* SpeedDatingRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */; };
 		A351B54D2F5A5927007C6412 /* PersonalityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A351B54C2F5A591C007C6412 /* PersonalityTest.swift */; };
@@ -69,6 +70,7 @@
 		0AD4CA119702C199A729F6C5 /* ProfileCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileCard.swift; sourceTree = "<group>"; };
 		7F6470CFCFB088B036213EDC /* OtherUserProfileView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OtherUserProfileView.swift; sourceTree = "<group>"; };
 		905EE4A806F5E3A95D41DCCB /* ProfileComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileComponents.swift; sourceTree = "<group>"; };
+		A30ECFBA2F7F7ECC00BF0A0B /* PermanentChattingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermanentChattingScreen.swift; sourceTree = "<group>"; };
 		A351B5392F578B7F007C6412 /* SpeedDatingMainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingMainScreen.swift; sourceTree = "<group>"; };
 		A351B54A2F5A4EAF007C6412 /* SpeedDatingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedDatingRules.swift; sourceTree = "<group>"; };
 		A351B54C2F5A591C007C6412 /* PersonalityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityTest.swift; sourceTree = "<group>"; };
@@ -188,6 +190,7 @@
 		E10004 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A30ECFBA2F7F7ECC00BF0A0B /* PermanentChattingScreen.swift */,
 				A3AEC1EA2F6E16DB00F7E31D /* ChatListScreen.swift */,
 				A3AEC1982F6CC99900F7E31D /* ActiveChattingScreen.swift */,
 				A3AEC0E32F67C80200F7E31D /* FindingMatch.swift */,
@@ -428,6 +431,7 @@
 				A10005 /* LogoView.swift in Sources */,
 				A38BAB672F4820F000E908DB /* SurveyStep5.swift in Sources */,
 				A38BAAB32F45314E00E908DB /* LoginScreen.swift in Sources */,
+				A30ECFBB2F7F7EDF00BF0A0B /* PermanentChattingScreen.swift in Sources */,
 				A38BAB292F47E13100E908DB /* GoalCheckbox.swift in Sources */,
 				A3AEC19B2F6D0EEB00F7E31D /* LogoWithoutText.swift in Sources */,
 				6A2674668955B670DB832C2D /* LocationPermissionScreen.swift in Sources */,

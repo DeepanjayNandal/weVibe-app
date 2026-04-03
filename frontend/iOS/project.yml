@@ -7,7 +7,7 @@ configs:
 options:
   bundleIdPrefix: com.wevibe
   deploymentTarget:
-    iOS: "17.6"
+    iOS: "17.0"
   developmentRegion: en
   defaultConfig: Debug
 
@@ -26,7 +26,7 @@ targets:
   WeVibe:
     type: application
     platform: iOS
-    deploymentTarget: "17.6"
+    deploymentTarget: "17.0"
 
     sources:
       - path: WeVibe

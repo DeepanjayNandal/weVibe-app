@@ -159,6 +159,8 @@ struct ActiveChatView: View {
                             withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                         }
                     }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onTapGesture{ inputFocused = false }
                 }
 
                 inputBar
@@ -233,7 +235,6 @@ struct ActiveChatView: View {
             }
         }
         .navigationBarHidden(true)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear { startCountdown() }
         .onDisappear { timerTask?.cancel() }
     }

@@ -5,6 +5,7 @@ import { SpeedDatingService } from '../services/speed-dating-service';
 import { socketServer } from '../websocket/socket-server';
 import { badRequest, unauthorized } from '../utils/errors';
 import { prisma } from '../db/prisma-client';
+import { generateReadURL } from '../services/storage.service';
 
 export class PermanentChatController {
   constructor(
@@ -93,6 +94,45 @@ export class PermanentChatController {
 
     // Convert BigInt id to string if needed
     return result ? { id: result.id.toString() } : null;
+  };
+
+  getMatchProfile = async (req: Request, res: Response): Promise<void> => {
+    const userId = await this.resolveUserId(req);
+    const matchId = this.readMatchId(req.params.matchId);
+
+    // Get match details to verify access and get counterpart
+    const match = await this.permanentChatService.getMatchDetail(userId, matchId);
+    if (!match || match.status !== 'active') {
+      badRequest('Match not found or not active', 'MATCH_NOT_FOUND');
+    }
+
+    // Get counterpart's profile
+    const counterpartId = match.counterpart.userId;
+    if (!counterpartId) {
+      badRequest('Match counterpart not found', 'COUNTERPART_NOT_FOUND');
+    }
+
+    const profile = await prisma.profiles.findUnique({
+      where: { user_id: counterpartId }
+    });
+    if (!profile) {
+      badRequest('Profile not found', 'PROFILE_NOT_FOUND');
+    }
+
+    // Generate read URLs for photos
+    const photos = profile.photos ? await Promise.all(
+      (profile.photos as string[]).map(url => generateReadURL(url))
+    ) : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profile: {
+          ...profile,
+          photos,
+        },
+      },
+    });
   };
 
   sendMessage = async (req: Request, res: Response): Promise<void> => {

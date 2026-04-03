@@ -44,6 +44,12 @@ permanentChatRouter.get(
   asyncHandler(permanentChatController.getMatchMessages),
 );
 
+permanentChatRouter.get(
+  '/matches/:matchId/profile',
+  authenticate(authVerifier),
+  asyncHandler(permanentChatController.getMatchProfile),
+);
+
 permanentChatRouter.patch(
   '/matches/:matchId/read',
   authenticate(authVerifier),

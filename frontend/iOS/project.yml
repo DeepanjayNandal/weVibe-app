@@ -29,12 +29,27 @@ targets:
     deploymentTarget: "17.0"
 
     sources:
+      # Root-level files: AppConfig, DataModel, StaticConfig, Assets, PrivacyInfo
       - path: WeVibe
         excludes:
           - Preview Content/**
           - Firebase/**
           - Info.plist
           - WeVibe.entitlements
+          - App/**
+          - Views/**
+          - Components/**
+          - Services/**
+      # Xcode 16 synced folders — Xcode auto-detects new files added to these folders,
+      # no need to run `xcodegen generate` when adding Swift files here.
+      - path: WeVibe/App
+        type: syncedFolder
+      - path: WeVibe/Views
+        type: syncedFolder
+      - path: WeVibe/Components
+        type: syncedFolder
+      - path: WeVibe/Services
+        type: syncedFolder
 
     dependencies:
       - package: firebase-ios-sdk

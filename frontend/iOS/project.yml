@@ -114,7 +114,7 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: WeVibe/Info.plist
-        INFOPLIST_KEY_CFBundleDisplayName: "WeVibe Dev"
+        INFOPLIST_KEY_CFBundleDisplayName: WeVibe
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "WeVibe uses your location to show you matches nearby."
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
@@ -135,6 +135,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
       configs:
         Debug:
-          PRODUCT_BUNDLE_IDENTIFIER: com.wevibe2dev
+          PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.app.dev
+          INFOPLIST_KEY_CFBundleDisplayName: "WeVibe Dev"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.app

@@ -121,7 +121,6 @@ struct APIClient {
         let body: [String: String] = ["provider": provider, "idToken": idToken]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (_, response) = try await perform(req)
-        print("loginUser", idToken)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
         if status == 403 { throw APIError.banned }

@@ -185,7 +185,7 @@ describe('Speed Dating API', () => {
     expect(detail.body.data.session.canSendMessage).toBe(false);
   });
 
-  test('lists sessions with message progress and anonymized counterpart summary', async () => {
+  test('lists active sessions with minimal reconnect payload', async () => {
     const tokenA = 'mock:google:sd-a-002:sd-a-002@speed-dating.test';
     const tokenB = 'mock:google:sd-b-002:sd-b-002@speed-dating.test';
 
@@ -225,16 +225,10 @@ describe('Speed Dating API', () => {
     const session = response.body.data.sessions[0];
     expect(session.sessionId).toBe(sessionId);
     expect(session.status).toBe('active');
-    expect(session.myMessageCount).toBe(0);
-    expect(session.otherMessageCount).toBe(1);
-    expect(session.messageLimit).toBe(20);
-    expect(session.canOpen).toBe(true);
-    expect(session.canSendMessage).toBe(true);
-    expect(session.remainingSeconds).toBeGreaterThan(0);
-    expect(session.counterpart.firstName).toBeTruthy();
-    expect(session.counterpart.initials).toBeTruthy();
-    expect(session.moveToPermanent.canRequest).toBe(true);
-    expect(session.moveToPermanent.requestStatus).toBe('none');
+    expect(session.sessionExpiresAt).toBeTruthy();
+    expect(Object.keys(session).sort()).toEqual(
+      ['sessionExpiresAt', 'sessionId', 'status'].sort(),
+    );
   });
 
   test('supports early move-to-permanent acceptance and copies speed dating history into permanent chat', async () => {
@@ -459,7 +453,7 @@ describe('Speed Dating API', () => {
     expect(detailForB.body.data.session.moveToPermanent.canRespond).toBe(true);
   });
 
-  test('lists only active sessions plus expired sessions within grace period', async () => {
+  test('lists only active sessions', async () => {
     const tokenA = 'mock:google:sd-a-grace-001:sd-a-grace-001@speed-dating.test';
     const tokenB = 'mock:google:sd-b-grace-001:sd-b-grace-001@speed-dating.test';
 
@@ -529,15 +523,10 @@ describe('Speed Dating API', () => {
       .set('Authorization', `Bearer ${tokenA}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data.sessions).toHaveLength(2);
+    expect(response.body.data.sessions).toHaveLength(1);
 
     const statuses = response.body.data.sessions.map((item: { status: string }) => item.status).sort();
-    expect(statuses).toEqual(['active', 'expired']);
-
-    const expiredItem = response.body.data.sessions.find(
-      (item: { status: string }) => item.status === 'expired',
-    );
-    expect(expiredItem.canOpen).toBe(false);
+    expect(statuses).toEqual(['active']);
   });
 
   test('updates speed dating unread state and returns aggregated badge counts', async () => {
@@ -574,7 +563,7 @@ describe('Speed Dating API', () => {
       .set('Authorization', `Bearer ${tokenB}`);
 
     expect(listBeforeRead.status).toBe(200);
-    expect(listBeforeRead.body.data.sessions[0].unreadCount).toBe(1);
+    expect(listBeforeRead.body.data.sessions[0].status).toBe('active');
 
     const badgesBeforeRead = await request(app)
       .get('/api/v1/matching/chats/badges')

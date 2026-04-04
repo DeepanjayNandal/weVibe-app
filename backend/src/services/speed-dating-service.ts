@@ -6,6 +6,7 @@ import {
   getTwoPartyParticipantIds,
   isUserAInTwoParty,
 } from './chat/two-party-access';
+import { socketServer } from '../websocket/socket-server';
 
 type SessionStatus = string | null;
 type DecisionValue = enum_decision | null;
@@ -380,13 +381,17 @@ export class SpeedDatingService {
       badRequest('Message content is required', 'MISSING_MESSAGE_CONTENT');
     }
 
-    return prisma.$transaction(async (tx) => {
+    let counterpartUserId = '';
+
+    const result = await prisma.$transaction(async (tx) => {
       const session = await tx.speed_dating_sessions.findUnique({ where: { id: sessionId } });
       if (!session) {
         throw new AppError('Session not found', 404, 'SESSION_NOT_FOUND');
       }
 
       assertTwoPartyParticipant(session, userId);
+      const participantIds = getTwoPartyParticipantIds(session);
+      counterpartUserId = participantIds.userAId === userId ? participantIds.userBId : participantIds.userAId;
 
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -415,7 +420,6 @@ export class SpeedDatingService {
         },
       });
 
-      const participantIds = getTwoPartyParticipantIds(activeSession);
       const [countA, countB] = await Promise.all([
         tx.speed_dating_messages.count({
           where: {
@@ -465,6 +469,19 @@ export class SpeedDatingService {
         session: this.toSessionListItem(fullSession, userId, countMap),
       };
     });
+
+    // Immediately send real-time push notification via Socket.IO to counterpart after successful DB transaction
+    if (counterpartUserId) {
+      socketServer.notifyUser(counterpartUserId, 'speed_dating.message.created', {
+        v: 1,
+        data: {
+          sessionId,
+          message: result.message,
+        },
+      });
+    }
+
+    return result;
   }
 
   async requestMoveToPermanent(userId: string, sessionId: string): Promise<SpeedDatingActionResult> {

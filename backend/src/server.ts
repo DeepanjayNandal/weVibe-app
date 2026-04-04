@@ -136,6 +136,10 @@ const server = httpServer.listen(env.port, '0.0.0.0', () => {
 async function shutdown(signal: string) {
   console.log(`${signal} received. Shutting down...`);
   clearInterval(speedDatingExpirySweepHandle);
+  
+  // turn off Socket.io and Redis Adapter at the same time
+  socketServer.getIO()?.close();
+  
   clearInterval(deletedUserPurgeHandle);
   server.close(async () => {
     await prisma.$disconnect();

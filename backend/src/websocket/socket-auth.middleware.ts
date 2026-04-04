@@ -14,7 +14,8 @@ declare module 'socket.io' {
 
 export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void) {
   try {
-    const token = socket.handshake.query?.token;
+    // Support getting token from auth payload (new standard) or query string (legacy)
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
 
     if (!token) {
       return next(new Error('AUTH_MISSING'));
@@ -29,12 +30,14 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
     try {
       identity = await authVerifier.verifyIdToken(token);
     } catch (error) {
+      console.error('🔴 [Socket Auth] Firebase Token valid error:', error);
       return next(new Error('AUTH_INVALID'));
     }
 
     // Find user in database
     const user = await userRepository.findByFirebaseUid(identity.uid);
     if (!user) {
+      console.error(`🔴 [Socket Auth] DB didn't find user (UID: ${identity.uid})`);
       return next(new Error('AUTH_USER_NOT_FOUND'));
     }
 
@@ -49,6 +52,7 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
 
     next();
   } catch (error) {
+    console.error('🔴 [Socket Auth] Prisma did not connect to DB:', error);
     next(new Error('AUTH_INVALID'));
   }
 }

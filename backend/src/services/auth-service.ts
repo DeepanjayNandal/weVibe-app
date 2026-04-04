@@ -50,6 +50,18 @@ export class AuthService {
       forbidden('User is banned', 'USER_BANNED');
     }
 
+    // Grace period reactivation: if the user deleted their account but returns
+    // within 30 days, clear deleted_at and restore their account silently.
+    if (user.deleted_at) {
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (user.deleted_at > cutoff) {
+        await this.userRepository.reactivateUser(user.id);
+        user = { ...user, deleted_at: null };
+      } else {
+        forbidden('Account has been deleted', 'USER_DELETED');
+      }
+    }
+
     await this.userRepository.touchLastActive(user.id);
     return user;
   }
@@ -65,6 +77,10 @@ export class AuthService {
 
     if (user.is_banned) {
       forbidden('User is banned', 'USER_BANNED');
+    }
+
+    if (user.deleted_at) {
+      forbidden('Account has been deleted', 'USER_DELETED');
     }
 
     return user;

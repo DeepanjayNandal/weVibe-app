@@ -361,6 +361,7 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     show_sex:                     profile.show_sex ?? true,
     show_orientation:             profile.show_orientation ?? true,
     show_identity:                profile.show_identity ?? true,
+    show_personality_trait:       profile.show_personality_trait ?? true,
 
     // ── Background ────────────────────────────────────────────────────────────
     ethnicity:                    profile.ethnicity ?? null,
@@ -663,6 +664,7 @@ export class ProfileController {
     if (body.show_sex         !== undefined) updateData.showSex         = typeof body.show_sex         === 'boolean' ? body.show_sex         : (errors['show_sex']         = 'show_sex must be a boolean', undefined);
     if (body.show_orientation !== undefined) updateData.showOrientation = typeof body.show_orientation === 'boolean' ? body.show_orientation : (errors['show_orientation'] = 'show_orientation must be a boolean', undefined);
     if (body.show_identity    !== undefined) updateData.showIdentity    = typeof body.show_identity    === 'boolean' ? body.show_identity    : (errors['show_identity']    = 'show_identity must be a boolean', undefined);
+    if (body.show_personality_trait !== undefined) updateData.showPersonalityTrait = typeof body.show_personality_trait === 'boolean' ? body.show_personality_trait : (errors['show_personality_trait'] = 'show_personality_trait must be a boolean', undefined);
 
     // ── Background ──────────────────────────────────────────────────────────
     if (body.ethnicity !== undefined) {

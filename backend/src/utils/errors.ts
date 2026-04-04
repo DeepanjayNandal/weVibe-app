@@ -21,6 +21,10 @@ export function forbidden(message: string, code = 'FORBIDDEN'): never {
   throw new AppError(message, 403, code);
 }
 
+export function notFound(message: string, code = 'NOT_FOUND'): never {
+  throw new AppError(message, 404, code);
+}
+
 export function conflict(message: string, code = 'CONFLICT'): never {
   throw new AppError(message, 409, code);
 }

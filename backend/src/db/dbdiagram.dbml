@@ -1,24 +1,26 @@
 // ==========================================================
-// WeVibe Complete Database Architecture 
-// Features: Strict Enums, No Swipes, 24h Icebreaker Challenge, Double Opt-in
+// WeVibe Database Architecture (Synced with Prisma Schema)
+// Features: 24h Icebreaker, Speed Dating, Detailed Profiles
 // ==========================================================
 
 Table users {
   id uuid [pk, default: `uuid_generate_v4()`]
-  firebase_uid varchar [unique, note: 'Populated after Firebase Auth linking']
+  firebase_uid varchar [unique, not null, note: 'Populated after Firebase Auth linking']
   auth_provider enum_auth_provider [not null, default: 'email']
   email varchar [unique, not null]
   phone varchar [unique]
   password_hash varchar
   created_at timestamp [default: `now()`]
   last_active_at timestamp
-  
+
   is_banned boolean [default: false]
   current_status enum_user_status [default: 'offline'] 
+  onboarding_complete boolean [default: false, note: 'Set to true after user submits the onboarding survey']
   is_registration_complete boolean [default: false]
   is_personality_test_complete boolean [default: false]
 
-  // --- Search Preferences ---
+  // --- Search Preferences (Legacy/Internal) ---
+  // Note: Newer preferences are in the profiles table
   search_radius_km int [default: 50] 
   search_age_min int [default: 18]   
   search_age_max int [default: 35]   
@@ -28,48 +30,101 @@ Table users {
 }
 
 Table profiles {
-  user_id uuid [pk, ref: - users.id]
+  user_id uuid [pk, ref: - users.id, note: 'One-to-one relationship with users table']
   
   // --- Core Demographics ---
-  display_name varchar
+  first_name varchar(100)
+  last_name varchar(100)
+  display_name varchar(100)
   birth_date date
-  gender varchar [note: 'Gender identity']
+  gender varchar(50) [note: 'From onboarding ("Male", "Female", "Non-binary", "Prefer not to say")']
   sex enum_sex [note: 'Biological sex']
-  ethnicity varchar [note: 'e.g., White, Asian, Hispanic, Black, Pacific Islander']
+  pronouns varchar(50)
+  orientation varchar(50)
+  gender_identity varchar(50)
+  
+  // --- Visibility Toggles ---
+  show_sex boolean [default: true]
+  show_orientation boolean [default: true]
+  show_identity boolean [default: true]
+
+  // --- Background ---
+  ethnicity jsonb [note: 'Array: ["White", "Asian", "Hispanic"]']
+  birth_country varchar(100)
+  height_unit varchar(10) [note: 'imperial or metric']
+  height_ft int
+  height_in int
   height_cm int [note: 'Stored in cm to maintain a standard unit']
   
   // --- Location ---
-  location_point geography [note: 'PostGIS Latitude/Longitude for spatial queries']
-  state varchar 
-  zip_code varchar 
+  latitude float
+  longitude float
+  location_point geography [note: 'PostGIS Latitude/Longitude for spatial queries (Point,4326)']
+  location_city varchar(100)
+  state varchar(100)
+  zip_code varchar(20)
 
-  // --- Background ---
-  education enum_education 
-  career_field varchar 
+  // --- Career & Education ---
+  education varchar(100) [note: 'e.g., bachelors, masters. Matches iOS EducationLevel rawValue']
+  career_field varchar(100) [note: 'e.g., Technology, Healthcare']
+  job_title varchar(100)
+  school varchar(100)
   languages jsonb [note: 'Array: ["English", "Mandarin", "Spanish"]']
 
   // --- Intent & Personality ---
-  relationship_intent enum_intent 
-  personality_primary varchar [note: 'Primary Soul Archetype']
-  personality_secondary varchar [note: 'Secondary Soul Archetype']
+  relationship_goals jsonb [note: 'Array, max 2: ["short_term", "long_term"]']
+  relationship_intent enum_intent [note: 'Legacy field, use relationship_goals']
+  personality_primary varchar(100) [note: 'Primary Soul Archetype']
+  personality_secondary varchar(100) [note: 'Secondary Soul Archetype']
+  personality_type varchar(100) [note: 'MBTI result e.g. "Consul (ESFJ)"']
+  love_language varchar(50)
+  zodiac_sign varchar(20)
+  communication_style varchar(50)
+  conflict_style varchar(50)
 
   // --- Lifestyle & Habits ---
-  lifestyle_drinks enum_frequency
-  lifestyle_smoking enum_frequency
-  lifestyle_workout enum_frequency
-  lifestyle_pets enum_preference_level
-  lifestyle_children enum_preference_level
-  lifestyle_sleep enum_sleep_schedule
+  lifestyle_drinks varchar(20)
+  lifestyle_smoking varchar(20)
+  lifestyle_workout varchar(20)
+  lifestyle_cannabis varchar(20)
+  lifestyle_pets varchar(20)
+  lifestyle_children varchar(20)
+  lifestyle_sleep varchar(20)
+  pet_types varchar(100)
+  pets_name varchar(100)
+  
+  // --- Lifestyle Flexibility ---
+  is_drinks_flexible boolean [default: false]
+  is_smoking_flexible boolean [default: false]
+  is_workout_flexible boolean [default: false]
+  is_sleep_flexible boolean [default: false]
+  is_cannabis_flexible boolean [default: false]
+  is_kids_flexible boolean [default: false]
 
   // --- Prompts & Media ---
+  bio varchar(500)
   prompts jsonb [note: 'Array of objects: [{"question": "...", "answer": "..."}]']
   photos jsonb [note: 'Array of Image URLs']
-  social_integrations jsonb [note: 'Spotify, Instagram links etc.']
+  interests jsonb [note: 'Array of strings, max 7']
+  preferred_date_activities jsonb [note: 'Array of strings, max 3']
+  would_not_do_activities jsonb [note: 'Array of strings, max 3']
+  
+  // --- Socials ---
+  instagram_handle varchar(100)
+  tiktok_handle varchar(100)
+  spotify_playlist_url varchar(500)
+  social_integrations jsonb [note: 'Legacy field for other integrations']
+
+  // --- User Search Preferences ---
+  meet_preference varchar(20) [note: 'e.g., "Men", "Women", "Open to both"']
+  min_age_preference int
+  max_age_preference int
+  distance_preference_miles int [note: 'Distance in miles']
   
   likes_received_count int [default: 0]
 
   indexes {
-    location_point 
+    location_point [note: 'type: gist']
     (gender, personality_primary) 
   }
 }
@@ -112,6 +167,10 @@ Table messages {
   type enum_msg_type [default: 'text']
   created_at timestamp [default: `now()`]
   read_at timestamp
+
+  indexes {
+    (match_id, created_at)
+  }
 }
 
 // ==========================================================
@@ -139,8 +198,13 @@ Table speed_dating_messages {
   content text
   type enum_msg_type [default: 'text']
   created_at timestamp [default: `now()`]
+  read_at timestamp
   
   note: 'Temporary messages during the 3-minute blind date'
+
+  indexes {
+    (session_id, created_at)
+  }
 }
 
 Table matching_queue {
@@ -159,6 +223,28 @@ Table user_blocks {
   blocked_user_id uuid [ref: > users.id]
   reason varchar
   created_at timestamp [default: `now()`]
+
+  indexes {
+    (blocker_user_id, blocked_user_id) [unique]
+    blocker_user_id
+    blocked_user_id
+  }
+}
+
+Table user_reports {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  reporter_user_id uuid [ref: > users.id]
+  reported_user_id uuid [ref: > users.id]
+  match_id uuid [ref: > matches.id]
+  reason varchar(255) [not null]
+  details varchar(1000)
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    reporter_user_id
+    reported_user_id
+    match_id
+  }
 }
 
 // ==========================================================
@@ -238,6 +324,7 @@ Enum enum_auth_provider {
   google     
   apple   
   facebook 
+  twitter
 }
 
 Enum enum_msg_type {

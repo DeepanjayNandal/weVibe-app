@@ -172,15 +172,39 @@ struct SocialBadge: View {
     @ViewBuilder private var platformIcon: some View {
         switch platform {
         case .instagram:
-            Image(systemName: "camera.fill")
-                .font(.system(size: 13))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: "#833AB4"), Color(hex: "#FD1D1D"), Color(hex: "#F77737")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            ZStack {
+                RoundedRectangle(cornerRadius: 3.5)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color(hex: "#833AB4"), Color(hex: "#FD1D1D"), Color(hex: "#F77737")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
                     )
-                )
+                    .frame(width: 14, height: 14)
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color(hex: "#833AB4"), Color(hex: "#FD1D1D"), Color(hex: "#F77737")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
+                    .frame(width: 7.5, height: 7.5)
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "#833AB4"), Color(hex: "#F77737")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 2.5, height: 2.5)
+                    .offset(x: 3.5, y: -3.5)
+            }
+            .frame(width: 16, height: 16)
         case .tiktok:
             ZStack {
                 Image(systemName: "music.note")

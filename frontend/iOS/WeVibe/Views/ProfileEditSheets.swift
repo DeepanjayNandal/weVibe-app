@@ -31,6 +31,7 @@ struct PhotosEditSheet: View {
     @State private var uploadProgress: String = ""
     @State private var saveError: String? = nil
     @State private var draggingItemId: String? = nil
+    @State private var cropQueue: [UIImage] = []
 
     private static let maxPhotos = 6
     private var totalCount: Int { photoItems.count }
@@ -154,6 +155,22 @@ struct PhotosEditSheet: View {
                 }
             }
             .onChange(of: pickerItems) { loadNewImages() }
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { !cropQueue.isEmpty },
+                    set: { if !$0 { cropQueue.removeAll() } }
+                )
+            ) {
+                if let img = cropQueue.first {
+                    ImageCropView(image: img) { cropped in
+                        cropQueue.removeFirst()
+                        photoItems.append(.new(id: UUID().uuidString, image: cropped))
+                    } onCancel: {
+                        cropQueue.removeFirst()
+                    }
+                    .id(cropQueue.count)
+                }
+            }
         }
         .onAppear { photoItems = store.photos.map { .existing($0) } }
     }
@@ -214,7 +231,7 @@ struct PhotosEditSheet: View {
                     // stretched or rotated. Drawing into a new context produces a clean .up image.
                     let normalized = img.normalizedForDisplay()
                     DispatchQueue.main.async {
-                        photoItems.append(.new(id: UUID().uuidString, image: normalized))
+                        cropQueue.append(normalized)
                     }
                 }
             }
@@ -264,10 +281,29 @@ struct PhotosEditSheet: View {
                     token: token, mimeType: "image/jpeg", sizeBytes: jpegData.count
                 )
                 try await client.uploadPhotoData(jpegData, to: urlResult.uploadURL)
-                let photo = try await client.finalizePhotoUpload(
-                    token: token, photoId: urlResult.photoId, order: i
-                )
-                uploadedPhotos.append(photo)
+
+                // Finalize with retry: the GCS bytes are already uploaded at this point.
+                // If finalize fails transiently, retrying avoids leaving an orphaned GCS file.
+                // Note: a server-side cleanup job should also sweep unfinalized photoIds older
+                // than ~1 hour to handle cases where all client retries are exhausted.
+                var photo: UserPhoto?
+                var finalizeError: Error?
+                for attempt in 1...3 {
+                    do {
+                        photo = try await client.finalizePhotoUpload(
+                            token: token, photoId: urlResult.photoId, order: i
+                        )
+                        finalizeError = nil
+                        break
+                    } catch {
+                        finalizeError = error
+                        if attempt < 3 {
+                            try? await Task.sleep(nanoseconds: UInt64(attempt) * 500_000_000)
+                        }
+                    }
+                }
+                if let err = finalizeError { throw err }
+                uploadedPhotos.append(photo!)
             } catch {
                 saveError = "Failed to upload photo \(i + 1). Please try again."
                 return
@@ -304,7 +340,11 @@ struct PhotosEditSheet: View {
             scale = 1.0
         }
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // scale=1 so pixel dimensions == newSize; without this the renderer inherits
+        // the screen scale (3×) and the JPEG encodes at 9× the intended pixel count.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         let resized = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
         return resized.jpegData(compressionQuality: quality)
     }
@@ -331,7 +371,13 @@ private extension UIImage {
         }
         let newSize = CGSize(width: (size.width * scale).rounded(),
                              height: (size.height * scale).rounded())
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // Force scale=1 so image.size == pixel dimensions.
+        // Without this, UIGraphicsImageRenderer inherits the screen scale (3×),
+        // producing an image where size=(1200,899) pts but cgImage is 3600×2697 px —
+        // which breaks any code that maps UIImage.size back to CGImage pixel coordinates.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
@@ -772,12 +818,7 @@ struct BackgroundEditSheet: View {
         "French", "Portuguese", "Russian", "Japanese", "Korean",
         "German", "Vietnamese", "Italian", "Other+"
     ]
-    private static let countries = [
-        "United States", "Canada", "United Kingdom", "Australia", "India",
-        "Mexico", "Brazil", "Germany", "France", "Japan", "South Korea",
-        "China", "Nigeria", "Philippines", "Vietnam", "Spain", "Italy",
-        "Pakistan", "Bangladesh", "Ethiopia", "Egypt", "Other"
-    ]
+    private static let countries = StaticConfig.countries
 
     var body: some View {
         editNav(title: "Background", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {

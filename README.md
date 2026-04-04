@@ -9,23 +9,49 @@ iOS dating app with a Node.js/Express backend.
 ### Requirements
 
 - Xcode 16 or later
-- iOS 17.0+ deployment target
+- iOS 17.6+ deployment target
 - macOS Sonoma or later
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
+
+> The Xcode project (`WeVibe.xcodeproj`) is not checked in. It is generated locally from
+> [frontend/iOS/project.yml](frontend/iOS/project.yml) via XcodeGen.
 
 ### Setup
 
-1. **Add Firebase config files** (git-ignored — get from team)
+1. **Install XcodeGen** (one-time)
+   ```bash
+   brew install xcodegen
+   ```
+
+2. **Activate git hooks** (one-time) — auto-regenerates the project when `project.yml` changes after a pull or branch switch
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+3. **Generate the Xcode project**
+   ```bash
+   cd frontend/iOS && xcodegen generate
+   ```
+
+4. **Add Firebase config files** (git-ignored — get from team)
    ```
    frontend/iOS/WeVibe/Firebase/GoogleService-Info-Dev.plist   ← Debug builds
    frontend/iOS/WeVibe/Firebase/GoogleService-Info-Prod.plist  ← Release builds
    ```
 
-2. **Open the project**
+5. **Open and build**
    ```bash
    open frontend/iOS/WeVibe.xcodeproj
    ```
+   Press **Cmd + R**, select an iOS 17+ simulator or device.
 
-3. **Build and run** — press **Cmd + R**, select an iOS 17+ simulator or device
+### Regenerating the project
+
+If you modify `project.yml` (add files, change build settings, add dependencies), regenerate with:
+```bash
+cd frontend/iOS && xcodegen generate
+```
+The git hooks handle this automatically after pulls and branch switches.
 
 ### Architecture
 

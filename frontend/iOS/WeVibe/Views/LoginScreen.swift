@@ -20,8 +20,10 @@ struct LoginScreen: View {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
 
+            ScrollView {
             VStack(spacing: 10) {
                 LogoView(size: 170)
+                .padding(.top, 60)
 
                 Text("Log In")
                     .foregroundStyle(.white)
@@ -159,6 +161,7 @@ struct LoginScreen: View {
                     .opacity(isSSOLoading || isLoading ? 0.6 : 1)
                 }
                 .disabled(isLoading || isSSOLoading)
+                .padding(.bottom, 8)
 
                 Button {
                     performSSOLogin(provider: .apple)
@@ -178,6 +181,8 @@ struct LoginScreen: View {
                 .disabled(isLoading || isSSOLoading)
             }
             .padding(.horizontal, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
         }
         .navigationBarHidden(true)
         .onTapGesture {

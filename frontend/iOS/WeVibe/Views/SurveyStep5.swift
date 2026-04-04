@@ -103,16 +103,9 @@ struct SurveyStep5: View {
 
                     // Navigation
                     HStack {
-                        Button {
+                        BackButton(style: .circle) {
                             onboardingData.save()
                             onboardingRouter.pop()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(AppTheme.primaryBackground)
-                                .frame(width: 48, height: 48)
-                                .background(.white)
-                                .clipShape(Circle())
                         }
 
                         Spacer()

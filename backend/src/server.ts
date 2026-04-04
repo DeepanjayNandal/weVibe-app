@@ -117,10 +117,7 @@ async function shutdown(signal: string) {
   
   // turn off Socket.io and Redis Adapter at the same time
   socketServer.getIO()?.close();
-  if (typeof deletedUserPurgeHandle !== 'undefined') {
-    clearInterval(deletedUserPurgeHandle);
-  }
-
+  
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

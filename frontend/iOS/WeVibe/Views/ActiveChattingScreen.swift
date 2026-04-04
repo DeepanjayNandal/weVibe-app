@@ -15,7 +15,7 @@ struct ChatMessage: Identifiable {
 private struct CountdownTimerView: View {
     let secondsRemaining: Int
 
-    private var isWarning: Bool { secondsRemaining <= 600 }
+    private var isWarning: Bool { secondsRemaining <= 600 } // last 10 mins
 
     private var timeString: String {
         let h = secondsRemaining / 3600
@@ -88,15 +88,19 @@ struct ActiveChatView: View {
 
     let matchId: String
     var onClose: () -> Void
+    var onLeaveSession: () -> Void 
 
     @Environment(ChatRouter.self) private var chatRouter
+    @Environment(MatchmakingService.self) private var matchmakingService
     @State private var messageText: String = ""
     @FocusState private var inputFocused: Bool
+
 
     @State private var secondsRemaining: Int = 86400
     @State private var timerTask: Task<Void, Never>? = nil
     @State private var showMatchPopup: Bool = false
     @State private var isSessionEnded: Bool = false
+    @State private var showLeaveConfirm: Bool = false
 
     @State private var messages: [ChatMessage] = [
         ChatMessage(text: "Hi Emelie!", isMine: true,  time: "3:02 PM", messagesLeft: 19),
@@ -105,7 +109,6 @@ struct ActiveChatView: View {
     ]
 
     @State private var messagesLeft: Int = 18
-
 
     private var showLowMessagesBanner: Bool { messagesLeft > 0 && messagesLeft <= 5 }
     private var isTimerWarning: Bool { secondsRemaining <= 600 }
@@ -130,6 +133,7 @@ struct ActiveChatView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
 
+                            // ── Logo
                             LogoWithoutText(size: 60)
                                 .padding(.top, 20)
                                 .padding(.bottom, 10)
@@ -137,12 +141,10 @@ struct ActiveChatView: View {
                             CountdownTimerView(secondsRemaining: secondsRemaining)
                                 .padding(.bottom, 20)
 
-
                             if showLowMessagesBanner {
                                 MessagesLeftBanner(count: messagesLeft)
                                     .padding(.bottom, 12)
                             }
-
 
                             ForEach(messages) { message in
                                 MessageBubble(message: message)
@@ -157,6 +159,8 @@ struct ActiveChatView: View {
                             withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                         }
                     }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onTapGesture{ inputFocused = false }
                 }
 
                 inputBar
@@ -164,7 +168,7 @@ struct ActiveChatView: View {
         }
         .overlay {
             if isSessionEnded {
-                Color.black.opacity(0.35)
+                Color.black.opacity(0.2)
                     .ignoresSafeArea()
                     .transition(.opacity)
             }
@@ -172,18 +176,65 @@ struct ActiveChatView: View {
         .overlay(alignment: .bottom) {
             if showMatchPopup {
                 MatchDecisionSheet(onMatch: {
-                    showMatchPopup = false
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false }
                     onClose()
                 }, onSkip: {
-                    showMatchPopup = false
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false }
                     onClose()
+                }, onDismiss: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showMatchPopup = false
+                        isSessionEnded = false
+                    }
                 })
                 .transition(.move(edge: .bottom))
                 .ignoresSafeArea(edges: .bottom)
             }
         }
+        .overlay(alignment: .bottom) {
+            if showLeaveConfirm {
+                LeaveSessionSheet(
+                    onLeave: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                        matchmakingService.cancelSearch()
+                        onLeaveSession()  // ← use this instead of onClose()
+                    },
+                    onStay: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                    }
+                )
+                .transition(.move(edge: .bottom))
+                .ignoresSafeArea(edges: .bottom)
+            }
+        }
+        // Dim behind leave sheet
+        .overlay {
+            if showLeaveConfirm {
+                Color.black.opacity(0.15)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showLeaveConfirm = false
+                        }
+                    }
+            }
+        }
+        // Dim behind match sheet
+        .overlay {
+            if showMatchPopup {
+                Color.black.opacity(0.15)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showMatchPopup = false
+                            isSessionEnded = false
+                        }
+                    }
+            }
+        }
         .navigationBarHidden(true)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear { startCountdown() }
         .onDisappear { timerTask?.cancel() }
     }
@@ -192,7 +243,7 @@ struct ActiveChatView: View {
 
     private var headerBar: some View {
         HStack(spacing: 12) {
-            Button { onClose() } label: {
+            Button { showLeaveConfirm = true } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color(hex: "#1A8C4E"))
@@ -399,17 +450,18 @@ private struct MessageBubble: View {
 private struct MatchDecisionSheet: View {
     var onMatch: () -> Void
     var onSkip: () -> Void
-
-    @State private var sheetOpacity: Double = 0
+    var onDismiss: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
 
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(hex: "#C8E6C9"))
-                .frame(width: 36, height: 4)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
+            ZStack {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(hex: "#C8E6C9"))
+                    .frame(width: 36, height: 4)
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 20)
 
             LogoWithoutText(size: 44)
                 .padding(.bottom, 14)
@@ -440,13 +492,14 @@ private struct MatchDecisionSheet: View {
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundStyle(Color(hex: "#9E9E9E"))
                         }
-                        Text("Nah")
+                        Text("nah")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Color(hex: "#9E9E9E"))
                     }
                 }
                 .buttonStyle(ScaleButtonStyle())
 
+                // ✓ Match
                 Button(action: onMatch) {
                     VStack(spacing: 6) {
                         ZStack {
@@ -465,7 +518,7 @@ private struct MatchDecisionSheet: View {
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundStyle(.white)
                         }
-                        Text("Match!")
+                        Text("match!")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(Color(hex: "#1A8C4E"))
                     }
@@ -480,12 +533,6 @@ private struct MatchDecisionSheet: View {
                 .ignoresSafeArea(edges: .bottom)
                 .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8)
         )
-        .opacity(sheetOpacity)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.25)) {
-                sheetOpacity = 1.0
-            }
-        }
     }
 }
 
@@ -496,5 +543,96 @@ private struct ScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
             .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Leave Session Sheet
+
+private struct LeaveSessionSheet: View {
+    var onLeave: () -> Void
+    var onStay: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // Handle
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+
+            // Icon
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.orange)
+                .padding(.bottom, 12)
+
+            // Title
+            Text("Leave this session?")
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A"))
+                .padding(.bottom, 6)
+
+            // Subtitle
+            Text("If you leave now, this chat will end\nand you won't be able to come back.")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#5A8A5A"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 28)
+
+            // Buttons
+            VStack(spacing: 10) {
+
+                // Stay
+                Button(action: onStay) {
+                    Text("Stay in chat")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color(hex: "#1A8C4E").opacity(0.35), radius: 10, x: 0, y: 4)
+                        )
+                }
+                .buttonStyle(ScaleButtonStyle())
+
+                // Leave
+                Button(action: onLeave) {
+                    Text("Yes, leave")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.red.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.red.opacity(0.06))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)
+                                )
+                        )
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            Color.white
+                .ignoresSafeArea(edges: .bottom)
+                .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8)
+        )
     }
 }

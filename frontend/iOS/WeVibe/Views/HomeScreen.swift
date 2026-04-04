@@ -101,9 +101,16 @@ private struct ChatTab: View {
             .navigationDestination(for: ChatRoute.self) { route in
                 switch route {
                 case .activeChat(let matchId):
-                    ActiveChatView(matchId: matchId) {
-                        chatRouter.popToRoot()
-                    }
+                    ActiveChatView(
+                            matchId: matchId,
+                            onClose: {
+                                chatRouter.popToRoot()
+                            },
+                            onLeaveSession: {
+                                chatRouter.popToRoot()
+                                selectedTab = .speedDating
+                            }
+                        )
                 case .permanentChat(let matchId):
                     PermanentChatView(matchId: matchId) {
                         chatRouter.popToRoot()
@@ -115,7 +122,6 @@ private struct ChatTab: View {
         .onChange(of: pendingMatchId) { _, newMatchId in
             guard let matchId = newMatchId else { return }
             chatRouter.navigate(to: .activeChat(matchId: matchId))
-            chatRouter.navigate(to: .permanentChat(matchId: matchId))
             pendingMatchId = nil
         }
         .environment(chatRouter)

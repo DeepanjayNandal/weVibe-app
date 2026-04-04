@@ -42,21 +42,30 @@ private struct CardTheme {
     )
 }
 
+struct LightboxItem: Identifiable {
+    let id = UUID()
+    let startIndex: Int
+}
+
 struct ProfileCardView: View {
     let data: ProfileDisplayData
     let mode: ProfileCardMode
 
     @AppStorage("profileCardLightTheme") private var isLightTheme: Bool = false
 
-    @State private var showRemoveAlert = false
-    @State private var showLightbox    = false
-    @State private var lightboxStart   = 0
+    @State private var showRemoveAlert    = false
+    @State private var lightboxItem:      LightboxItem?
+    @State private var currentPhotoIndex  = 0
 
     private var t: CardTheme { isLightTheme ? .light : .dark }
 
     private var isOwnProfile: Bool {
         if case .ownProfile = mode { return true }
         return false
+    }
+
+    private var photoHeight: CGFloat {
+        min(UIScreen.main.bounds.width * 0.9, 420)
     }
 
     var body: some View {
@@ -72,8 +81,8 @@ struct ProfileCardView: View {
                 .padding(.bottom, isOwnProfile ? 110 : 40)
             }
         }
-        .fullScreenCover(isPresented: $showLightbox) {
-            PhotoLightboxView(urls: data.photoURLs, startIndex: lightboxStart)
+        .fullScreenCover(item: $lightboxItem) { item in
+            PhotoLightboxView(urls: data.photoURLs, startIndex: item.startIndex)
         }
         .alert("Remove from Matches?", isPresented: $showRemoveAlert) {
             if case .matchProfile(_, let onRemove) = mode {
@@ -117,7 +126,7 @@ struct ProfileCardView: View {
             if data.photoURLs.isEmpty {
                 t.sectionBg
                     .frame(maxWidth: .infinity)
-                    .frame(height: 340)
+                    .frame(height: photoHeight)
                     .overlay {
                         VStack(spacing: 12) {
                             ZStack {
@@ -142,45 +151,61 @@ struct ProfileCardView: View {
                         .padding(.bottom, 40)
                     }
             } else {
-                Button {
-                    lightboxStart = 0
-                    showLightbox = true
-                } label: {
-                    AsyncImage(url: URL(string: data.photoURLs[0])) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: { t.sectionBg }
+                ZStack(alignment: .bottom) {
+                    TabView(selection: $currentPhotoIndex) {
+                        ForEach(data.photoURLs.indices, id: \.self) { i in
+                            AsyncImage(url: URL(string: data.photoURLs[i])) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: { t.sectionBg }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: photoHeight)
+                            .clipped()
+                            .tag(i)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                lightboxItem = LightboxItem(startIndex: i)
+                            }
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 340)
-                    .clipped()
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                .frame(height: 340)
-                .overlay(alignment: .bottom) {
+                    .frame(height: photoHeight)
+
+                    // Fade-to-background gradient
                     LinearGradient(
                         colors: [.clear, t.bg],
                         startPoint: .init(x: 0.5, y: t.isLight ? 0.6 : 0.5), endPoint: .bottom
                     )
                     .frame(height: 140)
                     .allowsHitTesting(false)
-                }
-                .overlay(alignment: .bottom) {
-                    HStack {
+
+                    // Bottom HUD: dots centered, camera button trailing
+                    ZStack {
                         if data.photoURLs.count > 1 {
-                            Label("1 / \(data.photoURLs.count)", systemImage: "photo.on.rectangle")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(Color.black.opacity(0.45), in: Capsule())
+                            HStack(spacing: 5) {
+                                ForEach(data.photoURLs.indices, id: \.self) { i in
+                                    Circle()
+                                        .fill(i == currentPhotoIndex ? Color.white : Color.white.opacity(0.4))
+                                        .frame(
+                                            width:  i == currentPhotoIndex ? 8 : 5,
+                                            height: i == currentPhotoIndex ? 8 : 5
+                                        )
+                                        .animation(.easeInOut(duration: 0.2), value: currentPhotoIndex)
+                                }
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(Color.black.opacity(0.35), in: Capsule())
                         }
-                        Spacer()
                         if isOwnProfile, case .ownProfile(let onEdit, _) = mode {
-                            Button { onEdit(.photos) } label: {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(.white)
-                                    .padding(10)
-                                    .background(Color.black.opacity(0.45), in: Circle())
+                            HStack {
+                                Spacer()
+                                Button { onEdit(.photos) } label: {
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(.white)
+                                        .padding(10)
+                                        .background(Color.black.opacity(0.45), in: Circle())
+                                }
                             }
                         }
                     }
@@ -285,15 +310,19 @@ struct ProfileCardView: View {
                 }
             }
 
-            let personalityHasContent = !data.personalityType.isEmpty || !data.loveLanguage.isEmpty
-                || !data.zodiacSign.isEmpty || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
-            section(id: .personality, title: "Personality", isVisible: data.showPersonalityTrait, hasContent: personalityHasContent) {
-                if data.personalityType.isEmpty && data.loveLanguage.isEmpty && data.zodiacSign.isEmpty
-                    && data.communicationStyle.isEmpty && data.conflictStyle.isEmpty && isOwnProfile {
+            let personalityHasContent = !data.personalityPrimary.isEmpty || !data.personalityType.isEmpty
+                || !data.loveLanguage.isEmpty || !data.zodiacSign.isEmpty
+                || !data.communicationStyle.isEmpty || !data.conflictStyle.isEmpty
+            section(id: .personality, title: "Personality", isVisible: true, hasContent: personalityHasContent) {
+                if !personalityHasContent && isOwnProfile {
                     emptyHint("Add your personality details")
                 } else {
                     rowGrid {
-                        if !data.personalityType.isEmpty { infoRow("brain.head.profile", "Type", data.personalityType) }
+                        let typeDisplay = personalityTypeDisplay(
+                            primary: data.personalityPrimary,
+                            secondary: data.personalitySecondary,
+                            fallback: data.personalityType
+                        )
                         if !data.loveLanguage.isEmpty    { infoRow("heart.fill", "Love Language", data.loveLanguage) }
                         if !data.zodiacSign.isEmpty      { infoRow("moon.stars.fill", "Zodiac", data.zodiacSign) }
                         if !data.communicationStyle.isEmpty {
@@ -302,6 +331,7 @@ struct ProfileCardView: View {
                         if !data.conflictStyle.isEmpty {
                             infoRow("bolt.fill", "Conflict Style", data.conflictStyle)
                         }
+                        if !typeDisplay.isEmpty && data.showPersonalityTrait { infoRow("brain.head.profile", "Type", typeDisplay) }
                     }
                 }
             }
@@ -526,11 +556,12 @@ struct ProfileCardView: View {
 
     @ViewBuilder
     private func infoRow(_ icon: String, _ label: String, _ value: String) -> some View {
-        GridRow {
+        GridRow(alignment: .top) {
             Image(systemName: icon)
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.primaryButton)
                 .gridColumnAlignment(.center)
+                .padding(.top, 2)
             Text(label)
                 .font(.system(size: 15))
                 .foregroundStyle(t.secondary)
@@ -605,6 +636,16 @@ struct ProfileCardView: View {
                 }
             }
         }
+    }
+
+    private func personalityTypeDisplay(primary: String, secondary: String, fallback: String) -> String {
+        guard !primary.isEmpty, let primaryName = StaticConfig.personalityMeta[primary]?.type else {
+            return fallback
+        }
+        if !secondary.isEmpty, let secondaryName = StaticConfig.personalityMeta[secondary]?.type {
+            return "\(primaryName) & \(secondaryName)"
+        }
+        return primaryName
     }
 
     @ViewBuilder

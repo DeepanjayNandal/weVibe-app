@@ -213,7 +213,7 @@ describe('Matching Queue API', () => {
       birthDate: '1994-03-15',
       gender: 'Female',
       searchGender: 'men',
-      personality: 'C',
+      personality: 'A',
       latitude: 25.0335,
       longitude: 121.565,
     });
@@ -300,5 +300,134 @@ describe('Matching Queue API', () => {
 
     const sessions = await prisma.speed_dating_sessions.findMany();
     expect(sessions).toHaveLength(0);
+  });
+
+  test('join queue is rejected when requester already has an active speed dating session', async () => {
+    const tokenA = 'mock:google:mq-a-006:mq-a-006@matching.test';
+    const tokenB = 'mock:google:mq-b-006:mq-b-006@matching.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    const retryResponse = await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(retryResponse.status).toBe(400);
+    expect(retryResponse.body.error.code).toBe('ACTIVE_SESSION_EXISTS');
+  });
+
+  test('expired active session does not block join queue', async () => {
+    const tokenA = 'mock:google:mq-a-007:mq-a-007@matching.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    const uidA = tokenA.split(':')[2];
+    const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
+    if (!userA) {
+      throw new Error('User not found for expired session test');
+    }
+
+    await prisma.speed_dating_sessions.create({
+      data: {
+        user_a_id: userA.id,
+        user_b_id: userA.id,
+        started_at: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        status: 'active',
+      },
+    });
+
+    const response = await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.state).toBe('waiting');
+  });
+
+  test('recent permanent match prevents rematch in queue', async () => {
+    const tokenA = 'mock:google:mq-a-008:mq-a-008@matching.test';
+    const tokenB = 'mock:google:mq-b-008:mq-b-008@matching.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const uidA = tokenA.split(':')[2];
+    const uidB = tokenB.split(':')[2];
+    const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
+    const userB = await prisma.users.findUnique({ where: { firebase_uid: uidB } });
+    if (!userA || !userB) {
+      throw new Error('Users not found for rematch test');
+    }
+
+    // Create a recent match
+    await prisma.matches.create({
+      data: {
+        user_a_id: userA.id,
+        user_b_id: userB.id,
+        status: 'active',
+        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // a day ago
+      },
+    });
+
+    await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    const response = await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.state).toBe('waiting');
+
+    const queueCount = await prisma.matching_queue.count();
+    expect(queueCount).toBe(2);
   });
 });

@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
 
     @Environment(AuthManager.self) private var authManager
+    @Environment(NetworkMonitor.self) private var networkMonitor
     @EnvironmentObject private var locationManager: LocationManager
 
     var body: some View {
@@ -21,6 +22,8 @@ struct RootView: View {
                 OnboardingFlowView()
             case .authenticated:
                 HomeScreen()
+            case .networkError:
+                NetworkErrorView()
             }
 
             // Block the entire app when location permission is denied/restricted.
@@ -33,13 +36,29 @@ struct RootView: View {
             }
         }
         .overlay(alignment: .top) {
-            if let error = authManager.globalError {
-                ErrorToast(message: error) {
-                    authManager.globalError = nil
+            VStack(spacing: 0) {
+                if !networkMonitor.isConnected {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("No internet connection")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.85))
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authManager.globalError != nil)
+                if let error = authManager.globalError {
+                    ErrorToast(message: error) {
+                        authManager.globalError = nil
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: networkMonitor.isConnected)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authManager.globalError != nil)
         }
     }
 }
@@ -75,6 +94,77 @@ struct AuthFlowView: View {
         }
         .navigationBarHidden(true)
         .environment(authRouter)
+    }
+}
+
+// MARK: - Network Error View
+
+// Shown when Firebase session exists but backend is unreachable.
+// "Try Again" re-runs the post-auth check; "Sign Out" returns to login.
+struct NetworkErrorView: View {
+
+    @Environment(AuthManager.self) private var authManager
+    @Environment(UserProfileStore.self) private var profileStore
+    @Environment(OnboardingData.self) private var onboardingData
+
+    @State private var isRetrying = false
+
+    var body: some View {
+        ZStack {
+            AppTheme.primaryBackground.ignoresSafeArea()
+
+            VStack(spacing: 32) {
+                Spacer()
+
+                LogoView(size: 80)
+
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 52))
+                    .foregroundStyle(.white.opacity(0.5))
+
+                VStack(spacing: 8) {
+                    Text("No Connection")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Check your internet connection\nand try again.")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                }
+
+                Button {
+                    isRetrying = true
+                    Task {
+                        await authManager.retryConnection()
+                        isRetrying = false
+                    }
+                } label: {
+                    Group {
+                        if isRetrying {
+                            ProgressView().tint(AppTheme.primaryBackground)
+                        } else {
+                            Text("Try Again")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(AppTheme.primaryBackground)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 25))
+                }
+                .disabled(isRetrying)
+                .padding(.horizontal, 40)
+
+                Spacer()
+
+                Button("Sign out") {
+                    authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
+                }
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.4))
+                .padding(.bottom, 32)
+            }
+        }
     }
 }
 

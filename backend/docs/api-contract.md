@@ -273,10 +273,61 @@ Authorization: Bearer <firebase-id-token>
       "userId": "uuid",
       "displayName": "Alice Smith",
       "birthDate": "1998-05-20T00:00:00.000Z",
-      "gender": "Female"
+      "gender": "Female",
+      "personality_type": "Serene Soul",
+      "personality_primary": "A",
+      "personality_secondary": null,
+      "is_personality_test_complete": true,
+      "show_personality_trait": true
     }
   }
 }
+```
+
+> `personality_type`, `personality_primary`, `personality_secondary` are `null` until the personality test is submitted.
+> `is_personality_test_complete` is `false` until the test is submitted.
+> `show_personality_trait` defaults to `true`. When `false`, the personality section is hidden on the user's public profile card.
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 401 | `PROFILE_NOT_FOUND` | User exists but has no profile yet |
+
+---
+
+### 6a. Update Profile
+
+Partially updates the authenticated user's profile. Only fields included in the request body are updated.
+
+```
+PATCH /api/v1/users/profile
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Visibility toggle fields (all `boolean`, all optional)**
+
+| Field | Default | Meaning when `false` |
+|---|---|---|
+| `show_sex` | `true` | Hide biological sex on profile card |
+| `show_orientation` | `true` | Hide orientation on profile card |
+| `show_identity` | `true` | Hide gender identity on profile card |
+| `show_personality_trait` | `true` | Hide personality section on profile card |
+
+**Request body example**
+```json
+{
+  "show_personality_trait": false
+}
+```
+
+**Response 200 — Success**
+```json
+{ "success": true }
 ```
 
 **Error Responses**
@@ -287,6 +338,7 @@ Authorization: Bearer <firebase-id-token>
 | 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 401 | `PROFILE_NOT_FOUND` | User exists but has no profile yet |
+| 422 | — | Field validation failed; body contains `{ errors: { field: message } }` |
 
 ---
 
@@ -1277,6 +1329,293 @@ Content-Type: application/json
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 403 | `CHAT_FORBIDDEN` | User is not a participant of this match |
 | 404 | `MATCH_NOT_FOUND` | Match does not exist |
+
+---
+
+### 28. Submit Personality Test
+
+Submits the user's 6 quiz answers, computes their personality type, and saves it to their profile. After this call, `GET /users/profile` will return the personality fields populated.
+
+```
+POST /api/v1/users/profile/personality
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "answers": [0, 2, 1, 3, 0, 2]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answers` | number[] | yes | Exactly 6 integers, each between 0–3 (0=A, 1=B, 2=C, 3=D) |
+
+**Response 200 — Success**
+```json
+{
+  "personality_type": "Serene Soul",
+  "personality_primary": "A",
+  "personality_secondary": null
+}
+```
+
+> If two letters tie, `personality_secondary` will be the second letter and `personality_type` will be `"Hybrid (A/B)"` (example).
+
+**Personality Type Labels**
+
+| Letter | Label |
+|---|---|
+| A | Serene Soul |
+| B | Empathetic Companion |
+| C | Radiant Dreamer |
+| D | Fierce Spark |
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 400 | `INVALID_ANSWERS` | `answers` is not an array of exactly 6 integers each between 0 and 3 |
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+
+---
+
+### 29. Chat Socket.IO (Realtime Events)
+
+Provides realtime push for matching, speed dating, permanent chat, and badge updates.
+Client uses REST for write operations; socket is mainly server-to-client notifications.
+
+```
+Socket.IO /socket.io
+```
+
+**Authentication**
+
+Use socket.io handshake auth payload and send Firebase ID token via auth.token:
+
+```json
+{
+  "auth": {
+    "token": "<firebase-id-token>"
+  }
+}
+```
+
+If authentication fails, server rejects the connection during handshake with one of:
+- AUTH_MISSING
+- AUTH_INVALID
+- AUTH_USER_NOT_FOUND
+- AUTH_BANNED
+
+**Payload Envelope (required for all server events)**
+
+```json
+{
+  "v": 1,
+  "data": {}
+}
+```
+
+**Server Events**
+
+`matching.queue.matched`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "sessionExpiresAt": "2026-03-27T10:00:00.000Z"
+  }
+}
+```
+
+`speed_dating.message.created`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "message": {
+      "id": "123",
+      "content": "hello",
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
+    }
+  }
+}
+```
+
+`speed_dating.session.ended`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.read_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "lastReadMessageId": "123",
+    "readByUserId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.move_to_permanent_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "matchId": "uuid"
+  }
+}
+```
+
+`speed_dating.session.final_decision_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "decision": "yes"
+  }
+}
+```
+
+`speed_dating.typing.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "userId": "uuid",
+    "isTyping": true
+  }
+}
+```
+
+`permanent.message.created`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "message": {
+      "id": "456",
+      "content": "hi",
+      "senderId": "uuid",
+      "createdAt": "2026-03-26T10:00:00.000Z"
+    }
+  }
+}
+```
+
+`permanent.match.read_updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "lastReadMessageId": "789",
+    "readByUserId": "uuid"
+  }
+}
+```
+
+`permanent.match.removed`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid"
+  }
+}
+```
+
+`permanent.match.blocked`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "blockedByUserId": "uuid"
+  }
+}
+```
+
+`permanent.match.reported`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid"
+  }
+}
+```
+
+`permanent.typing.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "matchId": "uuid",
+    "userId": "uuid",
+    "isTyping": false
+  }
+}
+```
+
+`chat.badge.updated`
+```json
+{
+  "v": 1,
+  "data": {
+    "speedDatingUnread": 2,
+    "matchesUnread": 5,
+    "totalUnread": 7
+  }
+}
+```
+
+`error`
+```json
+{
+  "v": 1,
+  "data": {
+    "code": "WS_UNAUTHORIZED",
+    "message": "Unauthorized socket connection"
+  }
+}
+```
+
+**Client Messages**
+
+`ping` (keepalive)
+- client emits ping
+- server replies pong (no payload)
+
+`typing` (client typing signal)
+```json
+{
+  "chatType": "permanent",
+  "chatId": "uuid",
+  "isTyping": true
+}
+```
+
+Invalid typing payloads are silently ignored.
 
 ---
 

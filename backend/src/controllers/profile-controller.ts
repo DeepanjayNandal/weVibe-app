@@ -361,6 +361,7 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     show_sex:                     profile.show_sex ?? true,
     show_orientation:             profile.show_orientation ?? true,
     show_identity:                profile.show_identity ?? true,
+    show_personality_trait:       profile.show_personality_trait ?? true,
 
     // ── Background ────────────────────────────────────────────────────────────
     ethnicity:                    profile.ethnicity ?? null,
@@ -605,7 +606,14 @@ export class ProfileController {
       }))
     );
 
-    res.status(200).json({ ...serialized, photos });
+    res.status(200).json({
+      ...serialized,
+      photos,
+      personality_type:              profile!.personality_type ?? null,
+      personality_primary:           profile!.personality_primary ?? null,
+      personality_secondary:         profile!.personality_secondary ?? null,
+      is_personality_test_complete:  user!.is_personality_test_complete ?? false,
+    });
   };
 
   // PATCH /api/v1/users/profile
@@ -616,6 +624,11 @@ export class ProfileController {
   // Returns 422 with field errors if any provided value fails validation.
   updateProfile = async (req: Request, res: Response): Promise<void> => {
     const user = await this.resolveUser(req);
+    const existingProfile = await this.profileService.getProfile(user!.id);
+    if (!existingProfile) {
+      unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
+    }
+
     const body = req.body ?? {};
     const errors: ErrorMap = {};
 
@@ -651,6 +664,7 @@ export class ProfileController {
     if (body.show_sex         !== undefined) updateData.showSex         = typeof body.show_sex         === 'boolean' ? body.show_sex         : (errors['show_sex']         = 'show_sex must be a boolean', undefined);
     if (body.show_orientation !== undefined) updateData.showOrientation = typeof body.show_orientation === 'boolean' ? body.show_orientation : (errors['show_orientation'] = 'show_orientation must be a boolean', undefined);
     if (body.show_identity    !== undefined) updateData.showIdentity    = typeof body.show_identity    === 'boolean' ? body.show_identity    : (errors['show_identity']    = 'show_identity must be a boolean', undefined);
+    if (body.show_personality_trait !== undefined) updateData.showPersonalityTrait = typeof body.show_personality_trait === 'boolean' ? body.show_personality_trait : (errors['show_personality_trait'] = 'show_personality_trait must be a boolean', undefined);
 
     // ── Background ──────────────────────────────────────────────────────────
     if (body.ethnicity !== undefined) {
@@ -797,13 +811,24 @@ export class ProfileController {
       updateData.maxAgePreference = optionalInt(errors, body.max_age_preference, 'max_age_preference', 18, 80,
         'max_age_preference must be between 18 and 80');
     }
-    // If both age preferences are sent together, check max >= min
-    if (
-      updateData.minAgePreference !== undefined && updateData.maxAgePreference !== undefined &&
-      updateData.minAgePreference !== null && updateData.maxAgePreference !== null &&
-      (updateData.maxAgePreference as number) < (updateData.minAgePreference as number)
-    ) {
-      errors['max_age_preference'] = 'max_age_preference must be greater than or equal to min_age_preference';
+    // For single-field age updates, compare against the persisted counterpart to prevent invalid ranges.
+    if (body.min_age_preference !== undefined || body.max_age_preference !== undefined) {
+      const effectiveMinAge =
+        updateData.minAgePreference !== undefined
+          ? (updateData.minAgePreference as number | null)
+          : existingProfile!.min_age_preference;
+      const effectiveMaxAge =
+        updateData.maxAgePreference !== undefined
+          ? (updateData.maxAgePreference as number | null)
+          : existingProfile!.max_age_preference;
+
+      if (
+        effectiveMinAge !== null &&
+        effectiveMaxAge !== null &&
+        effectiveMaxAge < effectiveMinAge
+      ) {
+        errors['max_age_preference'] = 'max_age_preference must be greater than or equal to min_age_preference';
+      }
     }
     if (body.distance_preference_miles !== undefined) {
       updateData.distancePreferenceMiles = optionalInt(errors, body.distance_preference_miles, 'distance_preference_miles', 1, 100,
@@ -821,7 +846,6 @@ export class ProfileController {
       return;
     }
 
-    // updateProfile returns null if profile doesn't exist yet
     const updated = await this.profileService.updateProfile(user!.id, updateData as any);
     if (!updated) {
       unauthorized('Profile not found', 'PROFILE_NOT_FOUND');

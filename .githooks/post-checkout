@@ -1,0 +1,11 @@
+#!/bin/bash
+# Regenerate Xcode project if project.yml differs between the old and new HEAD
+# $1 = previous HEAD, $2 = new HEAD, $3 = 1 (branch checkout) or 0 (file checkout)
+
+# Skip file-level checkouts
+[ "$3" = "1" ] || exit 0
+
+if git diff "$1" "$2" --name-only 2>/dev/null | grep -q "frontend/iOS/project.yml"; then
+  echo "[xcodegen] project.yml changed — regenerating Xcode project..."
+  (cd "$(git rev-parse --show-toplevel)/frontend/iOS" && xcodegen generate)
+fi

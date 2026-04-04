@@ -52,8 +52,13 @@ final class OnboardingData {
     var ownPromptAnswer: String = ""
 
     // MARK: - Persistence
+    // Draft is stored as a file with .completeFileProtection — encrypted on disk when device is locked.
+    // This protects DOB, location, and other sensitive fields from access on jailbroken devices.
 
-    private static let storageKey = "wevibe_onboarding_draft"
+    private static var draftURL: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return support.appendingPathComponent("onboarding_draft.json")
+    }
 
     init() {
         load()
@@ -79,17 +84,18 @@ final class OnboardingData {
             ownPrompt: ownPrompt,
             ownPromptAnswer: ownPromptAnswer
         )
-        if let data = try? JSONEncoder().encode(draft) {
-            UserDefaults.standard.set(data, forKey: Self.storageKey)
-        }
+        guard let data = try? JSONEncoder().encode(draft) else { return }
+        let url = Self.draftURL
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? data.write(to: url, options: [.atomic, .completeFileProtection])
     }
 
     func clear() {
-        UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        try? FileManager.default.removeItem(at: Self.draftURL)
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.storageKey),
+        guard let data = try? Data(contentsOf: Self.draftURL),
               let draft = try? JSONDecoder().decode(Draft.self, from: data) else { return }
         dobDay = draft.dobDay
         dobMonth = draft.dobMonth

@@ -65,7 +65,8 @@ private struct SpeedDatingTab: View {
             .navigationBarBackButtonHidden(true)
             .navigationDestination(for: SpeedDatingRoute.self) { route in
                 switch route {
-                case .rules:        SpeedDatingRules()
+                case .main:         SpeedDatingPlaceholder()
+                case .rules:        SpeedDatingRules().navigationBarBackButtonHidden(true)
                 case .tests:        PersonalityTestView()
                 case .joinQueue:    JoinQueueView()
                 case .findingMatch:
@@ -100,7 +101,18 @@ private struct ChatTab: View {
             .navigationDestination(for: ChatRoute.self) { route in
                 switch route {
                 case .activeChat(let matchId):
-                    ActiveChatView(matchId: matchId) {
+                    ActiveChatView(
+                            matchId: matchId,
+                            onClose: {
+                                chatRouter.popToRoot()
+                            },
+                            onLeaveSession: {
+                                chatRouter.popToRoot()
+                                selectedTab = .speedDating
+                            }
+                        )
+                case .permanentChat(let matchId):
+                    PermanentChatView(matchId: matchId) {
                         chatRouter.popToRoot()
                     }
                 }
@@ -137,6 +149,7 @@ private struct ProfileTab: View {
 
 struct CustomTabBar: View {
     @Binding var selectedTab: AppTab
+    @Environment(MatchmakingService.self) private var matchmakingService
 
     private struct TabItem {
         let tab: AppTab
@@ -152,7 +165,9 @@ struct CustomTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(items, id: \.tab) { item in
+                let isLocked = matchmakingService.isSearching && item.tab != .speedDating
                 Button {
+                    guard !isLocked else { return }
                     selectedTab = item.tab
                 } label: {
                     VStack(spacing: 12) {
@@ -165,9 +180,11 @@ struct CustomTabBar: View {
                         Image(systemName: item.systemImage)
                             .font(.system(size: 26))
                             .foregroundStyle(
-                                selectedTab == item.tab
-                                    ? AppTheme.iconColor
-                                    : AppTheme.iconColor.opacity(0.45)
+                                isLocked
+                                    ? AppTheme.iconColor.opacity(0.2)
+                                    : selectedTab == item.tab
+                                        ? AppTheme.iconColor
+                                        : AppTheme.iconColor.opacity(0.45)
                             )
                     }
                     .frame(maxWidth: .infinity)

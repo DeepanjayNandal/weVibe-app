@@ -45,11 +45,15 @@ struct SpeedDatingRules: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
                         VStack(alignment: .leading, spacing: 8) {
+                                
+                            BackButton(style: .text) {
+                                speedDatingRouter.popToRoot()
+                            }
+                                
                             LogoView(size: 48)
                                 .padding(.bottom, 4)
 

@@ -68,6 +68,12 @@ export const getUploadURL = async (req: Request, res: Response) => {
 
   const uploadURL = await generateUploadURL(storagePath, mimeType);
 
+  // Track the pending upload so the cleanup job can sweep unfinalized files
+  // without scanning all profiles. Record is deleted in finalizeUpload.
+  await prisma.photo_upload_pending.create({
+    data: { photo_id: photoId, storage_path: storagePath, user_id: uid },
+  });
+
   return res.json({ photoId, uploadURL });
 };
 
@@ -102,6 +108,18 @@ export const finalizeUpload = async (req: Request, res: Response) => {
     select: { photos: true },
   });
   const existingPhotos = toStoredPhotos(profile?.photos);
+
+  // Idempotency: if this photoId was already finalized (e.g. a retry after the iOS client
+  // didn't receive our 200), just return the existing record rather than creating a duplicate.
+  const alreadyFinalized = existingPhotos.find((p) => p.id === photoId);
+  if (alreadyFinalized) {
+    // Clean up the pending record in case finalize somehow ran twice before the
+    // first transaction committed (extremely rare, safe to ignore not-found).
+    await prisma.photo_upload_pending.deleteMany({ where: { photo_id: photoId } });
+    const url = await generateReadURL(alreadyFinalized.storagePath);
+    return res.json({ id: photoId, url });
+  }
+
   if (existingPhotos.length >= MAX_PHOTOS) {
     return res.status(400).json({ code: 'MAX_PHOTOS_EXCEEDED', message: 'Maximum of 6 photos allowed' });
   }
@@ -113,10 +131,16 @@ export const finalizeUpload = async (req: Request, res: Response) => {
     createdAt: new Date().toISOString(),
   };
 
-  await prisma.profiles.update({
-    where: { user_id: uid },
-    data: { photos: toJsonArray([...existingPhotos, newPhoto]) },
-  });
+  // Atomically write the photo to the profile AND remove the pending-upload record.
+  // If either operation fails the transaction rolls back: the profile stays unchanged
+  // and the pending record remains, so iOS can retry and the cleanup job still fires.
+  await prisma.$transaction([
+    prisma.profiles.update({
+      where: { user_id: uid },
+      data: { photos: toJsonArray([...existingPhotos, newPhoto]) },
+    }),
+    prisma.photo_upload_pending.deleteMany({ where: { photo_id: photoId } }),
+  ]);
 
   // Generate a fresh signed GET URL — never echo back the PUT URL
   const url = await generateReadURL(storagePath);
@@ -147,13 +171,22 @@ export const deletePhoto = async (req: Request, res: Response) => {
       return res.status(404).json({ code: 'PHOTO_NOT_FOUND', message: 'Photo not found' });
     }
 
-    await deleteFile(photoToDelete.storagePath);
-
+    // DB update first — if this succeeds the photo is removed from the user's profile
+    // regardless of what happens to GCS. Reversing this order (GCS-first) risks a stale
+    // DB reference pointing at a deleted file, which would surface as a broken image in iOS.
     const updatedPhotos = photos.filter((p) => p.id !== photoId);
     await prisma.profiles.update({
       where: { user_id: uid },
       data: { photos: toJsonArray(updatedPhotos) },
     });
+
+    // GCS delete is best-effort. A failure leaves an orphaned file in storage but the
+    // user's profile is already clean. Log it so ops can investigate if storage grows.
+    try {
+      await deleteFile(photoToDelete.storagePath);
+    } catch (gcsErr) {
+      console.error(`[photo-delete] GCS delete failed for ${photoToDelete.storagePath}:`, gcsErr);
+    }
 
     return res.sendStatus(204);
   } catch (error) {

@@ -23,6 +23,7 @@ const DELETED_USER_PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const speedDatingService = new SpeedDatingService();
 const permanentChatService = new PermanentChatService();
 const userRepository = new UserRepository();
+import { startPhotoCleanupJob } from './jobs/photo-cleanup.job';
 
 const app = createApp();
 
@@ -131,6 +132,8 @@ deletedUserPurgeHandle.unref();
 
 const server = httpServer.listen(env.port, '0.0.0.0', () => {
   console.log(`API server running on port ${env.port}`);
+  // Start background jobs after the server is listening and Firebase is initialised.
+  startPhotoCleanupJob();
 });
 
 async function shutdown(signal: string) {

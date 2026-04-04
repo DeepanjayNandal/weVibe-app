@@ -15,32 +15,28 @@ struct ForgotPasswordScreen: View {
             AppTheme.primaryBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 10) {
-                Button(action: { authRouter.pop() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
-                        Text("Back")
-                            .font(.system(size: 17))
+            ScrollView {
+                VStack(spacing: 10) {
+                    BackButton(style: .text) { authRouter.pop() }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 20)
+
+                    Spacer(minLength: 30)
+
+                    LogoView(size: 170)
+                    .padding(.top, 40)
+                    .padding(.bottom, 30)
+                    if didSend {
+                        sentView
+                    } else {
+                        formView
                     }
-                    .foregroundStyle(.white)
+
+                    Spacer(minLength: 40)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
-
-                Spacer()
-
-                LogoView(size: 170)
-                if didSend {
-                    sentView
-                } else {
-                    formView
-                }
-
-                Spacer()
-                Spacer()
+                .padding(.horizontal, 19)
             }
-            .padding(.horizontal, 19)
+            .scrollDismissesKeyboard(.interactively)
         }
         .navigationBarHidden(true)
         .onTapGesture {

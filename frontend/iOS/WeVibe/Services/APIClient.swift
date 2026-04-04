@@ -7,6 +7,19 @@ struct UserPhoto: Identifiable, Decodable {
     let url: String
 }
 
+struct PersonalityResponse: Decodable {
+    let personalityType: String
+    let personalityPrimary: String
+    let personalitySecondary: String?
+ 
+    enum CodingKeys: String, CodingKey {
+        case personalityType        = "personality_type"
+        case personalityPrimary     = "personality_primary"
+        case personalitySecondary   = "personality_secondary"
+    }
+}
+ 
+
 private struct ErrorResponse: Decodable {
     struct ErrorBody: Decodable { let code: String }
     let error: ErrorBody
@@ -14,33 +27,50 @@ private struct ErrorResponse: Decodable {
 
 private struct MeResponse: Decodable {
     struct DataBody: Decodable {
-        struct UserBody: Decodable { let onboardingComplete: Bool }
+        struct UserBody: Decodable {
+            let onboardingComplete: Bool?
+            let isBanned: Bool?
+        }
         let user: UserBody
     }
     let data: DataBody
 }
 
+struct SessionStatus {
+    let onboardingComplete: Bool
+    let isBanned: Bool
+}
+
 enum APIError: LocalizedError {
-    case noProfile          // 404 — user has no profile yet
-    case unauthorized       // 401
-    case serverError(Int)   // any other non-2xx
+    case noProfile                      // 404 — user has no profile yet
+    case unauthorized                   // 401
+    case banned                         // 403 USER_BANNED
+    case validationError([String: String]) // 422 — field-level errors from backend
+    case serverError(Int)               // any other non-2xx
     case network(Error)
     case decoding(Error)
 
     var errorDescription: String? {
         switch self {
-        case .noProfile:            return "No profile found."
-        case .unauthorized:         return "Session expired. Please sign in again."
-        case .serverError(let c):   return "Server error (\(c)). Please try again."
-        case .network(let e):       return e.localizedDescription
-        case .decoding(let e):      return "Response error: \(e.localizedDescription)"
+        case .noProfile:                return "No profile found."
+        case .unauthorized:             return "Session expired. Please sign in again."
+        case .banned:                   return "Your account has been suspended. Please contact support."
+        case .validationError(let e):   return e.values.first
+        case .serverError(let c):       return "Server error (\(c)). Please try again."
+        case .network(let e):           return e.localizedDescription
+        case .decoding(let e):          return "Response error: \(e.localizedDescription)"
         }
     }
 }
 
 struct APIClient {
 
-    private let base = URL(string: AppConfig.apiBaseURL)!
+    private let base: URL = {
+        guard let url = URL(string: AppConfig.apiBaseURL) else {
+            fatalError("Invalid API base URL: \(AppConfig.apiBaseURL)")
+        }
+        return url
+    }()
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = 15
@@ -49,14 +79,17 @@ struct APIClient {
 
     // MARK: - Auth
 
-    /// GET /auth/me — returns true if onboarding is complete, false if not yet done.
-    func checkProfile(token: String) async throws -> Bool {
+    /// GET /auth/me — returns session status (onboardingComplete + isBanned).
+    func checkProfile(token: String) async throws -> SessionStatus {
         let req = request(path: "/auth/me", method: "GET", token: token)
         let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 200 {
             let me = try JSONDecoder().decode(MeResponse.self, from: data)
-            return me.data.user.onboardingComplete
+            return SessionStatus(
+                onboardingComplete: me.data.user.onboardingComplete ?? false,
+                isBanned: me.data.user.isBanned ?? false
+            )
         }
         if status == 401 { throw APIError.unauthorized }
         throw APIError.serverError(status)
@@ -67,9 +100,16 @@ struct APIClient {
         var req = request(path: "/users/profile", method: "POST", token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(payload)
-        let (_, response) = try await perform(req)
+        let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
+        if status == 422 {
+            struct ValidationResponse: Decodable { let errors: [String: String] }
+            if let resp = try? JSONDecoder().decode(ValidationResponse.self, from: data) {
+                throw APIError.validationError(resp.errors)
+            }
+            throw APIError.serverError(422)
+        }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
@@ -83,6 +123,7 @@ struct APIClient {
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
+        if status == 403 { throw APIError.banned }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
@@ -198,6 +239,72 @@ struct APIClient {
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+    
+    // MARK: - Personality Test
+    
+    /// POST /users/profile/personality - update the personality test data of user
+    func updatePersonalityData(token: String, answers: [Int]) async throws -> PersonalityResponse {
+     
+        guard answers.count == 6, answers.allSatisfy({ (0...3).contains($0) }) else {
+            throw APIError.serverError(400)
+        }
+     
+        var req = request(path: "/users/profile/personality", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+     
+        let bodyObject: [String: Any] = ["answers": answers]
+        req.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
+     
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+     
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+     
+        do {
+            let resp = try JSONDecoder().decode(PersonalityResponse.self, from: data)
+            return resp
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // MARK: - Matchmaking
+
+    struct JoinQueueResult {
+        let state: String        // "waiting" or "matched"
+        let sessionId: String?
+    }
+
+    /// POST /matching/queue/join — joins the speed dating queue.
+    /// Returns immediately with state "matched" (sessionId present) or "waiting" (no match yet).
+    func joinQueue(token: String) async throws -> JoinQueueResult {
+        let req = request(path: "/matching/queue/join", method: "POST", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                let state: String
+                let sessionId: String?
+            }
+            let data: DataBody
+        }
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return JoinQueueResult(state: resp.data.state, sessionId: resp.data.sessionId)
+    }
+
+    /// POST /matching/queue/leave — removes the user from the queue.
+    /// Safe to call when not in queue (404 treated as success).
+    func leaveQueue(token: String) async throws {
+        let req = request(path: "/matching/queue/leave", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 { return }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
@@ -414,7 +521,11 @@ struct UserProfileResponse: Decodable {
     let zodiacSign: String?
     let communicationStyle: String?
     let conflictStyle: String?
+    let isPersonalityTestComplete: Bool?
+    let showPersonalityTrait: Bool?
     let personalityType: String?
+    let personalityPrimary: String?
+    let personalitySecondary: String?
     let interests: [String]?
     let preferredDateActivities: [String]?
     let wouldNotDoActivities: [String]?
@@ -429,6 +540,7 @@ struct UserProfileResponse: Decodable {
     let locationState: String?
     let prompts: [PromptEntry]?
     let photos: [UserPhoto]?
+    
 
     enum CodingKeys: String, CodingKey {
         case firstName = "first_name"
@@ -468,6 +580,10 @@ struct UserProfileResponse: Decodable {
         case communicationStyle = "communication_style"
         case conflictStyle = "conflict_style"
         case personalityType = "personality_type"
+        case personalityPrimary = "personality_primary"
+        case personalitySecondary = "personality_secondary"
+        case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case interests
         case preferredDateActivities = "preferred_date_activities"
         case wouldNotDoActivities = "would_not_do_activities"
@@ -540,6 +656,8 @@ struct ProfileUpdatePayload: Encodable {
     var minAgePreference: Int?
     var maxAgePreference: Int?
     var distancePreferenceMiles: Int?
+    var isPersonalityTestComplete: Bool?
+    var showPersonalityTrait: Bool?
     var prompts: [PromptEntry]?
 
     enum CodingKeys: String, CodingKey {
@@ -587,6 +705,8 @@ struct ProfileUpdatePayload: Encodable {
         case minAgePreference = "min_age_preference"
         case maxAgePreference = "max_age_preference"
         case distancePreferenceMiles = "distance_preference_miles"
+        case isPersonalityTestComplete = "is_personality_test_complete"
+        case showPersonalityTrait = "show_personality_trait"
         case prompts
     }
 
@@ -634,6 +754,7 @@ struct ProfileUpdatePayload: Encodable {
         isSleepFlexible    = store.isSleepFlexible
         isCannabisFlexible = store.isCannabisFlexible
         isKidsFlexible     = store.isKidsFlexible
+        isPersonalityTestComplete = store.isPersonalityTestComplete
         loveLanguage = store.loveLanguage.isEmpty ? nil : store.loveLanguage
         zodiacSign   = store.zodiacSign.isEmpty   ? nil : store.zodiacSign
         // Empty string = neutral slider position — only send if non-empty

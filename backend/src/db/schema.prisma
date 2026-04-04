@@ -199,6 +199,17 @@ model speed_dating_messages {
   @@index([session_id, created_at], map: "idx_sd_messages_session_id")
 }
 
+model photo_upload_pending {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  photo_id     String   @unique @db.VarChar(100)
+  storage_path String   @db.VarChar(500)
+  user_id      String   @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  users        users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_photo_upload_pending_created_at")
+}
+
 model matching_queue {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id   String   @unique @db.Uuid
@@ -260,6 +271,7 @@ model users {
   user_blocks_user_blocks_blocker                              user_blocks[]          @relation("user_blocks_blocker")
   user_reports_user_reports_reported                           user_reports[]         @relation("user_reports_reported")
   user_reports_user_reports_reporter                           user_reports[]         @relation("user_reports_reporter")
+  photo_upload_pending                                         photo_upload_pending[]
 }
 
 model user_reports {

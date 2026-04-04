@@ -11,6 +11,7 @@ struct ConfirmScreen: View {
     @State private var resendCooldown: Int = 0
     @State private var errorMessage: String?
     @State private var resentSuccess: Bool = false
+    @State private var cooldownTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -122,6 +123,9 @@ struct ConfirmScreen: View {
                 .padding(.bottom, 48)
             }
         }
+        .onDisappear {
+            cooldownTask?.cancel()
+        }
     }
 
     // MARK: - Actions
@@ -158,10 +162,12 @@ struct ConfirmScreen: View {
     }
 
     private func startCooldown(seconds: Int) {
+        cooldownTask?.cancel()
         resendCooldown = seconds
-        Task {
-            while resendCooldown > 0 {
+        cooldownTask = Task {
+            while resendCooldown > 0, !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { break }
                 resendCooldown -= 1
             }
         }

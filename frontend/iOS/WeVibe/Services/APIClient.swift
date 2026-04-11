@@ -40,6 +40,70 @@ struct SessionStatus {
     let onboardingComplete: Bool
     let isBanned: Bool
 }
+struct SessionResult {
+    let sessionId: String?
+    let sessionExpiresAt: String?
+    let status: String?
+}
+struct ListSessionsDetailResult {
+    let sessions: [SessionResult?]
+}
+
+struct ListSessionsResult {
+    let success: Bool
+    let data: ListSessionsDetailResult?
+}
+struct SessionCounterpart {
+    let userId: String
+    let firstName: String
+    let initials: String
+    let blurredPhotoUrl: String?
+}
+ 
+struct SessionMoveToPermanent {
+    let myDecision: String        // "pending" | "yes" | "no"
+    let otherDecision: String     // "pending" | "yes" | "no"
+    let requestStatus: String     // "none" | "pending" | "accepted" | "rejected"
+    let canRequest: Bool
+    let canRespond: Bool
+    let canSubmitFinalDecision: Bool
+}
+ 
+struct SessionDetail {
+    let sessionId: String
+    let status: String            // "active" | "ended" | "matched"
+    let startedAt: String
+    let expiresAt: String
+    let remainingSeconds: Int
+    let canOpen: Bool
+    let canSendMessage: Bool
+    let unreadCount: Int
+    let myMessageCount: Int
+    let otherMessageCount: Int
+    let messageLimit: Int
+    let counterpart: SessionCounterpart
+    let moveToPermanent: SessionMoveToPermanent
+}
+ 
+struct SessionDetailResult {
+    let success: Bool
+    let session: SessionDetail?
+}
+
+struct SendMessageResult {
+    let messageId: String
+    let content: String
+    let senderId: String
+    let createdAt: String
+}
+struct MessageHistoryItem {
+    let messageId: String
+    let content: String
+    let senderId: String
+    let createdAt: String
+}
+
+
 
 enum APIError: LocalizedError {
     case noProfile                      // 404 — user has no profile yet
@@ -307,6 +371,224 @@ struct APIClient {
         if status == 404 { return }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
+    
+    
+    /// GET /matching/sessions - get all the speed dating sessions
+    /// Returns all the chat sessions that user are matching too
+    func getAllSpeedDatingSessions(token: String) async throws -> ListSessionsResult {
+            let req = request(path: "/matching/sessions", method: "GET", token: token)
+            let (data, response) = try await perform(req)
+            let status = response.statusCode
+            if status == 401 { throw APIError.unauthorized }
+            if !(200..<300).contains(status) { throw APIError.serverError(status) }
+
+            struct Resp: Decodable {
+                struct DataBody: Decodable {
+                    struct Session: Decodable {
+                        let sessionId: String?
+                        let sessionExpiresAt: String?
+                        let status: String?
+
+                        enum CodingKeys: String, CodingKey {
+                            case sessionId       = "sessionId"
+                            case sessionExpiresAt = "sessionExpiresAt"
+                            case status
+                        }
+                    }
+                    let sessions: [Session]
+                }
+                let success: Bool
+                let data: DataBody?
+            }
+
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+
+            let sessions: [SessionResult] = (resp.data?.sessions ?? []).map {
+                SessionResult(
+                    sessionId:        $0.sessionId,
+                    sessionExpiresAt: $0.sessionExpiresAt,
+                    status:           $0.status
+                )
+            }
+
+            return ListSessionsResult(
+                success: resp.success,
+                data: ListSessionsDetailResult(sessions: sessions)
+            )
+        }
+    
+    
+    /// GET /matching/sessions/sessionId - get the speed dating sessions detail
+    /// Returns speed dating session detail
+    
+    func getSpeedDatingSession(token: String, sessionId: String) async throws -> SessionDetailResult {
+          let req = request(path: "/matching/sessions/\(sessionId)", method: "GET", token: token)
+   
+          print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+          print("📤 [Session] GET /matching/sessions/\(sessionId)")
+   
+          let (data, response) = try await perform(req)
+          let status = response.statusCode
+   
+          print("📥 [Session] Status: \(status)")
+          if let raw = String(data: data, encoding: .utf8) {
+              print("📥 [Session] Response: \(raw)")
+          }
+          print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+   
+          if status == 401 { throw APIError.unauthorized }
+          if status == 404 { throw APIError.noProfile }
+          if !(200..<300).contains(status) { throw APIError.serverError(status) }
+   
+          // ── Private decode structs matching JSON shape
+          struct Resp: Decodable {
+              struct DataBody: Decodable {
+                  let session: RawSession
+              }
+              struct RawSession: Decodable {
+                  let sessionId: String
+                  let status: String
+                  let startedAt: String
+                  let expiresAt: String
+                  let remainingSeconds: Int
+                  let canOpen: Bool
+                  let canSendMessage: Bool
+                  let unreadCount: Int
+                  let myMessageCount: Int
+                  let otherMessageCount: Int
+                  let messageLimit: Int
+                  let counterpart: RawCounterpart
+                  let moveToPermanent: RawMoveToPermanent
+              }
+              struct RawCounterpart: Decodable {
+                  let userId: String
+                  let firstName: String
+                  let initials: String
+                  let blurredPhotoUrl: String?
+              }
+              struct RawMoveToPermanent: Decodable {
+                  let myDecision: String
+                  let otherDecision: String
+                  let requestStatus: String
+                  let canRequest: Bool
+                  let canRespond: Bool
+                  let canSubmitFinalDecision: Bool
+              }
+              let success: Bool
+              let data: DataBody
+          }
+   
+          do {
+              let resp = try JSONDecoder().decode(Resp.self, from: data)
+              let raw  = resp.data.session
+   
+              let session = SessionDetail(
+                  sessionId:          raw.sessionId,
+                  status:             raw.status,
+                  startedAt:          raw.startedAt,
+                  expiresAt:          raw.expiresAt,
+                  remainingSeconds:   raw.remainingSeconds,
+                  canOpen:            raw.canOpen,
+                  canSendMessage:     raw.canSendMessage,
+                  unreadCount:        raw.unreadCount,
+                  myMessageCount:     raw.myMessageCount,
+                  otherMessageCount:  raw.otherMessageCount,
+                  messageLimit:       raw.messageLimit,
+                  counterpart: SessionCounterpart(
+                      userId:          raw.counterpart.userId,
+                      firstName:       raw.counterpart.firstName,
+                      initials:        raw.counterpart.initials,
+                      blurredPhotoUrl: raw.counterpart.blurredPhotoUrl
+                  ),
+                  moveToPermanent: SessionMoveToPermanent(
+                      myDecision:             raw.moveToPermanent.myDecision,
+                      otherDecision:          raw.moveToPermanent.otherDecision,
+                      requestStatus:          raw.moveToPermanent.requestStatus,
+                      canRequest:             raw.moveToPermanent.canRequest,
+                      canRespond:             raw.moveToPermanent.canRespond,
+                      canSubmitFinalDecision: raw.moveToPermanent.canSubmitFinalDecision
+                  )
+              )
+   
+              return SessionDetailResult(success: resp.success, session: session)
+   
+          } catch {
+              print("❌ [Session] Decode error: \(error)")
+              throw APIError.decoding(error)
+          }
+      }
+    
+    /// POST /matching/sessions/:sessionId/messages
+    ///  send message in speed dating
+    func sendSpeedDatingMessage(token: String, sessionId: String, content: String) async throws -> SendMessageResult {
+        var req = request(path: "/matching/sessions/\(sessionId)/messages", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["content": content])
+ 
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+ 
+        print("📤 [Chat] Send → status \(status)")
+        if let raw = String(data: data, encoding: .utf8) { print("📥 [Chat] \(raw)") }
+ 
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+ 
+        // Response shape:
+        // { "success": true, "data": { "message": { "id", "sessionId", "senderId", "content", "createdAt", "readAt" }, "session": { ... } } }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Msg: Decodable {
+                    let id: String
+                    let content: String
+                    let senderId: String
+                    let createdAt: String
+                }
+                let message: Msg
+            }
+            let data: DataBody
+        }
+ 
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return SendMessageResult(
+            messageId: resp.data.message.id,
+            content:   resp.data.message.content,
+            senderId:  resp.data.message.senderId,
+            createdAt: resp.data.message.createdAt
+        )
+    }
+    
+    /// GET /matching/sessions/:sessionId/messages
+    /// Get all messages in the session
+
+    func getSpeedDatingMessages(token: String, sessionId: String) async throws -> [MessageHistoryItem] {
+         let req = request(path: "/matching/sessions/\(sessionId)/messages", method: "GET", token: token)
+         let (data, response) = try await perform(req)
+         let status = response.statusCode
+  
+         if status == 401 { throw APIError.unauthorized }
+         if !(200..<300).contains(status) { throw APIError.serverError(status) }
+  
+         struct Resp: Decodable {
+             struct DataBody: Decodable {
+                 struct Msg: Decodable {
+                     let id: String
+                     let content: String
+                     let senderId: String
+                     let createdAt: String
+                 }
+                 let messages: [Msg]
+             }
+             let data: DataBody
+         }
+  
+         let resp = try JSONDecoder().decode(Resp.self, from: data)
+         return resp.data.messages.map {
+             MessageHistoryItem(messageId: $0.id, content: $0.content,
+                                senderId: $0.senderId, createdAt: $0.createdAt)
+         }
+     }
+    
 
     // MARK: - Helpers
 

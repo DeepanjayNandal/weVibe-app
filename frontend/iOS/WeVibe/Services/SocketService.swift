@@ -1,5 +1,6 @@
 import SocketIO
 import Foundation
+import FirebaseAuth
 
 // MARK: - Event Models
 
@@ -7,7 +8,7 @@ struct MatchFoundEvent: Sendable {
     let sessionId: String
 }
 
-struct IncomingSpeedDatingMessage: Sendable {
+struct IncomingSpeedDatingMessage: Sendable, Equatable {
     let sessionId: String
     let messageId: String
     let content: String
@@ -26,7 +27,22 @@ struct IncomingSpeedDatingMessage: Sendable {
     }
 }
 
-struct IncomingPermanentMessage: Sendable {
+struct IncomingSpeedDatingTyping: Sendable, Equatable {
+    let sessionId: String
+    let userId: String
+    let isTyping: Bool
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String,
+              let userId    = dict["userId"]    as? String,
+              let isTyping  = dict["isTyping"]  as? Bool else { return nil }
+        self.sessionId = sessionId
+        self.userId    = userId
+        self.isTyping  = isTyping
+    }
+}
+
+struct IncomingPermanentMessage: Sendable, Equatable {
     let matchId: String
     let messageId: String
     let content: String
@@ -65,11 +81,17 @@ final class SocketService {
     /// to avoid acting on a stale event from a previous round.
     var lastMatchEvent: MatchFoundEvent?
 
-    /// Latest speed dating message (for chat views — wired in a future task).
+    /// Latest speed dating message — consumed by ActiveChatView.
     var lastSpeedDatingMessage: IncomingSpeedDatingMessage?
 
-    /// Latest permanent chat message (for chat views — wired in a future task).
+    /// Latest speed dating typing event — consumed by ActiveChatView.
+    var lastSpeedDatingTyping: IncomingSpeedDatingTyping?
+
+    /// Latest permanent chat message — consumed by PermanentChatView.
     var lastPermanentMessage: IncomingPermanentMessage?
+
+    /// sessionId of a speed dating session that just ended server-side.
+    var lastSpeedDatingSessionEnded: String?
 
     // MARK: - Private
 
@@ -104,50 +126,107 @@ final class SocketService {
         isConnected = false
     }
 
+    // MARK: - Emit (Client → Server)
+
+    /// Sends typing indicator to the server. Server relays to the other participant.
+    /// chatType: "speed_dating" | "permanent"
+    /// chatId:   sessionId or matchId
+    func emitTyping(chatType: String, chatId: String, isTyping: Bool) {
+        guard isConnected else { return }
+        socket?.emit("typing", [
+            "chatType": chatType,
+            "chatId":   chatId,
+            "isTyping": isTyping
+        ])
+    }
+
     // MARK: - Private Handlers
 
     private func registerHandlers() {
         socket?.on(clientEvent: .connect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = true
+                print("✅ [Socket] Connected")
             }
         }
 
         socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = false
+                print("🔌 [Socket] Disconnected")
             }
         }
 
-        // EC5 — Token refresh on reconnect.
-        // socket.io-client-swift v16 config is `public private(set)` — cannot update auth token
-        // externally after manager creation. If a 1-hour session lapses during queue wait, the
-        // reconnect handshake will be rejected. Mitigation: reconnect with a new manager.
-        // TODO (V1.1): recreate SocketManager with a fresh token on reconnect failure.
+        socket?.on(clientEvent: .reconnectAttempt) { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                // Refresh token on every reconnect attempt per contract §2
+                guard let fresh = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                // Recreate manager with fresh token — v16 config is read-only after init
+                guard let self, let url = URL(string: AppConfig.wsBaseURL) else { return }
+                self.manager = SocketManager(socketURL: url, config: [
+                    .log(false),
+                    .compress,
+                    .reconnects(true),
+                    .reconnectWait(2),
+                    .reconnectWaitMax(30),
+                    .connectParams(["token": fresh]),
+                ])
+                self.socket = self.manager?.defaultSocket
+                self.registerHandlers()
+                self.socket?.connect()
+                print("🔄 [Socket] Reconnecting with fresh token")
+            }
+        }
+
+        // MARK: Matching
 
         socket?.on("matching.queue.matched") { [weak self] data, _ in
-            // All events use envelope: { v: 1, data: { ... } }
-            guard let envelope = data.first as? [String: Any],
-                  let payload  = envelope["data"] as? [String: Any],
+            guard let envelope  = data.first as? [String: Any],
+                  let payload   = envelope["data"] as? [String: Any],
                   let sessionId = payload["sessionId"] as? String else { return }
             Task { @MainActor [weak self] in
                 self?.lastMatchEvent = MatchFoundEvent(sessionId: sessionId)
             }
         }
 
+        // MARK: Speed Dating
+
         socket?.on("speed_dating.message.created") { [weak self] data, _ in
             guard let envelope = data.first as? [String: Any],
                   let payload  = envelope["data"] as? [String: Any],
-                  let msg = IncomingSpeedDatingMessage(payload) else { return }
+                  let msg      = IncomingSpeedDatingMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastSpeedDatingMessage = msg
+                print("📩 [Socket] speed_dating.message.created — session: \(msg.sessionId)")
             }
         }
+
+        socket?.on("speed_dating.typing.updated") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingSpeedDatingTyping(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastSpeedDatingTyping = event
+            }
+        }
+
+        socket?.on("speed_dating.session.ended") { [weak self] data, _ in
+            guard let envelope  = data.first as? [String: Any],
+                  let payload   = envelope["data"] as? [String: Any],
+                  let sessionId = payload["sessionId"] as? String else { return }
+            Task { @MainActor [weak self] in
+                print("⏰ [Socket] speed_dating.session.ended — session: \(sessionId)")
+                // ActiveChatView listens via lastSpeedDatingSessionEnded
+                self?.lastSpeedDatingSessionEnded = sessionId
+            }
+        }
+
+        // MARK: Permanent Chat
 
         socket?.on("permanent.message.created") { [weak self] data, _ in
             guard let envelope = data.first as? [String: Any],
                   let payload  = envelope["data"] as? [String: Any],
-                  let msg = IncomingPermanentMessage(payload) else { return }
+                  let msg      = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
             }

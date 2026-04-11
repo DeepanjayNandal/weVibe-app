@@ -379,55 +379,128 @@ describe('Matching Queue API', () => {
   test('recent permanent match prevents rematch in queue', async () => {
     const tokenA = 'mock:google:mq-a-008:mq-a-008@matching.test';
     const tokenB = 'mock:google:mq-b-008:mq-b-008@matching.test';
+    const previousCooldownFlag = process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED;
 
-    await setupUser({
-      token: tokenA,
-      birthDate: '1996-06-10',
-      gender: 'Male',
-      searchGender: 'women',
-      latitude: 25.033,
-      longitude: 121.5654,
-    });
+    process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED = 'true';
 
-    await setupUser({
-      token: tokenB,
-      birthDate: '1997-08-14',
-      gender: 'Female',
-      searchGender: 'men',
-      latitude: 25.034,
-      longitude: 121.565,
-    });
+    try {
+      await setupUser({
+        token: tokenA,
+        birthDate: '1996-06-10',
+        gender: 'Male',
+        searchGender: 'women',
+        latitude: 25.033,
+        longitude: 121.5654,
+      });
 
-    const uidA = tokenA.split(':')[2];
-    const uidB = tokenB.split(':')[2];
-    const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
-    const userB = await prisma.users.findUnique({ where: { firebase_uid: uidB } });
-    if (!userA || !userB) {
-      throw new Error('Users not found for rematch test');
+      await setupUser({
+        token: tokenB,
+        birthDate: '1997-08-14',
+        gender: 'Female',
+        searchGender: 'men',
+        latitude: 25.034,
+        longitude: 121.565,
+      });
+
+      const uidA = tokenA.split(':')[2];
+      const uidB = tokenB.split(':')[2];
+      const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
+      const userB = await prisma.users.findUnique({ where: { firebase_uid: uidB } });
+      if (!userA || !userB) {
+        throw new Error('Users not found for rematch test');
+      }
+
+      // Create a recent match
+      await prisma.matches.create({
+        data: {
+          user_a_id: userA.id,
+          user_b_id: userB.id,
+          status: 'active',
+          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // a day ago
+        },
+      });
+
+      await request(app)
+        .post('/api/v1/matching/queue/join')
+        .set('Authorization', `Bearer ${tokenA}`);
+
+      const response = await request(app)
+        .post('/api/v1/matching/queue/join')
+        .set('Authorization', `Bearer ${tokenB}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.state).toBe('waiting');
+
+      const queueCount = await prisma.matching_queue.count();
+      expect(queueCount).toBe(2);
+    } finally {
+      if (previousCooldownFlag === undefined) {
+        delete process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED;
+      } else {
+        process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED = previousCooldownFlag;
+      }
     }
+  });
 
-    // Create a recent match
-    await prisma.matches.create({
-      data: {
-        user_a_id: userA.id,
-        user_b_id: userB.id,
-        status: 'active',
-        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // a day ago
-      },
-    });
+  test('recent match cooldown can be disabled for local development', async () => {
+    const tokenA = 'mock:google:mq-a-009:mq-a-009@matching.test';
+    const tokenB = 'mock:google:mq-b-009:mq-b-009@matching.test';
+    const previousCooldownFlag = process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED;
 
-    await request(app)
-      .post('/api/v1/matching/queue/join')
-      .set('Authorization', `Bearer ${tokenA}`);
+    process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED = 'false';
 
-    const response = await request(app)
-      .post('/api/v1/matching/queue/join')
-      .set('Authorization', `Bearer ${tokenB}`);
+    try {
+      await setupUser({
+        token: tokenA,
+        birthDate: '1996-06-10',
+        gender: 'Male',
+        searchGender: 'women',
+        latitude: 25.033,
+        longitude: 121.5654,
+      });
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.state).toBe('waiting');
+      await setupUser({
+        token: tokenB,
+        birthDate: '1997-08-14',
+        gender: 'Female',
+        searchGender: 'men',
+        latitude: 25.034,
+        longitude: 121.565,
+      });
 
-    const queueCount = await prisma.matching_queue.count();
-    expect(queueCount).toBe(2);
+      const uidA = tokenA.split(':')[2];
+      const uidB = tokenB.split(':')[2];
+      const userA = await prisma.users.findUnique({ where: { firebase_uid: uidA } });
+      const userB = await prisma.users.findUnique({ where: { firebase_uid: uidB } });
+      if (!userA || !userB) {
+        throw new Error('Users not found for cooldown toggle test');
+      }
+
+      await prisma.matches.create({
+        data: {
+          user_a_id: userA.id,
+          user_b_id: userB.id,
+          status: 'active',
+          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      await request(app)
+        .post('/api/v1/matching/queue/join')
+        .set('Authorization', `Bearer ${tokenA}`);
+
+      const response = await request(app)
+        .post('/api/v1/matching/queue/join')
+        .set('Authorization', `Bearer ${tokenB}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.state).toBe('matched');
+    } finally {
+      if (previousCooldownFlag === undefined) {
+        delete process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED;
+      } else {
+        process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED = previousCooldownFlag;
+      }
+    }
   });
 });

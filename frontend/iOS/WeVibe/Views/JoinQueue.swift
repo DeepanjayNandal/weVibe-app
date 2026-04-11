@@ -82,9 +82,89 @@ private struct ResultConfetti: View {
     }
 }
 
+// MARK: - No Photo Sheet
+
+private struct NoPhotoSheet: View {
+    var onGoToProfile: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppTheme.primaryBackground.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.iconColor.opacity(0.12))
+                        .frame(width: 80, height: 80)
+                    Circle()
+                        .strokeBorder(AppTheme.iconColor.opacity(0.2), lineWidth: 1)
+                        .frame(width: 80, height: 80)
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(AppTheme.iconColor)
+                }
+                .padding(.top, 36)
+                .padding(.bottom, 24)
+
+                Text("add a photo first")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.bottom, 12)
+
+                Text("you need at least 1 photo on your profile before joining the queue. let others see who they're connecting with!")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 36)
+
+                VStack(spacing: 12) {
+                    PrimaryButton(
+                        title: "add a photo →",
+                        background: AppTheme.primaryButton,
+                        foreground: .white,
+                        height: 52,
+                        isLoading: false
+                    ) {
+                        dismiss()
+                        onGoToProfile()
+                    }
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("not now")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.45))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.white.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 48)
+            }
+        }
+        .presentationDragIndicator(.visible)
+        .presentationDetents([.fraction(0.58)])
+        .presentationBackground(AppTheme.primaryBackground)
+    }
+}
+
 // MARK: - Main View
 
 struct JoinQueueView: View {
+    var onGoToProfile: () -> Void = {}
 
     @Environment(SpeedDatingRouter.self) private var speedDatingRouter
     @Environment(UserProfileStore.self) private var store
@@ -97,6 +177,7 @@ struct JoinQueueView: View {
     @State private var toggleOpacity: Double = 0
     @State private var buttonOpacity: Double = 0
     @State private var buttonOffset: CGFloat = 16
+    @State private var showNoPhotoSheet: Bool = false
 
     // Looping emoji bob
     @State private var emojiOffsetY: CGFloat = 0
@@ -198,7 +279,11 @@ struct JoinQueueView: View {
                             isLoading: false,
                             isDisabled: false
                         ) {
-                            speedDatingRouter.navigate(to: .findingMatch)
+                            if store.photos.isEmpty {
+                                showNoPhotoSheet = true
+                            } else {
+                                speedDatingRouter.navigate(to: .findingMatch)
+                            }
                         }
 
                         Button {
@@ -231,6 +316,9 @@ struct JoinQueueView: View {
         .onAppear { animateIn() }
         .task {
             await store.fetchProfile()
+        }
+        .sheet(isPresented: $showNoPhotoSheet) {
+            NoPhotoSheet(onGoToProfile: onGoToProfile)
         }
     }
 

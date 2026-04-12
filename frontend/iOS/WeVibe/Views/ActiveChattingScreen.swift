@@ -339,7 +339,6 @@ struct ActiveChatView: View {
                     messagesLeft: nil
                 )
             }
-            print("✅ [Chat] Loaded \(messages.count) messages")
         } catch { print("❌ [Chat] loadHistory: \(error)") }
 
         startCountdown()
@@ -374,7 +373,6 @@ struct ActiveChatView: View {
                 messages.removeAll { $0.id == optimistic.id }
                 messagesLeft += 1
                 messageText   = trimmed
-                print("❌ [Chat] send failed: \(error)")
             }
             isSending = false
             if messagesLeft == 0 {

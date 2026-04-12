@@ -427,10 +427,6 @@ struct APIClient {
           let (data, response) = try await perform(req)
           let status = response.statusCode
    
-          if let raw = String(data: data, encoding: .utf8) {
-              print("📥 [Session] Response: \(raw)")
-          }
-   
           if status == 401 { throw APIError.unauthorized }
           if status == 404 { throw APIError.noProfile }
           if !(200..<300).contains(status) { throw APIError.serverError(status) }
@@ -526,8 +522,6 @@ struct APIClient {
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
  
-        // Response shape:
-        // { "success": true, "data": { "message": { "id", "sessionId", "senderId", "content", "createdAt", "readAt" }, "session": { ... } } }
         struct Resp: Decodable {
             struct DataBody: Decodable {
                 struct Msg: Decodable {

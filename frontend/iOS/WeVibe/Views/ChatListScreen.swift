@@ -168,7 +168,6 @@ struct ChatListView: View {
                     isTyping:         false
                 )
             }
-            print("✅ [ChatList] \(anonymousChats.count) speed dating sessions loaded")
         } catch {
             sessionsError = "Couldn't load sessions"
             print("❌ [ChatList] fetchSessions: \(error)")

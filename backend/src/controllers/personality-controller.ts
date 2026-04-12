@@ -76,6 +76,15 @@ export const submitPersonalityTest = async (req: Request, res: Response) => {
   const { personality_primary, personality_secondary, personality_type } =
     computePersonality(answers);
 
+  // guard: profile must exist before we can save personality results
+  const existingProfile = await prisma.profiles.findUnique({ where: { user_id: uid } });
+  if (!existingProfile) {
+    return res.status(404).json({
+      code: 'PROFILE_NOT_FOUND',
+      message: 'Complete your profile before taking the personality test',
+    });
+  }
+
   // save the computed personality fields to the user's profile
   await prisma.profiles.update({
     where: { user_id: uid },

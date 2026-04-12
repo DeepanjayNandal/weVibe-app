@@ -148,14 +148,12 @@ final class SocketService {
         socket?.on(clientEvent: .connect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = true
-                print("✅ [Socket] Connected")
             }
         }
 
         socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = false
-                print("🔌 [Socket] Disconnected")
             }
         }
 
@@ -174,7 +172,6 @@ final class SocketService {
                 self.socket = self.manager?.defaultSocket
                 self.registerHandlers()
                 self.socket?.connect()
-                print("🔄 [Socket] Reconnecting with fresh token")
             }
         }
 

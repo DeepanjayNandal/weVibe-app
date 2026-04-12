@@ -517,8 +517,6 @@ struct APIClient {
         let (data, response) = try await perform(req)
         let status = response.statusCode
  
-        if let raw = String(data: data, encoding: .utf8) { print("📥 [Chat] \(raw)") }
- 
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
  

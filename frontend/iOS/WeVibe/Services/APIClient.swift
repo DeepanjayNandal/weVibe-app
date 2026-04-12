@@ -424,23 +424,17 @@ struct APIClient {
     func getSpeedDatingSession(token: String, sessionId: String) async throws -> SessionDetailResult {
           let req = request(path: "/matching/sessions/\(sessionId)", method: "GET", token: token)
    
-          print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-          print("📤 [Session] GET /matching/sessions/\(sessionId)")
-   
           let (data, response) = try await perform(req)
           let status = response.statusCode
    
-          print("📥 [Session] Status: \(status)")
           if let raw = String(data: data, encoding: .utf8) {
               print("📥 [Session] Response: \(raw)")
           }
-          print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
    
           if status == 401 { throw APIError.unauthorized }
           if status == 404 { throw APIError.noProfile }
           if !(200..<300).contains(status) { throw APIError.serverError(status) }
    
-          // ── Private decode structs matching JSON shape
           struct Resp: Decodable {
               struct DataBody: Decodable {
                   let session: RawSession
@@ -513,7 +507,6 @@ struct APIClient {
               return SessionDetailResult(success: resp.success, session: session)
    
           } catch {
-              print("❌ [Session] Decode error: \(error)")
               throw APIError.decoding(error)
           }
       }
@@ -528,7 +521,6 @@ struct APIClient {
         let (data, response) = try await perform(req)
         let status = response.statusCode
  
-        print("📤 [Chat] Send → status \(status)")
         if let raw = String(data: data, encoding: .utf8) { print("📥 [Chat] \(raw)") }
  
         if status == 401 { throw APIError.unauthorized }

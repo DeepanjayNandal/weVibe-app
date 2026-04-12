@@ -13,6 +13,7 @@ struct IncomingSpeedDatingMessage: Sendable, Equatable {
     let messageId: String
     let content: String
     let senderId: String
+    let createdAt: String
 
     init?(_ dict: [String: Any]) {
         guard let sessionId = dict["sessionId"] as? String,
@@ -24,6 +25,7 @@ struct IncomingSpeedDatingMessage: Sendable, Equatable {
         self.messageId = messageId
         self.content   = content
         self.senderId  = senderId
+        self.createdAt = msg["createdAt"] as? String ?? ""
     }
 }
 
@@ -159,9 +161,7 @@ final class SocketService {
 
         socket?.on(clientEvent: .reconnectAttempt) { [weak self] _, _ in
             Task { @MainActor [weak self] in
-                // Refresh token on every reconnect attempt per contract §2
                 guard let fresh = try? await Auth.auth().currentUser?.getIDToken() else { return }
-                // Recreate manager with fresh token — v16 config is read-only after init
                 guard let self, let url = URL(string: AppConfig.wsBaseURL) else { return }
                 self.manager = SocketManager(socketURL: url, config: [
                     .log(false),
@@ -197,7 +197,6 @@ final class SocketService {
                   let msg      = IncomingSpeedDatingMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastSpeedDatingMessage = msg
-                print("📩 [Socket] speed_dating.message.created — session: \(msg.sessionId)")
             }
         }
 
@@ -215,8 +214,6 @@ final class SocketService {
                   let payload   = envelope["data"] as? [String: Any],
                   let sessionId = payload["sessionId"] as? String else { return }
             Task { @MainActor [weak self] in
-                print("⏰ [Socket] speed_dating.session.ended — session: \(sessionId)")
-                // ActiveChatView listens via lastSpeedDatingSessionEnded
                 self?.lastSpeedDatingSessionEnded = sessionId
             }
         }

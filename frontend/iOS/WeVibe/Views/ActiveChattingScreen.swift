@@ -55,7 +55,7 @@ private struct MessagesLeftBanner: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 13)).foregroundStyle(.red)
-            Text("Only \(count) message\(count == 1 ? "" : "s") left — make them count!")
+            Text("Only \(count) message\(count == 1 ? "" : "s") left")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(.red)
         }
         .padding(.horizontal, 16).padding(.vertical, 10).frame(maxWidth: .infinity)
@@ -77,16 +77,18 @@ struct ActiveChatView: View {
     @Environment(ChatRouter.self) private var chatRouter
     @Environment(MatchmakingService.self) private var matchmakingService
     @Environment(SocketService.self) private var socketService
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var messageText: String = ""
     @FocusState private var inputFocused: Bool
 
     // Session state
     @State private var sessionDetail: SessionDetail? = nil
-    @State private var secondsRemaining: Int     = 86400
+    @State private var secondsRemaining: Int     = 0    
     @State private var messagesLeft: Int         = 20
     @State private var counterpartLabel: String  = "Anonymous"
     @State private var counterpartUserId: String = ""
+    @State private var expiresAt: String         = ""  
 
     // Chat state
     @State private var messages: [ChatMessage]   = []
@@ -114,14 +116,27 @@ struct ActiveChatView: View {
                 headerBar
                 Divider().background(Color(hex: "#C8E6C9"))
 
+                // ── Sticky session info — always visible above messages
+                VStack(spacing: 6) {
+                    CountdownTimerView(secondsRemaining: secondsRemaining)
+                    MessagesRemainingPill(
+                        messagesLeft: messagesLeft,
+                        messageLimit: sessionDetail?.messageLimit ?? 20
+                    )
+                    if showLowMessagesBanner {
+                        MessagesLeftBanner(count: messagesLeft)
+                    }
+                }
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(Color(hex: "#F0FAF0"))
+
+                Divider().background(Color(hex: "#C8E6C9"))
+
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            LogoWithoutText(size: 60).padding(.top, 20).padding(.bottom, 10)
-                            CountdownTimerView(secondsRemaining: secondsRemaining).padding(.bottom, 20)
-                            if showLowMessagesBanner {
-                                MessagesLeftBanner(count: messagesLeft).padding(.bottom, 12)
-                            }
+                            LogoWithoutText(size: 60).padding(.top, 20).padding(.bottom, 20)
                             ForEach(messages) { msg in
                                 MessageBubble(message: msg).id(msg.id)
                             }
@@ -186,21 +201,30 @@ struct ActiveChatView: View {
         // ── Load on appear
         .task { await loadSession() }
 
+        // ── Recalculate timer from expiresAt when app comes back to foreground
+        .onChange(of: scenePhase) { phase in
+            guard phase == .active, !expiresAt.isEmpty else { return }
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let expiry = f.date(from: expiresAt) {
+                let remaining = max(0, Int(expiry.timeIntervalSinceNow))
+                secondsRemaining = remaining
+                if remaining == 0 { triggerSessionEnd() }
+            }
+        }
+
         // ── REALTIME: incoming message from other user via socket
-        .onChange(of: socketService.lastSpeedDatingMessage) { _, event in
+        .onChange(of: socketService.lastSpeedDatingMessage) { event in
             guard let event, event.sessionId == matchId else { return }
-            
-            // ── Guard against duplicates — same message arriving twice
             guard !messages.contains(where: { $0.id == event.messageId }) else {
                 socketService.lastSpeedDatingMessage = nil
                 return
             }
-            
             let incoming = ChatMessage(
                 id:           event.messageId,
                 text:         event.content,
                 isMine:       false,
-                time:         formatTime(nil),
+                time:         formatTime(event.createdAt),   // ← use actual createdAt
                 messagesLeft: nil
             )
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -210,7 +234,7 @@ struct ActiveChatView: View {
         }
 
         // ── Server-side session ended
-        .onChange(of: socketService.lastSpeedDatingSessionEnded) { _, sessionId in
+        .onChange(of: socketService.lastSpeedDatingSessionEnded) { sessionId in
             guard let sessionId, sessionId == matchId else { return }
             triggerSessionEnd()
             socketService.lastSpeedDatingSessionEnded = nil
@@ -288,10 +312,18 @@ struct ActiveChatView: View {
             let result = try await apiClient.getSpeedDatingSession(token: token, sessionId: matchId)
             if let s = result.session {
                 sessionDetail     = s
-                secondsRemaining  = s.remainingSeconds
-                messagesLeft      = s.messageLimit - s.myMessageCount
+                expiresAt         = s.expiresAt
                 counterpartLabel  = s.counterpart.initials
                 counterpartUserId = s.counterpart.userId
+                messagesLeft      = s.messageLimit - s.myMessageCount
+
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let expiry = formatter.date(from: s.expiresAt) {
+                    secondsRemaining = max(0, Int(expiry.timeIntervalSinceNow))
+                } else {
+                    secondsRemaining = s.remainingSeconds   // fallback
+                }
             }
         } catch { print("❌ [Chat] loadSession: \(error)") }
 
@@ -307,6 +339,7 @@ struct ActiveChatView: View {
                     messagesLeft: nil
                 )
             }
+            print("✅ [Chat] Loaded \(messages.count) messages")
         } catch { print("❌ [Chat] loadHistory: \(error)") }
 
         startCountdown()
@@ -491,5 +524,50 @@ private struct LeaveSessionSheet: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color.white.ignoresSafeArea(edges: .bottom).shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+    }
+}
+
+private struct MessagesRemainingPill: View {
+    let messagesLeft: Int
+    let messageLimit: Int
+
+    private var fraction: CGFloat {
+        guard messageLimit > 0 else { return 1 }
+        return CGFloat(messagesLeft) / CGFloat(messageLimit)
+    }
+    private var pillColor: Color {
+        if messagesLeft <= 3 { return .red }
+        if messagesLeft <= 5 { return Color(hex: "#FF6B35") }
+        return Color(hex: "#1A8C4E")
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Mini progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color(hex: "#C8E6C9"))
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(pillColor)
+                        .frame(width: geo.size.width * fraction, height: 4)
+                        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
+                }
+            }
+            .frame(width: 48, height: 4)
+
+            Text("\(messagesLeft) / \(messageLimit) messages")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(pillColor)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(pillColor.opacity(0.08))
+                .overlay(Capsule().strokeBorder(pillColor.opacity(0.2), lineWidth: 1))
+        )
+        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
     }
 }

@@ -68,7 +68,11 @@ private struct SpeedDatingTab: View {
                 case .main:         SpeedDatingPlaceholder()
                 case .rules:        SpeedDatingRules().navigationBarBackButtonHidden(true)
                 case .tests:        PersonalityTestView()
-                case .joinQueue:    JoinQueueView()
+                case .joinQueue:
+                    JoinQueueView(onGoToProfile: {
+                        speedDatingRouter.popToRoot()
+                        selectedTab = .profile
+                    })
                 case .findingMatch:
                     FindingMatchView { matchId in
                         speedDatingRouter.popToRoot()

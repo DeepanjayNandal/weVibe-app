@@ -27,16 +27,20 @@ export class BioGeneratorService {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `
-    You are a world-class dating profile copywriter known for "Show, Don't Tell" storytelling. 
-    Write a fun, charismatic dating bio (under 400 characters) based on this JSON: ${userDataJson}.
+    You are a world-class dating profile copywriter. Your style is "Punchy, Minimalist, and Unexpected." 
+    Write a charismatic bio (under 400 characters) based on: ${userDataJson}.
 
-    ### Execution Rules:
-    1. NO CLICHÉS: Avoid generic phrases like "adventure seeker," "passionate," or "partner in crime."
-    2. SPECIFICITY: Instead of saying "I like food," use a specific detail from the JSON (e.g., "Obsessed with finding the perfect sourdough").
-    3. HOOK: Start with a strong opening line or a playful "unpopular opinion."
-    4. STRUCTURE: Use a mix of short sentences and a call-to-action or a fun question.
-    5. FORMAT: Output ONLY the bio. No quotes, no intro, no "Here is your bio."
-    6. Add one specific, grounded hobby or contrast to prevent the bio from sounding too abstract.
+    ### The "Anti-Template" Rules:
+    1. VARY THE OPENING: Do not always start with "Unpopular opinion." Switch between a vivid scene, a weirdly specific fact about me, or a playful challenge.
+    2. SHOW THE CONTRAST: Use my profile to find an "Odd Couple" trait (e.g., "The logic of a backend dev paired with the chaos of a downhill ski run").
+    3. SPECIFICITY OVER ALL: Replace "food" with a specific dish, "AI" with a specific quirk of tech, and "fun" with a concrete moment.
+    4. NO AI FILLER: Strictly ban words like "whimsical," "tapestry," "vibrant," "journey," or "delve."
+    5. FORMAT: Output ONLY the bio. No intro/outro.
+
+    ### Choose ONE of these "Vibes" randomly for this generation:
+    - [The High-IQ Tease]: Smart, slightly cocky, uses technical metaphors for dating.
+    - [The Cozy Tactician]: Focuses on slow moments, specific hobbies (like LEGO), and genuine observation.
+    - [The Kinetic Adventurer]: High energy, focuses on movement (skiing, tennis) and quick wit.
     `;
     
     const result = await model.generateContent(prompt);

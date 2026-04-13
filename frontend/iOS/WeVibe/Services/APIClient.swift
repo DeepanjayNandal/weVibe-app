@@ -233,6 +233,24 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
+    /// PATCH /users/profile/location — background location sync after significant movement.
+    func updateLocation(token: String, latitude: Double, longitude: Double, city: String, state: String, zip: String) async throws {
+        var req = request(path: "/users/profile/location", method: "PATCH", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "latitude": latitude,
+            "longitude": longitude,
+            "location_city": city,
+            "location_state": state,
+            "location_zip": zip
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     // MARK: - Photos
 
     struct PhotoUploadURLResult {

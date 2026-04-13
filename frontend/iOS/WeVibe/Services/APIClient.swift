@@ -574,6 +574,27 @@ struct APIClient {
      }
     
 
+    // MARK: - Match Profile
+
+    /// GET /matching/matches/:matchId/profile — fetches the counterpart's full profile for a permanent match.
+    func fetchMatchProfile(token: String, matchId: String) async throws -> MatchProfile {
+        let req = request(path: "/matching/matches/\(matchId)/profile", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable { let profile: MatchProfileResponse }
+            let data: DataBody
+        }
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            return resp.data.profile.toMatchProfile()
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // MARK: - Helpers
 
     private func request(path: String, method: String, token: String) -> URLRequest {
@@ -864,6 +885,151 @@ struct UserProfileResponse: Decodable {
         case gender
         case locationCity = "location_city"
         case locationState = "location_state"
+    }
+}
+
+// MARK: - Match Profile Response
+
+struct MatchProfileResponse: Decodable {
+    struct PromptEntry: Decodable {
+        let question: String
+        let answer: String
+    }
+
+    let userId: String?
+    let firstName: String?
+    let lastName: String?
+    let birthDate: String?
+    let pronouns: String?
+    let orientation: String?
+    let genderIdentity: String?
+    let showOrientation: Bool?
+    let showPersonalityTrait: Bool?
+    let locationCity: String?
+    let locationState: String?
+    let photos: [String]?
+    let bio: String?
+    let jobTitle: String?
+    let school: String?
+    let education: String?
+    let careerField: String?
+    let instagramHandle: String?
+    let tiktokHandle: String?
+    let spotifyPlaylistUrl: String?
+    let interests: [String]?
+    let preferredDateActivities: [String]?
+    let loveLanguage: String?
+    let zodiacSign: String?
+    let personalityType: String?
+    let personalityPrimary: String?
+    let personalitySecondary: String?
+    let drinks: String?
+    let smoking: String?
+    let workout: String?
+    let pets: String?
+    let sleepSchedule: String?
+    let cannabis: String?
+    let petTypes: String?
+    let ethnicity: [String]?
+    let languages: [String]?
+    let prompts: [PromptEntry]?
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case birthDate = "birth_date"
+        case pronouns, orientation
+        case genderIdentity = "gender_identity"
+        case showOrientation = "show_orientation"
+        case showPersonalityTrait = "show_personality_trait"
+        case locationCity = "location_city"
+        case locationState = "state"
+        case photos, bio
+        case jobTitle = "job_title"
+        case school, education
+        case careerField = "career_field"
+        case instagramHandle = "instagram_handle"
+        case tiktokHandle = "tiktok_handle"
+        case spotifyPlaylistUrl = "spotify_playlist_url"
+        case interests
+        case preferredDateActivities = "preferred_date_activities"
+        case loveLanguage = "love_language"
+        case zodiacSign = "zodiac_sign"
+        case personalityType = "personality_type"
+        case personalityPrimary = "personality_primary"
+        case personalitySecondary = "personality_secondary"
+        case drinks = "lifestyle_drinks"
+        case smoking = "lifestyle_smoking"
+        case workout = "lifestyle_workout"
+        case pets = "lifestyle_pets"
+        case sleepSchedule = "lifestyle_sleep"
+        case cannabis = "lifestyle_cannabis"
+        case petTypes = "pet_types"
+        case ethnicity, languages, prompts
+    }
+
+    func toMatchProfile() -> MatchProfile {
+        MatchProfile(
+            id: userId ?? "",
+            firstName: firstName ?? "",
+            lastName: lastName ?? "",
+            age: Self.age(from: birthDate),
+            jobTitle: jobTitle ?? "",
+            bio: bio ?? "",
+            pronouns: pronouns ?? "",
+            instagramHandle: instagramHandle,
+            tiktokHandle: tiktokHandle,
+            locationCity: locationCity ?? "",
+            locationState: locationState ?? "",
+            orientation: orientation,
+            identity: genderIdentity,
+            isPersonalityTestCompelte: personalityType != nil,
+            personalityType: personalityType,
+            personalityPrimary: personalityPrimary,
+            personalitySecondary: personalitySecondary,
+            loveLanguage: loveLanguage,
+            zodiacSign: zodiacSign,
+            interests: interests ?? [],
+            preferredDateActivities: preferredDateActivities ?? [],
+            drinks: drinks ?? "",
+            smoking: smoking ?? "",
+            cannabis: cannabis ?? "",
+            workout: workout ?? "",
+            sleepSchedule: sleepSchedule ?? "",
+            pets: pets ?? "",
+            petTypes: petTypes ?? "",
+            career: careerField ?? "",
+            school: school ?? "",
+            education: education ?? "",
+            ethnicities: ethnicity ?? [],
+            languages: languages ?? [],
+            photoURLs: photos ?? [],
+            prompts: (prompts ?? []).map {
+                MatchProfile.PromptPair(question: $0.question, answer: $0.answer)
+            },
+            socialMediaLinks: [instagramHandle, tiktokHandle, spotifyPlaylistUrl]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty },
+            showLocation: true,
+            showOrientation: showOrientation ?? true,
+            showPersonalityTrait: showPersonalityTrait ?? true,
+            showInterests: true,
+            showLifestyle: true,
+            showCareer: true,
+            showPets: true
+        )
+    }
+
+    private static func age(from dateString: String?) -> Int {
+        guard let dateString else { return 0 }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let dateOnly = DateFormatter()
+        dateOnly.dateFormat = "yyyy-MM-dd"
+        let date = iso.date(from: dateString) ?? dateOnly.date(from: dateString)
+        guard let date else { return 0 }
+        return Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 0
     }
 }
 

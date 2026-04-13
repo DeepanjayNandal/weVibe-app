@@ -32,11 +32,12 @@ export function normalizeWeightedSum(parts: WeightedPart[]): number {
 export function hasHardStop(user: Partial<profiles>, candidate: Partial<profiles>): boolean {
   if (!user || !candidate) return true;
 
-  if (user.lifestyle_smoking === "never" && candidate.lifestyle_smoking === "often" && !user.is_smoking_flexible) {
+  // Example for strong incompatibility
+  if (user.lifestyle_smoking === "never" && candidate.lifestyle_smoking === "often") {
     return true;
   }
 
-  if (user.lifestyle_drinks === "never" && candidate.lifestyle_drinks === "often" && !user.is_drinks_flexible) {
+  if (user.lifestyle_drinks === "never" && candidate.lifestyle_drinks === "often") {
     return true;
   }
 
@@ -68,7 +69,7 @@ export function computeInterestsScore(
 ): number {
 
   if (!interestsA || !interestsB || interestsA.length === 0 || interestsB.length === 0) {
-    return 0.5; // neutral fallback when data is missing, consistent with other scorers
+    return 0;
   }
 
   const setA = new Set(interestsA.map(i => i.toLowerCase()));
@@ -98,19 +99,17 @@ export function computePreferencesScore(
   let totalScore = 0;
   let totalWeight = 0;
 
-  // Returns 1 for match, 0.5 for missing data or when either party is flexible, 0 for hard mismatch
-  function score(a?: any, b?: any, aFlexible?: boolean | null, bFlexible?: boolean | null): number {
+  function score(a?: any, b?: any): number {
     if (!a || !b) return 0.5;
     if (a === b) return 1;
-    if (aFlexible || bFlexible) return 0.5;
     return 0;
   }
 
   const prefs = [
-    { weight: prefWeights.drinking,   value: score(user.lifestyle_drinks,  candidate.lifestyle_drinks,  user.is_drinks_flexible,  candidate.is_drinks_flexible) },
-    { weight: prefWeights.smoking,    value: score(user.lifestyle_smoking,  candidate.lifestyle_smoking, user.is_smoking_flexible, candidate.is_smoking_flexible) },
-    { weight: prefWeights.pets,       value: score(user.lifestyle_pets,     candidate.lifestyle_pets) },
-    { weight: prefWeights.chronotype, value: score(user.lifestyle_sleep,    candidate.lifestyle_sleep,   user.is_sleep_flexible,   candidate.is_sleep_flexible) },
+    { weight: prefWeights.drinking, value: score(user.lifestyle_drinks, candidate.lifestyle_drinks) },
+    { weight: prefWeights.smoking, value: score(user.lifestyle_smoking, candidate.lifestyle_smoking) },
+    { weight: prefWeights.pets, value: score(user.lifestyle_pets, candidate.lifestyle_pets) },
+    { weight: prefWeights.chronotype, value: score(user.lifestyle_sleep, candidate.lifestyle_sleep) }
   ];
   
   for (const p of prefs) {

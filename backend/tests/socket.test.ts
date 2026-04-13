@@ -121,11 +121,11 @@ describe('Socket.io Server - Unit Tests', () => {
 
     // Connect clients
     clientSocketA = ioClient(`http://localhost:${port}`, {
-      query: { token: MOCK_TOKEN_A },
+      auth: { token: MOCK_TOKEN_A },
     });
 
     clientSocketB = ioClient(`http://localhost:${port}`, {
-      query: { token: MOCK_TOKEN_B },
+      auth: { token: MOCK_TOKEN_B },
     });
 
     await Promise.all([
@@ -214,7 +214,7 @@ describe('Socket.io Server - Unit Tests', () => {
 
   test('multi-device broadcast sends to all user connections', async () => {
     const clientA2 = ioClient(`http://localhost:${port}`, {
-      query: { token: MOCK_TOKEN_A },
+      auth: { token: MOCK_TOKEN_A },
     });
 
     await new Promise<void>((resolve) => {
@@ -252,7 +252,7 @@ describe('Socket.io Server - Unit Tests', () => {
 
   test('socket disconnect is handled gracefully', async () => {
     const tempClient = ioClient(`http://localhost:${port}`, {
-      query: { token: MOCK_TOKEN_A },
+      auth: { token: MOCK_TOKEN_A },
     });
 
     await new Promise<void>((resolve) => {
@@ -360,11 +360,11 @@ describe('Socket Contract Integration', () => {
 
   test('emits speed_dating.session.move_to_permanent_updated only when conversion succeeds', async () => {
     const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
-      query: { token: tokenA },
+      auth: { token: tokenA },
     });
 
     const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
-      query: { token: tokenB },
+      auth: { token: tokenB },
     });
 
     await Promise.all([
@@ -425,7 +425,7 @@ describe('Socket Contract Integration', () => {
 
   test('emits normalized decision in speed_dating.session.final_decision_updated', async () => {
     const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
-      query: { token: tokenB },
+      auth: { token: tokenB },
     });
 
     await new Promise<void>((resolve) => socketB.on('connect', () => resolve()));
@@ -476,11 +476,11 @@ describe('Socket Contract Integration', () => {
   // Test as real matching and chatting case
   test('receives speed_dating.message.created via socket when counterpart sends a message via API', async () => {
     const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
-      query: { token: tokenA },
+      auth: { token: tokenA },
     });
 
     const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
-      query: { token: tokenB },
+      auth: { token: tokenB },
     });
 
     await Promise.all([

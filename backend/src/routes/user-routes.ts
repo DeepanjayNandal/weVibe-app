@@ -45,13 +45,6 @@ userRouter.patch(
   asyncHandler(profileController.updateProfile),
 );
 
-// PATCH /profile/location — dedicated lean endpoint for iOS background location sync
-userRouter.patch(
-  '/profile/location',
-  authenticate(authVerifier),
-  asyncHandler(profileController.updateLocation),
-);
-
 // DELETE /me — soft-deletes the authenticated user's account (30-day grace period)
 userRouter.delete(
   '/me',

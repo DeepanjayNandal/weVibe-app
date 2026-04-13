@@ -59,15 +59,6 @@ const mockProfiles = {
       { question: 'My hobbies', answer: 'partying, drinking, smoking' },
       { question: 'I\'m looking for', answer: 'someone who likes to party' }
     ]
-  } as Partial<profiles>,
-
-  flexibleNonSmoker: {
-    user_id: 'user5',
-    personality_primary: 'adventurous',
-    lifestyle_smoking: 'never' as const,
-    lifestyle_drinks: 'never' as const,
-    is_smoking_flexible: true,
-    is_drinks_flexible: true,
   } as Partial<profiles>
 };
 
@@ -123,15 +114,6 @@ describe('Matching Algorithm Unit Tests', () => {
       expect(result).toBe(false);
     });
 
-    test('should return false when user is flexible despite lifestyle mismatch', () => {
-      // lifestyle_smoking=never + is_smoking_flexible=true means open to smokers
-      const result = hasHardStop(
-        mockProfiles.flexibleNonSmoker,
-        mockProfiles.incompatibleSmoker
-      );
-      expect(result).toBe(false);
-    });
-
     test('should handle null profiles', () => {
       const result = hasHardStop(null as any, mockProfiles.adventurousHiker);
       expect(result).toBe(true);
@@ -182,7 +164,7 @@ describe('Matching Algorithm Unit Tests', () => {
 
     test('should handle empty or null interests', () => {
       const result = computeInterestsScore([], undefined);
-      expect(result).toBe(0.5);
+      expect(result).toBe(0);
     });
   });
 

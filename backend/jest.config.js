@@ -4,6 +4,6 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.ts'],
   verbose: true,
-  maxWorkers: 1,
+  forceExit: true,
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 };

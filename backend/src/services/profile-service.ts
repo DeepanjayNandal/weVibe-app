@@ -109,22 +109,6 @@ export class ProfileService {
     });
   }
 
-  async updateLocation(
-    userId: string,
-    data: {
-      latitude: number;
-      longitude: number;
-      locationCity: string;
-      locationState: string;
-      locationZip: string;
-    },
-  ): Promise<boolean> {
-    const existing = await this.profileRepository.findByUserId(userId);
-    if (!existing) return false;
-    await this.profileRepository.updateLocation(userId, data);
-    return true;
-  }
-
   async updateProfile(userId: string, data: UpdateProfileData): Promise<profiles | null> {
     // Return null if no profile exists — controller converts this to 401 PROFILE_NOT_FOUND
     const existing = await this.profileRepository.findByUserId(userId);

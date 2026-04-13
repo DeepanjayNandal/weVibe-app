@@ -34,7 +34,7 @@ describe('Auth API', () => {
     expect(response.body.data.user.authProvider).toBe('google');
   });
 
-  test('POST /api/v1/auth/register should return 201 idempotently if user exists (iOS retry safety)', async () => {
+  test('POST /api/v1/auth/register should return 409 if user exists', async () => {
     await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -42,7 +42,6 @@ describe('Auth API', () => {
         idToken: 'mock:google:g-001:alice@auth.test',
       });
 
-    // Simulates iOS retrying after a lost network response — must be idempotent
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -50,9 +49,9 @@ describe('Auth API', () => {
         idToken: 'mock:google:g-001:alice@auth.test',
       });
 
-    expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.user.email).toBe('alice@auth.test');
+    expect(response.status).toBe(409);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('USER_ALREADY_EXISTS');
   });
 
   test('POST /api/v1/auth/login should create user on first social login', async () => {
@@ -150,7 +149,7 @@ describe('Auth API', () => {
     expect(response.body.error.code).toBe('INVALID_ID_TOKEN');
   });
 
-  test('POST /api/v1/auth/register should re-link Firebase identity for duplicate email with different provider', async () => {
+  test('POST /api/v1/auth/register should return 409 for duplicate email with different provider', async () => {
     await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -158,8 +157,6 @@ describe('Auth API', () => {
         idToken: 'mock:google:g-001:duplicate@auth.test',
       });
 
-    // Same email, different provider/UID — re-links the new Firebase UID to the existing account
-    // (handles rollback scenario where iOS deleted the old Firebase account and created a new one)
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -167,9 +164,9 @@ describe('Auth API', () => {
         idToken: 'mock:apple:a-001:duplicate@auth.test',
       });
 
-    expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.user.email).toBe('duplicate@auth.test');
+    expect(response.status).toBe(409);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('EMAIL_ALREADY_EXISTS');
   });
 
   test('GET /api/v1/auth/me should return 401 without Authorization header', async () => {

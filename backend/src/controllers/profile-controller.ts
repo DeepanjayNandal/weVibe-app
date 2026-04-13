@@ -623,40 +623,6 @@ export class ProfileController {
   };
 
   // PATCH /api/v1/users/profile
-  // PATCH /api/v1/users/profile/location
-  // Dedicated lean endpoint for iOS background location sync.
-  // All 5 fields are required. Returns 204 No Content on success.
-  updateLocation = async (req: Request, res: Response): Promise<void> => {
-    const user = await this.resolveUser(req);
-    const body = req.body;
-    const errors: ErrorMap = {};
-
-    const latitude  = requireFloat(errors, body.latitude,       'latitude',       'latitude is required and must be a number');
-    const longitude = requireFloat(errors, body.longitude,      'longitude',      'longitude is required and must be a number');
-    const city      = requireString(errors, body.location_city,  'location_city',  'location_city is required');
-    const state     = requireString(errors, body.location_state, 'location_state', 'location_state is required');
-    const zip       = requireString(errors, body.location_zip,   'location_zip',   'location_zip is required');
-
-    if (Object.keys(errors).length > 0) {
-      res.status(422).json({ errors });
-      return;
-    }
-
-    const updated = await this.profileService.updateLocation(user!.id, {
-      latitude:      latitude!,
-      longitude:     longitude!,
-      locationCity:  city!,
-      locationState: state!,
-      locationZip:   zip!,
-    });
-
-    if (!updated) {
-      throw unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
-    }
-
-    res.status(204).send();
-  };
-
   // Partial profile update — only fields that are sent get updated.
   // All fields are optional. Same validation rules as POST apply to any field that is present.
   // Returns 200 with the full updated profile on success.

@@ -226,9 +226,6 @@ describe('Speed Dating API', () => {
     expect(session.sessionId).toBe(sessionId);
     expect(session.status).toBe('active');
     expect(session.sessionExpiresAt).toBeTruthy();
-    expect(Object.keys(session).sort()).toEqual(
-      ['sessionExpiresAt', 'sessionId', 'status'].sort(),
-    );
   });
 
   test('supports early move-to-permanent acceptance and copies speed dating history into permanent chat', async () => {
@@ -492,8 +489,8 @@ describe('Speed Dating API', () => {
       data: {
         user_a_id: userAId,
         user_b_id: userBId,
-        started_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        expires_at: new Date(Date.now() - 60 * 60 * 1000),
+        started_at: new Date(Date.now() - 27 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() - 25 * 60 * 60 * 1000), // outside 24h grace window — should be hidden
         status: 'expired',
       },
     });

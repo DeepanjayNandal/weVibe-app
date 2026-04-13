@@ -5,6 +5,23 @@ import { createApp } from '../src/app';
 const prisma = new PrismaClient();
 const app = createApp();
 
+const VALID_PROFILE = {
+  first_name: 'Alice',
+  last_name: 'Smith',
+  birth_date: '1998-05-20',
+  gender: 'Female',
+  location_city: 'Taipei',
+  location_state: 'Taiwan',
+  location_zip: '100',
+  latitude: 25.033,
+  longitude: 121.565,
+  meet_preference: 'Men',
+  relationship_goals: ['Long Term'],
+  min_age_preference: 22,
+  max_age_preference: 30,
+  distance_preference_miles: 50,
+};
+
 describe('Profile API - POST /api/v1/users/profile', () => {
   beforeAll(async () => {
     await prisma.$connect();
@@ -19,7 +36,6 @@ describe('Profile API - POST /api/v1/users/profile', () => {
     await prisma.$disconnect();
   });
 
-  // Helper: register a user and return their mock token
   async function registerUser(token: string): Promise<void> {
     await request(app)
       .post('/api/v1/auth/register')
@@ -33,169 +49,125 @@ describe('Profile API - POST /api/v1/users/profile', () => {
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Alice',
-        last_name: 'Smith',
-        birth_date: '1998-05-20',
-        gender: 'Female',
-      });
+      .send(VALID_PROFILE);
 
     expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.profile.displayName).toBe('Alice Smith');
-    expect(response.body.data.profile.gender).toBe('Female');
-    expect(response.body.data.profile.birthDate).toBeDefined();
+    expect(response.body.user_id).toBeDefined();
   });
 
-  test('should return 409 if profile already exists', async () => {
+  test('should return 201 idempotently if profile already exists (iOS retry safety)', async () => {
     const token = 'mock:google:p-002:bob@profile.test';
     await registerUser(token);
 
     await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Bob',
-        last_name: 'Jones',
-        birth_date: '1995-03-10',
-        gender: 'Male',
-      });
+      .send({ ...VALID_PROFILE, gender: 'Male', meet_preference: 'Women' });
 
+    // Simulates iOS retrying after a lost network response — must be idempotent
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Bob',
-        last_name: 'Jones',
-        birth_date: '1995-03-10',
-        gender: 'Male',
-      });
+      .send({ ...VALID_PROFILE, gender: 'Male', meet_preference: 'Women' });
 
-    expect(response.status).toBe(409);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error.code).toBe('PROFILE_ALREADY_EXISTS');
+    expect(response.status).toBe(201);
+    expect(response.body.user_id).toBeDefined();
   });
 
   test('should return 401 without bearer token', async () => {
     const response = await request(app)
       .post('/api/v1/users/profile')
-      .send({
-        first_name: 'Alice',
-        last_name: 'Smith',
-        birth_date: '1998-05-20',
-        gender: 'Female',
-      });
+      .send(VALID_PROFILE);
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('MISSING_BEARER_TOKEN');
   });
 
-  test('should return 400 for missing first_name', async () => {
+  test('should return 422 for missing birth_date', async () => {
     const token = 'mock:google:p-003:charlie@profile.test';
     await registerUser(token);
 
+    const { birth_date, ...withoutBirthDate } = VALID_PROFILE;
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        last_name: 'Brown',
-        birth_date: '1998-05-20',
-        gender: 'Male',
-      });
+      .send(withoutBirthDate);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('MISSING_FIRST_NAME');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.birth_date).toBeDefined();
   });
 
-  test('should return 400 for missing last_name', async () => {
+  test('should return 422 for invalid birth_date format', async () => {
     const token = 'mock:google:p-004:diana@profile.test';
     await registerUser(token);
 
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Diana',
-        birth_date: '1998-05-20',
-        gender: 'Female',
-      });
+      .send({ ...VALID_PROFILE, birth_date: 'not-a-date' });
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('MISSING_LAST_NAME');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.birth_date).toBeDefined();
   });
 
-  test('should return 400 for missing birth_date', async () => {
+  test('should return 422 for missing gender', async () => {
     const token = 'mock:google:p-005:evan@profile.test';
     await registerUser(token);
 
+    const { gender, ...withoutGender } = VALID_PROFILE;
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Evan',
-        last_name: 'White',
-        gender: 'Male',
-      });
+      .send(withoutGender);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('MISSING_BIRTH_DATE');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.gender).toBeDefined();
   });
 
-  test('should return 400 for invalid birth_date format', async () => {
+  test('should return 422 for invalid gender value', async () => {
     const token = 'mock:google:p-006:fiona@profile.test';
     await registerUser(token);
 
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Fiona',
-        last_name: 'Green',
-        birth_date: 'not-a-date',
-        gender: 'Female',
-      });
+      .send({ ...VALID_PROFILE, gender: 'attack_helicopter' });
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('INVALID_BIRTH_DATE');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.gender).toBeDefined();
   });
 
-  test('should return 400 for missing gender', async () => {
+  test('should return 422 for missing location fields', async () => {
     const token = 'mock:google:p-007:george@profile.test';
     await registerUser(token);
 
+    const { location_city, location_state, location_zip, latitude, longitude, ...withoutLocation } = VALID_PROFILE;
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'George',
-        last_name: 'Black',
-        birth_date: '1998-05-20',
-      });
+      .send(withoutLocation);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('MISSING_GENDER');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.location_city).toBeDefined();
   });
 
-  test('should return 400 for invalid gender value', async () => {
+  test('should return 422 for missing meet_preference', async () => {
     const token = 'mock:google:p-008:hannah@profile.test';
     await registerUser(token);
 
+    const { meet_preference, ...withoutMeetPref } = VALID_PROFILE;
     const response = await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Hannah',
-        last_name: 'Blue',
-        birth_date: '1998-05-20',
-        gender: 'attack_helicopter',
-      });
+      .send(withoutMeetPref);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('INVALID_GENDER');
+    expect(response.status).toBe(422);
+    expect(response.body.errors.meet_preference).toBeDefined();
   });
 
   test('should accept all valid gender values', async () => {
     const genders = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+    const meetPrefs = ['Women', 'Men', 'Open to both', 'Open to both'];
 
     for (let i = 0; i < genders.length; i++) {
       const token = `mock:google:p-gender-${i}:gendertest${i}@profile.test`;
@@ -204,15 +176,10 @@ describe('Profile API - POST /api/v1/users/profile', () => {
       const response = await request(app)
         .post('/api/v1/users/profile')
         .set('Authorization', `Bearer ${token}`)
-        .send({
-          first_name: 'Test',
-          last_name: 'User',
-          birth_date: '1998-05-20',
-          gender: genders[i],
-        });
+        .send({ ...VALID_PROFILE, gender: genders[i], meet_preference: meetPrefs[i] });
 
       expect(response.status).toBe(201);
-      expect(response.body.data.profile.gender).toBe(genders[i]);
+      expect(response.body.user_id).toBeDefined();
     }
   });
 });
@@ -241,12 +208,7 @@ describe('Profile API - GET /api/v1/users/profile', () => {
     await request(app)
       .post('/api/v1/users/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        first_name: 'Alice',
-        last_name: 'Smith',
-        birth_date: '1998-05-20',
-        gender: 'Female',
-      });
+      .send(VALID_PROFILE);
   }
 
   test('should return profile for authenticated user', async () => {
@@ -259,9 +221,10 @@ describe('Profile API - GET /api/v1/users/profile', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.profile.displayName).toBe('Alice Smith');
-    expect(response.body.data.profile.gender).toBe('Female');
+    expect(response.body.first_name).toBe('Alice');
+    expect(response.body.last_name).toBe('Smith');
+    expect(response.body.gender).toBe('Female');
+    expect(response.body.birth_date).toBeDefined();
   });
 
   test('should return 401 without bearer token', async () => {

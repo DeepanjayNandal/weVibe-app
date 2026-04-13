@@ -55,4 +55,7 @@ export const env = {
   get matchmakingRecentMatchCooldownEnabled(): boolean {
     return parseBooleanEnv(process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED) ?? process.env.NODE_ENV === 'production';
   },
+  // Upstash Redis URL for Socket.IO multi-instance adapter (Cloud Run).
+  // Must use rediss:// scheme (TLS). Omit in local dev to use in-memory adapter.
+  upstashRedisUrl: process.env.UPSTASH_REDIS_URL ?? null,
 };

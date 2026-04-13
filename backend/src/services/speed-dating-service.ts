@@ -39,6 +39,9 @@ export type SessionListItem = {
   myMessageCount: number;
   otherMessageCount: number;
   messageLimit: number;
+  lastMessageContent: string | null;
+  lastMessageAt: Date | null;
+  isLastMessageMine: boolean;
   counterpart: {
     userId: string | null;
     firstName: string | null;
@@ -279,9 +282,10 @@ export class SpeedDatingService {
     const ids = sessions.map((session) => session.id);
     const messageCountMap = await this.buildMessageCountMap(ids);
     const unreadCountMap = await this.buildUnreadCountMap(ids, userId);
+    const lastMessageMap = await this.buildLastMessageMap(ids);
 
     return sessions.map((session) =>
-      this.toSessionListItem(session, userId, messageCountMap, unreadCountMap),
+      this.toSessionListItem(session, userId, messageCountMap, unreadCountMap, lastMessageMap),
     );
   }
 
@@ -293,8 +297,9 @@ export class SpeedDatingService {
     const refreshedSession = await this.getAuthorizedSession(userId, sessionId);
     const messageCountMap = await this.buildMessageCountMap([sessionId]);
     const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId);
+    const lastMessageMap = await this.buildLastMessageMap([sessionId]);
 
-    return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap);
+    return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap);
   }
 
   async getSessionMessages(userId: string, sessionId: string): Promise<SessionMessagesResult> {
@@ -312,9 +317,10 @@ export class SpeedDatingService {
 
       const messageCountMap = await this.buildMessageCountMap([sessionId], tx);
       const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
       return {
-        session: this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap),
+        session: this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap),
         messages: messages.map(messageToPayload),
       };
     });
@@ -339,8 +345,9 @@ export class SpeedDatingService {
       const refreshedSession = await this.getAuthorizedSession(userId, sessionId, tx);
       const messageCountMap = await this.buildMessageCountMap([sessionId], tx);
       const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
-      return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap);
+      return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap);
     });
   }
 
@@ -463,10 +470,12 @@ export class SpeedDatingService {
       }
 
       const countMap = await this.buildMessageCountMap([sessionId], tx);
+      const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
       return {
         message: messageToPayload(message),
-        session: this.toSessionListItem(fullSession, userId, countMap),
+        session: this.toSessionListItem(fullSession, userId, countMap, unreadCountMap, lastMessageMap),
       };
     });
 
@@ -806,6 +815,31 @@ export class SpeedDatingService {
     return map;
   }
 
+  private async buildLastMessageMap(
+    sessionIds: string[],
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ): Promise<Map<string, speed_dating_messages>> {
+    const map = new Map<string, speed_dating_messages>();
+
+    if (sessionIds.length === 0) {
+      return map;
+    }
+
+    const latestMessages = await db.speed_dating_messages.findMany({
+      where: { session_id: { in: sessionIds } },
+      orderBy: { created_at: 'desc' },
+      distinct: ['session_id'],
+    });
+
+    for (const msg of latestMessages) {
+      if (msg.session_id) {
+        map.set(msg.session_id, msg);
+      }
+    }
+
+    return map;
+  }
+
   private getDecisionPerspective(
     session: Pick<speed_dating_sessions, 'user_a_decision' | 'user_b_decision' | 'user_a_id' | 'user_b_id'>,
     userId: string,
@@ -971,9 +1005,11 @@ export class SpeedDatingService {
     }
 
     const countMap = await this.buildMessageCountMap([sessionId], db);
+    const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, db);
+    const lastMessageMap = await this.buildLastMessageMap([sessionId], db);
 
     return {
-      session: this.toSessionListItem(fullSession, userId, countMap),
+      session: this.toSessionListItem(fullSession, userId, countMap, unreadCountMap, lastMessageMap),
       match: match ? buildMatchSummary(match) : null,
     };
   }
@@ -983,6 +1019,7 @@ export class SpeedDatingService {
     userId: string,
     messageCountMap: Map<string, Map<string, number>>,
     unreadCountMap: Map<string, number> = new Map<string, number>(),
+    lastMessageMap: Map<string, speed_dating_messages> = new Map<string, speed_dating_messages>(),
   ): SessionListItem {
     const participantIds = getTwoPartyParticipantIds(session);
     const isUserA = isUserAInTwoParty(session, userId);
@@ -1013,6 +1050,11 @@ export class SpeedDatingService {
 
     const unreadCount = unreadCountMap.get(session.id) ?? 0;
 
+    const lastMessage = lastMessageMap.get(session.id);
+    const lastMessageContent = lastMessage?.content ?? null;
+    const lastMessageAt = lastMessage?.created_at ?? null;
+    const isLastMessageMine = lastMessage?.sender_id === userId;
+
     return {
       sessionId: session.id,
       status: publicStatus,
@@ -1025,6 +1067,9 @@ export class SpeedDatingService {
       myMessageCount,
       otherMessageCount,
       messageLimit: MESSAGE_LIMIT_PER_USER,
+      lastMessageContent,
+      lastMessageAt,
+      isLastMessageMine,
       counterpart: {
         userId: counterpartUser?.id ?? null,
         firstName,

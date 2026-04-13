@@ -20,7 +20,7 @@ export class SpeedDatingController {
     res.status(200).json({
       success: true,
       data: {
-        sessions,
+        sessions, // Force return the session array containing full fields like lastMessage
       },
     });
   };

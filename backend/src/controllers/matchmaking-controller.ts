@@ -101,7 +101,16 @@ export class MatchmakingController {
     res.status(200).json({
       success: true,
       data: {
-        sessions,
+        sessions: sessions.map((session) => ({
+          sessionId: session.sessionId,
+          sessionExpiresAt: session.expiresAt,
+          status: session.status,
+          lastMessageContent: session.lastMessageContent,
+          lastMessageAt: session.lastMessageAt,
+          isLastMessageMine: session.isLastMessageMine,
+          unreadCount: session.unreadCount,
+          counterpart: session.counterpart,
+        })),
       },
     });
   };

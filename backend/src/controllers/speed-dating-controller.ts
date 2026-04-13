@@ -20,7 +20,16 @@ export class SpeedDatingController {
     res.status(200).json({
       success: true,
       data: {
-        sessions, // Force return the session array containing full fields like lastMessage
+        sessions: sessions.map((session) => ({
+          sessionId: session.sessionId,
+          sessionExpiresAt: session.expiresAt,
+          status: session.status,
+          lastMessageContent: session.lastMessageContent,
+          lastMessageAt: session.lastMessageAt,
+          isLastMessageMine: session.isLastMessageMine,
+          unreadCount: session.unreadCount,
+          counterpart: session.counterpart,
+        })),
       },
     });
   };

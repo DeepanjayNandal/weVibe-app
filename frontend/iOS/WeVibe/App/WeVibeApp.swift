@@ -52,6 +52,13 @@ struct WeVibeApp: App {
                 .environment(matchmakingService)
                 .environmentObject(locationManager)
                 .task {
+                    // Wire location sync once at launch. The callback is a no-op until
+                    // the user is authenticated (syncLocation guards on appState).
+                    locationManager.onLocationUpdated = { lat, lng, city, state, zip in
+                        Task { @MainActor in
+                            await authManager.syncLocation(lat: lat, lng: lng, city: city, state: state, zip: zip)
+                        }
+                    }
                     // Restores a saved Firebase session on every launch.
                     await authManager.checkAuthState()
                 }

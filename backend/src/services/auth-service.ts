@@ -98,7 +98,15 @@ export class AuthService {
     }
 
     if (user.deleted_at) {
-      forbidden('Account has been deleted', 'USER_DELETED');
+      // Apply the same 30-day grace period as login() — if the user is within
+      // the window, reactivate silently so they can get back in without re-logging.
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (user.deleted_at > cutoff) {
+        await this.userRepository.reactivateUser(user.id);
+        user = { ...user, deleted_at: null };
+      } else {
+        forbidden('Account has been deleted', 'USER_DELETED');
+      }
     }
 
     return user;

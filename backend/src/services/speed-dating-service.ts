@@ -41,6 +41,7 @@ export type SessionListItem = {
   counterpart: {
     userId: string | null;
     firstName: string | null;
+    nickname: string | null;
     initials: string | null;
     blurredPhotoUrl: string | null;
   };
@@ -982,6 +983,7 @@ export class SpeedDatingService {
     const otherMessageCount = countForSession.get(otherId) ?? 0;
 
     const firstName = extractFirstName(counterpartUser?.profiles?.display_name);
+    const nickname = (counterpartUser?.profiles as any)?.nickname ?? null;
     const initials = extractInitials(counterpartUser?.profiles?.display_name);
     const blurredPhotoUrl = extractBlurredPhotoUrl(counterpartUser?.profiles?.photos ?? null);
 
@@ -1011,6 +1013,7 @@ export class SpeedDatingService {
       counterpart: {
         userId: counterpartUser?.id ?? null,
         firstName,
+        nickname,
         initials,
         blurredPhotoUrl,
       },

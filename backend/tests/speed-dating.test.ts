@@ -225,10 +225,10 @@ describe('Speed Dating API', () => {
     const session = response.body.data.sessions[0];
     expect(session.sessionId).toBe(sessionId);
     expect(session.status).toBe('active');
-    expect(session.sessionExpiresAt).toBeTruthy();
-    expect(Object.keys(session).sort()).toEqual(
-      ['sessionExpiresAt', 'sessionId', 'status'].sort(),
-    );
+    expect(session.expiresAt).toBeTruthy();
+    expect(session).toHaveProperty('lastMessageContent');
+    expect(session).toHaveProperty('lastMessageAt');
+    expect(session).toHaveProperty('isLastMessageMine');
   });
 
   test('supports early move-to-permanent acceptance and copies speed dating history into permanent chat', async () => {

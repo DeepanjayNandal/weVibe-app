@@ -80,6 +80,7 @@ export interface CreateProfileData {
   // Basic info
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   displayName?: string | null;
   birthDate: Date;
   gender: string;
@@ -131,6 +132,7 @@ export interface UpdateProfileData {
   // Identity
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   displayName?: string | null;
   birthDate?: Date;
   gender?: string;
@@ -224,6 +226,7 @@ export class ProfileRepository {
           user_id:                   data.userId,
           first_name:                data.firstName,
           last_name:                 data.lastName,
+          nickname:                  data.nickname ?? null,
           display_name:              data.displayName ?? null,
           birth_date:                data.birthDate,
           gender:                    data.gender,
@@ -292,6 +295,7 @@ export class ProfileRepository {
     // Identity
     if (data.firstName        !== undefined) p.first_name          = data.firstName;
     if (data.lastName         !== undefined) p.last_name           = data.lastName;
+    if (data.nickname         !== undefined) p.nickname            = data.nickname;
     if (data.displayName      !== undefined) p.display_name        = data.displayName;
     if (data.birthDate        !== undefined) p.birth_date          = data.birthDate;
     if (data.gender           !== undefined) p.gender              = data.gender;

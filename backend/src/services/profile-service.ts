@@ -8,6 +8,7 @@ export interface CreateProfileInput {
   // Basic info
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   birthDate: Date;
   gender: string;
   ethnicity?: string[] | null;
@@ -77,6 +78,7 @@ export class ProfileService {
       userId:                  input.userId,
       firstName:               input.firstName ?? null,
       lastName:                input.lastName ?? null,
+      nickname:                input.nickname ?? null,
       displayName:             input.firstName && input.lastName ? `${input.firstName} ${input.lastName}`.trim() : null,
       birthDate:               input.birthDate,
       gender:                  input.gender,

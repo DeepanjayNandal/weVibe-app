@@ -361,6 +361,7 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     user_id:                      profile.user_id,
     first_name:                   profile.first_name ?? null,
     last_name:                    profile.last_name ?? null,
+    nickname:                     (profile as any).nickname ?? null,
     birth_date:                   profile.birth_date ?? null,
     gender:                       profile.gender ?? null,
     pronouns:                     profile.pronouns ?? null,
@@ -480,6 +481,7 @@ export class ProfileController {
     // ── Step 1: Basic Info ──────────────────────────────────────────────────
     const firstName  = optionalString(errors, body.first_name,  'first_name',  'first_name must be a non-empty string');
     const lastName   = optionalString(errors, body.last_name,   'last_name',   'last_name must be a non-empty string');
+    const nickname   = optionalString(errors, body.nickname,    'nickname',    'nickname must be a non-empty string');
     const birthDate  = validateBirthDate(errors, body.birth_date);
     const gender     = requireEnum(errors, body.gender, 'gender', VALID_GENDERS,
                          `gender must be one of: ${VALID_GENDERS.join(', ')}`);
@@ -562,6 +564,7 @@ export class ProfileController {
       userId:                  user!.id,
       firstName,
       lastName,
+      nickname,
       birthDate:               birthDate!,
       gender:                  gender!,
       ethnicity,
@@ -689,6 +692,9 @@ export class ProfileController {
     }
     if (body.last_name !== undefined) {
       updateData.lastName = optionalString(errors, body.last_name, 'last_name', 'last_name must be a non-empty string');
+    }
+    if (body.nickname !== undefined) {
+      updateData.nickname = optionalString(errors, body.nickname, 'nickname', 'nickname must be a non-empty string');
     }
     if (body.birth_date !== undefined) {
       updateData.birthDate = validateBirthDate(errors, body.birth_date);

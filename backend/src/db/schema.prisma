@@ -51,6 +51,7 @@ model profiles {
   first_name            String?                   @db.VarChar(100)
   last_name             String?                   @db.VarChar(100)
   display_name          String?                   @db.VarChar(100)
+  nickname              String?                   @db.VarChar(50)
   birth_date            DateTime?                 @db.Date
   // gender: biological sex from onboarding ("Male", "Female", "Non-binary", "Prefer not to say")
   gender                String?                   @db.VarChar(50)

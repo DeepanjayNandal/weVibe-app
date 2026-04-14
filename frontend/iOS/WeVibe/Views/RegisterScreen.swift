@@ -47,20 +47,11 @@ struct RegisterScreen: View {
 
             ScrollView {
                 VStack(spacing: 10) {
-                    Button(action: { authRouter.pop() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 18, weight: .semibold))
-                            Text("Back")
-                                .font(.system(size: 17))
-                        }
-                        .foregroundStyle(.white)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                    
-                    
+                    BackButton(style: .text) { authRouter.pop() }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                     LogoView(size: 130)
+                    .padding(.top, 40)
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Sign Up")

@@ -142,6 +142,7 @@ export interface UpdateProfileData {
   showSex?: boolean;
   showOrientation?: boolean;
   showIdentity?: boolean;
+  showPersonalityTrait?: boolean;
 
   // Background
   ethnicity?: string[] | null;
@@ -287,6 +288,32 @@ export class ProfileRepository {
     });
   }
 
+  async updateLocation(
+    userId: string,
+    data: {
+      latitude: number;
+      longitude: number;
+      locationCity: string;
+      locationState: string;
+      locationZip: string;
+    },
+  ): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await tx.profiles.update({
+        where: { user_id: userId },
+        data: {
+          latitude:      data.latitude,
+          longitude:     data.longitude,
+          location_city: data.locationCity,
+          state:         data.locationState,
+          zip_code:      data.locationZip,
+        },
+      });
+
+      await updateLocationPoint(tx, userId, data.latitude, data.longitude);
+    });
+  }
+
   // Partial update — only fields present in data are updated
   async update(userId: string, data: UpdateProfileData): Promise<profiles> {
     // Build the update payload dynamically — only include keys that were passed
@@ -305,6 +332,7 @@ export class ProfileRepository {
     if (data.showSex          !== undefined) p.show_sex            = data.showSex;
     if (data.showOrientation  !== undefined) p.show_orientation    = data.showOrientation;
     if (data.showIdentity     !== undefined) p.show_identity       = data.showIdentity;
+    if (data.showPersonalityTrait !== undefined) p.show_personality_trait = data.showPersonalityTrait;
 
     // Background
     if (data.ethnicity        !== undefined) p.ethnicity           = data.ethnicity;

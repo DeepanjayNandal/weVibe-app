@@ -79,6 +79,9 @@ struct ProfileView: View {
             orientation:             store.orientation,
             identity:                store.identity,
             personalityType:         store.personalityType,
+            personalityPrimary:      store.personalityPrimary,
+            personalitySecondary:    store.personalitySecondary,
+            isPersonalityTestComplete: store.isPersonalityTestComplete,
             loveLanguage:            store.loveLanguage,
             zodiacSign:              store.zodiacSign,
             communicationStyle:      store.communicationStyle,
@@ -139,11 +142,21 @@ struct ProfileView: View {
                 )
             )
             .refreshable { await store.fetchProfile() }
-            if store.isLoading {
+            if store.loadState.isLoading {
                 Color.black.opacity(0.4).ignoresSafeArea()
                 ProgressView().tint(.white).scaleEffect(1.4)
             }
-            if store.fetchFailed {
+            if store.loadState.isFailed && store.firstName.isEmpty {
+                // First load failed with no cached data — show a full recovery screen
+                // rather than an empty profile with a small banner.
+                ErrorStateView(
+                    title: "Couldn't load your profile",
+                    message: store.loadState.failureMessage ?? "Check your connection and try again."
+                ) {
+                    Task { await store.fetchProfile() }
+                }
+                .transition(.opacity)
+            } else if store.loadState.isFailed {
                 Label("Couldn't refresh. Pull down to try again.", systemImage: "wifi.slash")
                     .font(.footnote)
                     .foregroundStyle(.white)
@@ -154,7 +167,7 @@ struct ProfileView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: store.fetchFailed)
+        .animation(.easeInOut(duration: 0.3), value: store.loadState.isFailed)
         .navigationBarHidden(true)
         .sheet(item: $activeEdit) { section in
             editSheet(for: section)
@@ -181,6 +194,11 @@ struct ProfileView: View {
         }
         .task {
             await store.fetchProfile()
+        }
+        .onChange(of: store.sessionExpired) { _, expired in
+            guard expired else { return }
+            // Token was rejected by the backend — force sign-out so the user re-authenticates.
+            authManager.logout(profileStore: store, onboardingData: onboarding)
         }
     }
 

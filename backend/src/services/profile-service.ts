@@ -1,6 +1,5 @@
 import { profiles } from '@prisma/client';
 import { ProfileRepository, UpdateProfileData } from '../repositories/profile-repository';
-import { conflict } from '../utils/errors';
 
 // Full input for creating a profile (all required + optional onboarding fields)
 export interface CreateProfileInput {
@@ -65,10 +64,14 @@ export class ProfileService {
   }
 
   async createProfile(input: CreateProfileInput): Promise<profiles> {
-    // Prevent duplicate profiles for the same user
     const existing = await this.profileRepository.findByUserId(input.userId);
+
+    // Profile already exists — this is an idempotent retry.
+    // The backend wrote the profile correctly on the first attempt but the 201 response
+    // was lost before iOS received it (network failure). Return the existing record as-is;
+    // the controller's setOnboardingComplete call still runs and is idempotent.
     if (existing) {
-      conflict('Profile already exists for this user', 'PROFILE_ALREADY_EXISTS');
+      return existing;
     }
 
     return this.profileRepository.create({
@@ -106,6 +109,22 @@ export class ProfileService {
       bio:                     input.bio,
       prompts:                 input.prompts,
     });
+  }
+
+  async updateLocation(
+    userId: string,
+    data: {
+      latitude: number;
+      longitude: number;
+      locationCity: string;
+      locationState: string;
+      locationZip: string;
+    },
+  ): Promise<boolean> {
+    const existing = await this.profileRepository.findByUserId(userId);
+    if (!existing) return false;
+    await this.profileRepository.updateLocation(userId, data);
+    return true;
   }
 
   async updateProfile(userId: string, data: UpdateProfileData): Promise<profiles | null> {

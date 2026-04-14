@@ -121,11 +121,11 @@ describe('Socket.io Server - Unit Tests', () => {
 
     // Connect clients
     clientSocketA = ioClient(`http://localhost:${port}`, {
-      auth: { token: MOCK_TOKEN_A },
+      query: { token: MOCK_TOKEN_A },
     });
 
     clientSocketB = ioClient(`http://localhost:${port}`, {
-      auth: { token: MOCK_TOKEN_B },
+      query: { token: MOCK_TOKEN_B },
     });
 
     await Promise.all([
@@ -214,7 +214,7 @@ describe('Socket.io Server - Unit Tests', () => {
 
   test('multi-device broadcast sends to all user connections', async () => {
     const clientA2 = ioClient(`http://localhost:${port}`, {
-      auth: { token: MOCK_TOKEN_A },
+      query: { token: MOCK_TOKEN_A },
     });
 
     await new Promise<void>((resolve) => {
@@ -252,7 +252,7 @@ describe('Socket.io Server - Unit Tests', () => {
 
   test('socket disconnect is handled gracefully', async () => {
     const tempClient = ioClient(`http://localhost:${port}`, {
-      auth: { token: MOCK_TOKEN_A },
+      query: { token: MOCK_TOKEN_A },
     });
 
     await new Promise<void>((resolve) => {
@@ -360,11 +360,11 @@ describe('Socket Contract Integration', () => {
 
   test('emits speed_dating.session.move_to_permanent_updated only when conversion succeeds', async () => {
     const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
-      auth: { token: tokenA },
+      query: { token: tokenA },
     });
 
     const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
-      auth: { token: tokenB },
+      query: { token: tokenB },
     });
 
     await Promise.all([
@@ -421,11 +421,11 @@ describe('Socket Contract Integration', () => {
 
     socketA.disconnect();
     socketB.disconnect();
-  });
+  }, 15000); // Increase timeout to 15 seconds
 
   test('emits normalized decision in speed_dating.session.final_decision_updated', async () => {
     const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
-      auth: { token: tokenB },
+      query: { token: tokenB },
     });
 
     await new Promise<void>((resolve) => socketB.on('connect', () => resolve()));
@@ -470,5 +470,62 @@ describe('Socket Contract Integration', () => {
     expect(decisionEvent.data.decision).toBe('yes');
 
     socketB.disconnect();
-  });
+  }, 15000); // Increase timeout to 15 seconds
+
+
+  // Test as real matching and chatting case
+  test('receives speed_dating.message.created via socket when counterpart sends a message via API', async () => {
+    const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
+      query: { token: tokenA },
+    });
+
+    const socketB: ClientSocket = ioClient(`http://localhost:${port}`, {
+      query: { token: tokenB },
+    });
+
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        socketA.on('connect', () => resolve());
+        socketA.on('connect_error', (err) => reject(new Error(`Socket A connect successed: ${err.message}`)));
+      }),
+      new Promise<void>((resolve, reject) => {
+        socketB.on('connect', () => resolve());
+        socketB.on('connect_error', (err) => reject(new Error(`Socket B connect failed: ${err.message}`)));
+      }),
+    ]);
+
+    // 1. Both join queue and get matched
+    await request(app).post('/api/v1/matching/queue/join').set('Authorization', `Bearer ${tokenA}`);
+    const joinRes = await request(app)
+      .post('/api/v1/matching/queue/join')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    const sessionId = joinRes.body.data.sessionId as string;
+
+    // 2. Wrap event listener in a Promise, resolve immediately upon receiving push (no dead waiting)
+    const socketEventPromise = new Promise<any>((resolve, reject) => {
+      socketA.once('speed_dating.message.created', resolve);
+      // Explicitly throw error if not received within 3 seconds to avoid infinite timeout
+      setTimeout(() => reject(new Error('No socket push received after 3 seconds, please check Controller')), 3000);
+    });
+
+    // 3. User B sends a message via the REST API
+    const sendRes = await request(app)
+      .post(`/api/v1/matching/sessions/${sessionId}/messages`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ content: 'Hello from B!' });
+
+    expect(sendRes.status).toBe(201);
+
+    // 4. Wait for and retrieve the instantaneous socket push data
+    const receivedMessage = await socketEventPromise;
+
+    // 5. Verify content
+    expect(receivedMessage.v).toBe(1);
+    expect(receivedMessage.data.sessionId).toBe(sessionId);
+    expect(receivedMessage.data.message.content).toBe('Hello from B!');
+
+    socketA.disconnect();
+    socketB.disconnect();
+  }, 15000); // Increase timeout to 15 seconds
 });

@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { MatchmakingService } from '../services/matchmaking-service';
 import { socketServer } from '../websocket/socket-server';
 import { unauthorized } from '../utils/errors';
+import { SpeedDatingService } from '../services/speed-dating-service';
 import { prisma } from '../db/prisma-client';
 
 export class MatchmakingController {
@@ -93,28 +94,22 @@ export class MatchmakingController {
       unauthorized('User not found in database', 'USER_NOT_FOUND');
     }
 
-    const sessions = await prisma.speed_dating_sessions.findMany({
-      where: {
-        OR: [{ user_a_id: user.id }, { user_b_id: user.id }],
-        status: 'active',
-      },
-      select: {
-        id: true,
-        expires_at: true,
-        status: true,
-      },
-      orderBy: {
-        started_at: 'desc',
-      },
-    });
+    // Use SpeedDatingService to fetch the chat list with full details (counterpart, last message, etc.)
+    const speedDatingService = new SpeedDatingService();
+    const sessions = await speedDatingService.listSessions(user.id);
 
     res.status(200).json({
       success: true,
       data: {
         sessions: sessions.map((session) => ({
-          sessionId: session.id,
-          sessionExpiresAt: session.expires_at,
+          sessionId: session.sessionId,
+          sessionExpiresAt: session.expiresAt,
           status: session.status,
+          lastMessageContent: session.lastMessageContent,
+          lastMessageAt: session.lastMessageAt,
+          isLastMessageMine: session.isLastMessageMine,
+          unreadCount: session.unreadCount,
+          counterpart: session.counterpart,
         })),
       },
     });

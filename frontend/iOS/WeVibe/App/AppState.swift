@@ -9,4 +9,6 @@ enum AppState: Equatable {
     case onboarding
     /// Fully authenticated with complete profile — show main app
     case authenticated
+    /// Firebase session valid but backend unreachable — show retry screen
+    case networkError
 }

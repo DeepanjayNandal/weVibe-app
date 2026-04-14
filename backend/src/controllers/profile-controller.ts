@@ -362,6 +362,7 @@ function serializeProfile(profile: profiles): Record<string, unknown> {
     show_sex:                     profile.show_sex ?? true,
     show_orientation:             profile.show_orientation ?? true,
     show_identity:                profile.show_identity ?? true,
+    show_personality_trait:       profile.show_personality_trait ?? true,
 
     // ── Background ────────────────────────────────────────────────────────────
     ethnicity:                    profile.ethnicity ?? null,
@@ -488,6 +489,12 @@ export class ProfileController {
     const locationZip   = requireString(errors, body.location_zip,   'location_zip',   'location_zip is required');
     const latitude      = requireFloat(errors, body.latitude,   'latitude',   'latitude is required and must be a number');
     const longitude     = requireFloat(errors, body.longitude,  'longitude',  'longitude is required and must be a number');
+    if (latitude !== null && (latitude < -90 || latitude > 90)) {
+      errors['latitude'] = 'latitude must be between -90 and 90';
+    }
+    if (longitude !== null && (longitude < -180 || longitude > 180)) {
+      errors['longitude'] = 'longitude must be between -180 and 180';
+    }
 
     // education — optional snake_case value matching iOS EducationLevel rawValue
     const education = optionalEnum(errors, body.education, 'education', VALID_EDUCATION,
@@ -619,6 +626,40 @@ export class ProfileController {
   };
 
   // PATCH /api/v1/users/profile
+  // PATCH /api/v1/users/profile/location
+  // Dedicated lean endpoint for iOS background location sync.
+  // All 5 fields are required. Returns 204 No Content on success.
+  updateLocation = async (req: Request, res: Response): Promise<void> => {
+    const user = await this.resolveUser(req);
+    const body = req.body;
+    const errors: ErrorMap = {};
+
+    const latitude  = requireFloat(errors, body.latitude,       'latitude',       'latitude is required and must be a number');
+    const longitude = requireFloat(errors, body.longitude,      'longitude',      'longitude is required and must be a number');
+    const city      = requireString(errors, body.location_city,  'location_city',  'location_city is required');
+    const state     = requireString(errors, body.location_state, 'location_state', 'location_state is required');
+    const zip       = requireString(errors, body.location_zip,   'location_zip',   'location_zip is required');
+
+    if (Object.keys(errors).length > 0) {
+      res.status(422).json({ errors });
+      return;
+    }
+
+    const updated = await this.profileService.updateLocation(user!.id, {
+      latitude:      latitude!,
+      longitude:     longitude!,
+      locationCity:  city!,
+      locationState: state!,
+      locationZip:   zip!,
+    });
+
+    if (!updated) {
+      throw unauthorized('Profile not found', 'PROFILE_NOT_FOUND');
+    }
+
+    res.status(204).send();
+  };
+
   // Partial profile update — only fields that are sent get updated.
   // All fields are optional. Same validation rules as POST apply to any field that is present.
   // Returns 200 with the full updated profile on success.
@@ -669,6 +710,7 @@ export class ProfileController {
     if (body.show_sex         !== undefined) updateData.showSex         = typeof body.show_sex         === 'boolean' ? body.show_sex         : (errors['show_sex']         = 'show_sex must be a boolean', undefined);
     if (body.show_orientation !== undefined) updateData.showOrientation = typeof body.show_orientation === 'boolean' ? body.show_orientation : (errors['show_orientation'] = 'show_orientation must be a boolean', undefined);
     if (body.show_identity    !== undefined) updateData.showIdentity    = typeof body.show_identity    === 'boolean' ? body.show_identity    : (errors['show_identity']    = 'show_identity must be a boolean', undefined);
+    if (body.show_personality_trait !== undefined) updateData.showPersonalityTrait = typeof body.show_personality_trait === 'boolean' ? body.show_personality_trait : (errors['show_personality_trait'] = 'show_personality_trait must be a boolean', undefined);
 
     // ── Background ──────────────────────────────────────────────────────────
     if (body.ethnicity !== undefined) {
@@ -714,8 +756,22 @@ export class ProfileController {
     if (body.location_city  !== undefined) updateData.locationCity  = optionalString(errors, body.location_city,  'location_city',  'location_city must be a non-empty string');
     if (body.location_state !== undefined) updateData.locationState = optionalString(errors, body.location_state, 'location_state', 'location_state must be a non-empty string');
     if (body.location_zip   !== undefined) updateData.locationZip   = optionalString(errors, body.location_zip,   'location_zip',   'location_zip must be a non-empty string');
-    if (body.latitude       !== undefined) updateData.latitude      = requireFloat(errors, body.latitude,  'latitude',  'latitude must be a number');
-    if (body.longitude      !== undefined) updateData.longitude     = requireFloat(errors, body.longitude, 'longitude', 'longitude must be a number');
+    if (body.latitude !== undefined) {
+      const lat = requireFloat(errors, body.latitude, 'latitude', 'latitude must be a number');
+      if (lat !== null && (lat < -90 || lat > 90)) {
+        errors['latitude'] = 'latitude must be between -90 and 90';
+      } else {
+        updateData.latitude = lat;
+      }
+    }
+    if (body.longitude !== undefined) {
+      const lng = requireFloat(errors, body.longitude, 'longitude', 'longitude must be a number');
+      if (lng !== null && (lng < -180 || lng > 180)) {
+        errors['longitude'] = 'longitude must be between -180 and 180';
+      } else {
+        updateData.longitude = lng;
+      }
+    }
 
     // ── Bio & Social ────────────────────────────────────────────────────────
     if (body.bio !== undefined) {

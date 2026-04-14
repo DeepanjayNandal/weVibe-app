@@ -1,5 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { Redis } from 'ioredis';
 import { prisma } from '../db/prisma-client';
 import { env } from '../config/env';
 import { socketAuthMiddleware } from './socket-auth.middleware';
@@ -20,6 +22,8 @@ const UUID_V4_OR_V1_REGEX =
 
 export class SocketServer {
   private io: SocketIOServer | null = null;
+  private redisPubClient: Redis | null = null;
+  private redisSubClient: Redis | null = null;
 
   initialize(httpServer: HttpServer): SocketIOServer {
     if (this.io) {
@@ -41,6 +45,22 @@ export class SocketServer {
       pingInterval: 25000,
       pingTimeout: 60000,
     });
+
+    // Upstash Redis Adapter (Cloud Run Scaling)
+    if (env.upstashRedisUrl) {
+      const pubClient = new Redis(env.upstashRedisUrl);
+      const subClient = pubClient.duplicate();
+
+      pubClient.on('error', (err: Error) => console.error('[socket] Redis pub error:', err));
+      subClient.on('error', (err: Error) => console.error('[socket] Redis sub error:', err));
+      pubClient.on('reconnecting', () => console.error('[socket] Redis pub reconnecting'));
+      subClient.on('reconnecting', () => console.error('[socket] Redis sub reconnecting'));
+
+      this.redisPubClient = pubClient;
+      this.redisSubClient = subClient;
+
+      this.io.adapter(createAdapter(pubClient, subClient));
+    }
 
     // Apply authentication middleware
     this.io.use(socketAuthMiddleware);
@@ -85,17 +105,14 @@ export class SocketServer {
   }
 
   private async handleDisconnect(socket: Socket, dbUserId: string): Promise<void> {
-    // Multi-device support: only dequeue when this is the last connection
-    // socket.io fires 'disconnect' before the socket leaves rooms, so room.size still includes this socket
-    const room = this.io?.sockets.adapter.rooms.get(`user:${dbUserId}`);
-    const remainingAfterDisconnect = Math.max((room?.size ?? 0) - 1, 0);
-
-    if (remainingAfterDisconnect > 0) {
-      // Other devices still connected — leave queue intact
-      return;
-    }
-
     try {
+      const activeSockets = await this.io?.in(`user:${dbUserId}`).fetchSockets();
+      
+      // if global num > 0, not remove them from queue
+      if (activeSockets && activeSockets.length > 0) {
+        return;
+      }
+
       // Dequeue user from matching queue
       // deleteMany is safe no-op when user is not in queue
       await prisma.matching_queue.deleteMany({
@@ -227,6 +244,29 @@ export class SocketServer {
    */
   getIO(): SocketIOServer | null {
     return this.io;
+  }
+
+  /**
+   * Gracefully shut down Socket.IO and disconnect Redis clients.
+   * Call during server shutdown to avoid hanging processes.
+   */
+  async close(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      if (this.io) {
+        this.io.close(() => resolve());
+      } else {
+        resolve();
+      }
+    });
+
+    await Promise.all([
+      this.redisPubClient?.quit(),
+      this.redisSubClient?.quit(),
+    ]);
+
+    this.redisPubClient = null;
+    this.redisSubClient = null;
+    this.io = null;
   }
 }
 

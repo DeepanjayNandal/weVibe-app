@@ -59,30 +59,74 @@ enum StaticConfig {
             ),
         ]
     
-    static let personalityMeta: [Int: PersonalityMeta] = [
-        0: PersonalityMeta(
+    static let personalityMeta: [String: PersonalityMeta] = [
+        "A": PersonalityMeta(
             type: "Serene Soul",
             emoji: "🌿",
             color: Color(hex: "#3DFF9A"),
             description: "You exude calm and grounded energy. Others might describe you as quiet and reserved because you take solace in hobbies like reading, baking, drawing, and solo sports. Due to your introverted nature, you can feel drained by socializing and overwhelmed by loud or high energy individuals. You seek someone with whom you can have deep intellectual conversations, relax, and unwind — a counterpart who will match your energy."
         ),
-        1: PersonalityMeta(
+        "B": PersonalityMeta(
             type: "Empathetic Companion",
             emoji: "💚",
             color: Color(hex: "#00E5A0"),
             description: "You are quiet and calm in your alone time, but equally enjoy the company of others — particularly those who are more outgoing than you. You are an exceptional listener with a great deal of empathy, making you the perfect confidant. Once people get to know you, you become incredibly talkative and engaging. You seek someone outgoing, adventurous, and willing to bring some spontaneity into your life."
         ),
-        2: PersonalityMeta(
+        "C": PersonalityMeta(
             type: "Radiant Dreamer",
             emoji: "✨",
             color: Color(hex: "#B2F542"),
             description: "You are very optimistic and friendly, even to strangers. You are the kind of person to start conversations on any random topic, full of creative ideas and in need of an audience to share them with. You want to feel like the center of attention, love going on adventures, but need a partner to help figure out the logistics. You seek someone to ground you at times."
         ),
-        3: PersonalityMeta(
+        "D": PersonalityMeta(
             type: "Fierce Spark",
             emoji: "🔥",
             color: Color(hex: "#FFE066"),
             description: "You are thrill-seeking with a fiery, high-energy personality. You need to socialize and be around others in order to feel recharged — you light up a room with your charisma. You need a partner in crime, someone who can handle your honesty and won't find you boring. You seek someone who can match your energy and keep up with your pace."
         ),
+    ]
+
+    // MARK: - Countries (ISO 3166-1, alphabetical)
+
+    static let countries: [String] = [
+        "Afghanistan", "Albania", "Algeria", "Andorra", "Angola",
+        "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria",
+        "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados",
+        "Belarus", "Belgium", "Belize", "Benin", "Bhutan",
+        "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei",
+        "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia",
+        "Cameroon", "Canada", "Central African Republic", "Chad", "Chile",
+        "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica",
+        "Croatia", "Cuba", "Cyprus", "Czechia", "Denmark",
+        "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt",
+        "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini",
+        "Ethiopia", "Fiji", "Finland", "France", "Gabon",
+        "Gambia", "Georgia", "Germany", "Ghana", "Greece",
+        "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+        "Haiti", "Honduras", "Hungary", "Iceland", "India",
+        "Indonesia", "Iran", "Iraq", "Ireland", "Israel",
+        "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan",
+        "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos",
+        "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya",
+        "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi",
+        "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands",
+        "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova",
+        "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique",
+        "Myanmar (Burma)", "Namibia", "Nauru", "Nepal", "Netherlands",
+        "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea",
+        "North Macedonia", "Norway", "Oman", "Pakistan", "Palau",
+        "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru",
+        "Philippines", "Poland", "Portugal", "Qatar", "Romania",
+        "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines",
+        "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal",
+        "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia",
+        "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea",
+        "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname",
+        "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan",
+        "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga",
+        "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+        "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States",
+        "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela",
+        "Vietnam", "Yemen", "Zambia", "Zimbabwe",
     ]
 }

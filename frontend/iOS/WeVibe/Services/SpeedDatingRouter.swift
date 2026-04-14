@@ -2,6 +2,7 @@ import SwiftUI
 import Observation
 
 enum SpeedDatingRoute: Hashable {
+    case main
     case rules
     case tests
     case joinQueue

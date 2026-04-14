@@ -86,7 +86,11 @@ struct ChatListView: View {
                         ForEach(currentList) { item in
                             ChatRowView(item: item, isAnonymous: innerTab == .anonymous)
                                 .onTapGesture {
-                                    chatRouter.navigate(to: .activeChat(matchId: item.matchId))
+                                    if innerTab == .anonymous {
+                                        chatRouter.navigate(to: .activeChat(matchId: item.matchId))
+                                    } else {
+                                        chatRouter.navigate(to: .permanentChat(matchId: item.matchId))
+                                    }
                                 }
 
                             Rectangle()

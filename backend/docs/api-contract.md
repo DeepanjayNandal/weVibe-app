@@ -277,7 +277,8 @@ Authorization: Bearer <firebase-id-token>
       "personality_type": "Serene Soul",
       "personality_primary": "A",
       "personality_secondary": null,
-      "is_personality_test_complete": true
+      "is_personality_test_complete": true,
+      "show_personality_trait": true
     }
   }
 }
@@ -285,6 +286,7 @@ Authorization: Bearer <firebase-id-token>
 
 > `personality_type`, `personality_primary`, `personality_secondary` are `null` until the personality test is submitted.
 > `is_personality_test_complete` is `false` until the test is submitted.
+> `show_personality_trait` defaults to `true`. When `false`, the personality section is hidden on the user's public profile card.
 
 **Error Responses**
 
@@ -294,6 +296,49 @@ Authorization: Bearer <firebase-id-token>
 | 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 401 | `PROFILE_NOT_FOUND` | User exists but has no profile yet |
+
+---
+
+### 6a. Update Profile
+
+Partially updates the authenticated user's profile. Only fields included in the request body are updated.
+
+```
+PATCH /api/v1/users/profile
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Visibility toggle fields (all `boolean`, all optional)**
+
+| Field | Default | Meaning when `false` |
+|---|---|---|
+| `show_sex` | `true` | Hide biological sex on profile card |
+| `show_orientation` | `true` | Hide orientation on profile card |
+| `show_identity` | `true` | Hide gender identity on profile card |
+| `show_personality_trait` | `true` | Hide personality section on profile card |
+
+**Request body example**
+```json
+{
+  "show_personality_trait": false
+}
+```
+
+**Response 200 — Success**
+```json
+{ "success": true }
+```
+
+**Error Responses**
+
+| Status | `error.code` | Cause |
+|---|---|---|
+| 401 | `MISSING_BEARER_TOKEN` | No `Authorization` header or not `Bearer` format |
+| 401 | `INVALID_ID_TOKEN` | Token failed Firebase/mock verification |
+| 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
+| 401 | `PROFILE_NOT_FOUND` | User exists but has no profile yet |
+| 422 | — | Field validation failed; body contains `{ errors: { field: message } }` |
 
 ---
 

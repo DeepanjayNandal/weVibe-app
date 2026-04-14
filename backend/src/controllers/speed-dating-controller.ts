@@ -151,6 +151,16 @@ export class SpeedDatingController {
 
     const counterpartId = result.session.counterpart.userId;
 
+    if (counterpartId) {
+      socketServer.notifyUser(counterpartId, 'speed_dating.session.move_to_permanent_requested', {
+        v: 1,
+        data: {
+          sessionId,
+          requestedByUserId: userId,
+        },
+      });
+    }
+
     await this.publishBadgeUpdates([userId, counterpartId]);
 
     res.status(200).json({

@@ -358,7 +358,7 @@ describe('Socket Contract Integration', () => {
     await prisma.$disconnect();
   });
 
-  test('emits speed_dating.session.move_to_permanent_updated only when conversion succeeds', async () => {
+  test('emits move_to_permanent_requested immediately and move_to_permanent_updated only when conversion succeeds', async () => {
     const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
       query: { token: tokenA },
     });
@@ -386,9 +386,15 @@ describe('Socket Contract Integration', () => {
     expect(secondJoin.body.data.state).toBe('matched');
 
     const sessionId = secondJoin.body.data.sessionId as string;
+    const requesterUser = await prisma.users.findUnique({
+      where: { firebase_uid: 'socket-contract-a' },
+      select: { id: true },
+    });
+
+    expect(requesterUser).not.toBeNull();
 
     let requestPhaseEvent: any = null;
-    socketB.once('speed_dating.session.move_to_permanent_updated', (payload) => {
+    socketB.once('speed_dating.session.move_to_permanent_requested', (payload) => {
       requestPhaseEvent = payload;
     });
 
@@ -399,7 +405,10 @@ describe('Socket Contract Integration', () => {
     expect(requestMove.status).toBe(200);
 
     await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(requestPhaseEvent).toBeNull();
+    expect(requestPhaseEvent).not.toBeNull();
+    expect(requestPhaseEvent.v).toBe(1);
+    expect(requestPhaseEvent.data.sessionId).toBe(sessionId);
+    expect(requestPhaseEvent.data.requestedByUserId).toBe(requesterUser!.id);
 
     const moveUpdatedEvent = await new Promise<any>((resolve) => {
       socketA.once('speed_dating.session.move_to_permanent_updated', resolve);

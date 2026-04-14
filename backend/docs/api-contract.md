@@ -1471,6 +1471,17 @@ If authentication fails, server rejects the connection during handshake with one
 }
 ```
 
+`speed_dating.session.move_to_permanent_requested`
+```json
+{
+  "v": 1,
+  "data": {
+    "sessionId": "uuid",
+    "requestedByUserId": "uuid"
+  }
+}
+```
+
 `speed_dating.session.move_to_permanent_updated`
 ```json
 {

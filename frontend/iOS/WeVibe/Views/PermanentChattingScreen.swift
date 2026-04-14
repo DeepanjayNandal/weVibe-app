@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 // MARK: - Permanent Chat View
 
@@ -10,7 +11,9 @@ struct PermanentChatView: View {
     @Environment(ChatRouter.self) private var chatRouter
     @State private var messageText: String = ""
     @FocusState private var inputFocused: Bool
-
+    @State private var matchProfile: MatchProfile?
+    @State private var showProfile = false
+    private let apiClient = APIClient()
 
     @State private var messages: [PermanentMessage] = [
         PermanentMessage(text: "Hey! Great to finally match 😊", isMine: false, time: "Yesterday"),
@@ -54,6 +57,20 @@ struct PermanentChatView: View {
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .task { await loadProfile() }
+        .sheet(isPresented: $showProfile) {
+            if let profile = matchProfile {
+                OtherUserProfileView(profile: profile, onDismiss: { showProfile = false })
+            }
+        }
+    }
+
+    // MARK: - Load Profile
+
+    private func loadProfile() async {
+        guard let user = Auth.auth().currentUser,
+              let token = try? await user.getIDToken() else { return }
+        matchProfile = try? await apiClient.fetchMatchProfile(token: token, matchId: matchId)
     }
 
     // MARK: - Header
@@ -70,38 +87,64 @@ struct PermanentChatView: View {
                     .frame(width: 36, height: 36)
             }
 
-            Circle()
-                .fill(Color.white.opacity(0.1))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white.opacity(0.5))
-                )
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.15), lineWidth: 1.5))
-
-            VStack(alignment: .leading, spacing: 2) {
-//                Text(matchName)
-//                    .font(.system(size: 16, weight: .bold))
-//                    .foregroundStyle(.white)
-
-                HStack(spacing: 4) {
+            // Tapping avatar + name opens profile
+            Button {
+                if matchProfile != nil { showProfile = true }
+            } label: {
+                HStack(spacing: 10) {
                     Circle()
-                        .fill(Color(hex: "#22A855"))
-                        .frame(width: 6, height: 6)
-                    Text("Online")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.white.opacity(0.5))
+                        )
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.15), lineWidth: 1.5))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let name = matchProfile?.firstName, !name.isEmpty {
+                            Text(name)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color(hex: "#22A855"))
+                                .frame(width: 6, height: 6)
+                            Text("Online")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
                 }
             }
+            .disabled(matchProfile == nil)
 
             Spacer()
 
-            Button {} label: {
+            Menu {
+                Button(role: .destructive) {
+                    // TODO: remove match
+                } label: {
+                    Label("Remove Match", systemImage: "heart.slash")
+                }
+                Button(role: .destructive) {
+                    // TODO: block user
+                } label: {
+                    Label("Block", systemImage: "hand.raised")
+                }
+                Button(role: .destructive) {
+                    // TODO: report user
+                } label: {
+                    Label("Report", systemImage: "flag")
+                }
+            } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.7))
                     .rotationEffect(.degrees(90))
+                    .frame(width: 36, height: 36)
             }
         }
         .padding(.horizontal, 16)

@@ -22,6 +22,8 @@ const UUID_V4_OR_V1_REGEX =
 
 export class SocketServer {
   private io: SocketIOServer | null = null;
+  private redisPubClient: Redis | null = null;
+  private redisSubClient: Redis | null = null;
 
   initialize(httpServer: HttpServer): SocketIOServer {
     if (this.io) {
@@ -45,14 +47,17 @@ export class SocketServer {
     });
 
     // Upstash Redis Adapter (Cloud Run Scaling)
-    if (process.env.UPSTASH_REDIS_URL) {
-      const pubClient = new Redis(process.env.UPSTASH_REDIS_URL);
+    if (env.upstashRedisUrl) {
+      const pubClient = new Redis(env.upstashRedisUrl);
       const subClient = pubClient.duplicate();
 
-      pubClient.on('connect', () => console.log('🟢 [Socket.IO] PubClient connected to Upstash Redis'));
-      subClient.on('connect', () => console.log('🟢 [Socket.IO] SubClient connected to Upstash Redis'));
-      pubClient.on('error', (err: any) => console.error('🔴 [Socket.IO] PubClient Redis Error:', err));
-      subClient.on('error', (err: any) => console.error('🔴 [Socket.IO] SubClient Redis Error:', err));
+      pubClient.on('error', (err: Error) => console.error('[socket] Redis pub error:', err));
+      subClient.on('error', (err: Error) => console.error('[socket] Redis sub error:', err));
+      pubClient.on('reconnecting', () => console.error('[socket] Redis pub reconnecting'));
+      subClient.on('reconnecting', () => console.error('[socket] Redis sub reconnecting'));
+
+      this.redisPubClient = pubClient;
+      this.redisSubClient = subClient;
 
       this.io.adapter(createAdapter(pubClient, subClient));
     }
@@ -239,6 +244,29 @@ export class SocketServer {
    */
   getIO(): SocketIOServer | null {
     return this.io;
+  }
+
+  /**
+   * Gracefully shut down Socket.IO and disconnect Redis clients.
+   * Call during server shutdown to avoid hanging processes.
+   */
+  async close(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      if (this.io) {
+        this.io.close(() => resolve());
+      } else {
+        resolve();
+      }
+    });
+
+    await Promise.all([
+      this.redisPubClient?.quit(),
+      this.redisSubClient?.quit(),
+    ]);
+
+    this.redisPubClient = null;
+    this.redisSubClient = null;
+    this.io = null;
   }
 }
 

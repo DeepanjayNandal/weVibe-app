@@ -292,6 +292,14 @@ function validatePrompts(
       errors['prompts'] = 'Each prompt must have question (string) and answer (string)';
       return null;
     }
+    if (item.question.length > 150) {
+      errors['prompts'] = 'Each prompt question must be 150 characters or fewer';
+      return null;
+    }
+    if (item.answer.length > 300) {
+      errors['prompts'] = 'Each prompt answer must be 300 characters or fewer';
+      return null;
+    }
   }
   return value as Array<{ question: string; answer: string }>;
 }

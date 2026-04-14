@@ -93,11 +93,12 @@ private struct ChatTab: View {
     @Binding var pendingMatchId: String?
 
     @State private var chatRouter = ChatRouter()
+    @State private var chatInnerTab: ChatInnerTab = .anonymous
 
     var body: some View {
         NavigationStack(path: $chatRouter.path) {
             ZStack(alignment: .bottom) {
-                ChatListView()
+                ChatListView(innerTab: $chatInnerTab)
                 CustomTabBar(selectedTab: $selectedTab)
             }
             .ignoresSafeArea(edges: .bottom)
@@ -108,6 +109,7 @@ private struct ChatTab: View {
                     ActiveChatView(
                             matchId: matchId,
                             onClose: {
+                                chatInnerTab = .anonymous
                                 chatRouter.popToRoot()
                             },
                             onLeaveSession: {
@@ -117,10 +119,10 @@ private struct ChatTab: View {
                         )
                 case .permanentChat(let matchId):
                     PermanentChatView(matchId: matchId) {
+                        chatInnerTab = .matched
                         chatRouter.popToRoot()
                     }
                 }
-                
             }
         }
         .onChange(of: pendingMatchId) { _, newMatchId in

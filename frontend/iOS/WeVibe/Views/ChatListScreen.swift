@@ -17,7 +17,7 @@ struct ChatListItem: Identifiable {
 
 // MARK: - Inner Tab
 
-private enum ChatInnerTab: CaseIterable {
+enum ChatInnerTab: CaseIterable {
     case anonymous, matched
 
     var label: String {
@@ -34,7 +34,7 @@ struct ChatListView: View {
 
     @Environment(ChatRouter.self) private var chatRouter
 
-    @State private var innerTab: ChatInnerTab = .anonymous
+    @Binding var innerTab: ChatInnerTab
     @Namespace private var tabAnimation
 
     // ── API state

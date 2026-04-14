@@ -11,9 +11,15 @@ struct PermanentChatView: View {
     @Environment(ChatRouter.self) private var chatRouter
     @State private var messageText: String = ""
     @FocusState private var inputFocused: Bool
+
     @State private var matchProfile: MatchProfile?
     @State private var showProfile = false
     private let apiClient = APIClient()
+
+    @State private var showRemoveAlert = false
+    @State private var showBlockSheet = false
+    @State private var showReportSheet = false
+    @State private var isRemoving = false
 
     @State private var messages: [PermanentMessage] = [
         PermanentMessage(text: "Hey! Great to finally match 😊", isMine: false, time: "Yesterday"),
@@ -63,6 +69,32 @@ struct PermanentChatView: View {
                 OtherUserProfileView(profile: profile, onDismiss: { showProfile = false })
             }
         }
+        .confirmationDialog(
+            "Remove this match?",
+            isPresented: $showRemoveAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Match", role: .destructive) {
+                Task { await performRemoveMatch() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This match will be permanently removed.")
+        }
+        .sheet(isPresented: $showBlockSheet) {
+            BlockMatchSheet(matchId: matchId) {
+                onClose()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showReportSheet) {
+            ReportMatchSheet(matchId: matchId) {
+                onClose()
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Load Profile
@@ -71,6 +103,19 @@ struct PermanentChatView: View {
         guard let user = Auth.auth().currentUser,
               let token = try? await user.getIDToken() else { return }
         matchProfile = try? await apiClient.fetchMatchProfile(token: token, matchId: matchId)
+    }
+
+    // MARK: - Remove Match
+
+    private func performRemoveMatch() async {
+        isRemoving = true
+        guard let user = Auth.auth().currentUser,
+              let token = try? await user.getIDToken() else {
+            isRemoving = false
+            return
+        }
+        try? await apiClient.removeMatch(matchId: matchId, token: token)
+        onClose()
     }
 
     // MARK: - Header
@@ -125,17 +170,17 @@ struct PermanentChatView: View {
 
             Menu {
                 Button(role: .destructive) {
-                    // TODO: remove match
+                    showRemoveAlert = true
                 } label: {
                     Label("Remove Match", systemImage: "heart.slash")
                 }
                 Button(role: .destructive) {
-                    // TODO: block user
+                    showBlockSheet = true
                 } label: {
                     Label("Block", systemImage: "hand.raised")
                 }
                 Button(role: .destructive) {
-                    // TODO: report user
+                    showReportSheet = true
                 } label: {
                     Label("Report", systemImage: "flag")
                 }
@@ -274,4 +319,3 @@ private struct PermanentMessageBubble: View {
         .padding(.vertical, 4)
     }
 }
-

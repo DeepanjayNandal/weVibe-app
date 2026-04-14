@@ -53,6 +53,21 @@ struct ListSessionsResult {
     let success: Bool
     let data: ListSessionsDetailResult?
 }
+
+struct MatchListItem {
+    let matchId: String
+    let status: String?
+    let lastMessageAt: String?
+    let lastMessageContent: String?
+    let unreadCount: Int
+    let counterpartDisplayName: String?
+    let counterpartPhotoUrl: String?
+}
+
+struct ListMatchesResult {
+    let success: Bool
+    let matches: [MatchListItem]
+}
 struct SessionCounterpart {
     let userId: String
     let firstName: String
@@ -611,6 +626,96 @@ struct APIClient {
         } catch {
             throw APIError.decoding(error)
         }
+    }
+
+    // MARK: - Permanent Matches List
+
+    /// GET /matching/matches — lists all permanent matches for the current user.
+    func getAllMatches(token: String) async throws -> ListMatchesResult {
+        let req = request(path: "/matching/matches", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Match: Decodable {
+                    struct Counterpart: Decodable {
+                        let userId: String?
+                        let displayName: String?
+                        let photoUrl: String?
+                    }
+                    let matchId: String?
+                    let status: String?
+                    let lastMessageAt: String?
+                    let lastMessageContent: String?
+                    let unreadCount: Int?
+                    let counterpart: Counterpart?
+                }
+                let matches: [Match]
+            }
+            let success: Bool
+            let data: DataBody?
+        }
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            let matches = (resp.data?.matches ?? []).compactMap { m -> MatchListItem? in
+                guard let matchId = m.matchId else { return nil }
+                return MatchListItem(
+                    matchId: matchId,
+                    status: m.status,
+                    lastMessageAt: m.lastMessageAt,
+                    lastMessageContent: m.lastMessageContent,
+                    unreadCount: m.unreadCount ?? 0,
+                    counterpartDisplayName: m.counterpart?.displayName,
+                    counterpartPhotoUrl: m.counterpart?.photoUrl
+                )
+            }
+            return ListMatchesResult(success: resp.success, matches: matches)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // MARK: - Permanent Chat Actions
+
+    /// POST /matching/matches/:matchId/remove — removes the match for both users.
+    func removeMatch(matchId: String, token: String) async throws {
+        let req = request(path: "/matching/matches/\(matchId)/remove", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// POST /matching/matches/:matchId/block — blocks the counterpart and removes the match.
+    /// reason is optional free text.
+    func blockMatch(matchId: String, reason: String?, token: String) async throws {
+        var req = request(path: "/matching/matches/\(matchId)/block", method: "POST", token: token)
+        if let reason {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: ["reason": reason])
+        }
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// POST /matching/matches/:matchId/report — reports the counterpart.
+    /// reason is required; details is optional.
+    func reportMatch(matchId: String, reason: String, details: String?, token: String) async throws {
+        var req = request(path: "/matching/matches/\(matchId)/report", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: String] = ["reason": reason]
+        if let details {
+            body["details"] = details
+        }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
     // MARK: - Helpers

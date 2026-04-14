@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma-client';
 import { UserRepository } from '../repositories/user-repository';
+import { unauthorized } from '../utils/errors';
 
 const userRepository = new UserRepository();
 
@@ -49,7 +50,7 @@ function computePersonality(answers: number[]): {
 // helper to get our internal user id from firebase uid
 async function resolveUserId(firebaseUid: string): Promise<string> {
   const user = await userRepository.findByFirebaseUid(firebaseUid);
-  if (!user) throw new Error('USER_NOT_FOUND');
+  if (!user) unauthorized('User not found', 'USER_NOT_FOUND');
   return user.id;
 }
 

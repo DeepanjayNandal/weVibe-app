@@ -206,6 +206,17 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
+    /// PATCH /users/fcm-token — stores the FCM push token on the backend for this user.
+    func updateFCMToken(token: String, fcmToken: String) async throws {
+        var req = request(path: "/users/fcm-token", method: "PATCH", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["fcmToken": fcmToken])
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     // MARK: - Profile
 
     /// GET /users/profile — fetches the full user profile for the profile tab.

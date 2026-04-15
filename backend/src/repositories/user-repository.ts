@@ -71,6 +71,13 @@ export class UserRepository {
     });
   }
 
+  async updateFcmToken(userId: string, fcmToken: string | null): Promise<void> {
+    await prisma.users.update({
+      where: { id: userId },
+      data: { fcm_token: fcmToken },
+    });
+  }
+
   // Hard-deletes all users whose deleted_at is older than 30 days.
   // CASCADE deletes all related rows (profiles, matches, messages, etc.).
   // Called by the purge sweep in server.ts.

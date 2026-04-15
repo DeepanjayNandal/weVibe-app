@@ -5,6 +5,14 @@ import { badRequest, notFound } from '../utils/errors';
 export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
 
+  async updateFcmToken(firebaseUid: string, fcmToken: string): Promise<void> {
+    const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+    if (!user) {
+      notFound('User not found', 'USER_NOT_FOUND');
+    }
+    await this.userRepository.updateFcmToken(user.id, fcmToken);
+  }
+
   // Soft-deletes the authenticated user's account.
   // - Sets deleted_at to now (blocks login immediately)
   // - Revokes all Firebase refresh tokens (forces logout on all devices)

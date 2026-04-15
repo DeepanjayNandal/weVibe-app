@@ -78,6 +78,13 @@ export class UserRepository {
     });
   }
 
+  async updateAppleRefreshToken(userId: string, refreshToken: string | null): Promise<void> {
+    await prisma.users.update({
+      where: { id: userId },
+      data: { apple_refresh_token: refreshToken },
+    });
+  }
+
   // Hard-deletes all users whose deleted_at is older than 30 days.
   // CASCADE deletes all related rows (profiles, matches, messages, etc.).
   // Called by the purge sweep in server.ts.

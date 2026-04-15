@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import { UserRepository } from '../repositories/user-repository';
 import { badRequest, notFound } from '../utils/errors';
+import { revokeAppleToken } from './apple-auth-service';
 
 export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
@@ -35,6 +36,14 @@ export class UserService {
       await admin.auth().revokeRefreshTokens(firebaseUid);
     } else {
       console.warn('[user_service] Firebase Admin not initialized — Firebase tokens were NOT revoked for uid:', firebaseUid);
+    }
+
+    // Revoke Apple refresh token if this is an Apple Sign-In account.
+    // Required by App Store Review Guideline 5.1.1.
+    // Best-effort: deletion is already committed, so failure here is logged but not thrown.
+    if (user.auth_provider === 'apple' && user.apple_refresh_token) {
+      // Use the production bundle ID — account deletion only applies to App Store builds.
+      await revokeAppleToken(user.apple_refresh_token, 'com.wevibe1.app');
     }
   }
 }

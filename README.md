@@ -96,6 +96,9 @@ Node.js/Express API serving the iOS app.
    | `FIREBASE_PROJECT_ID` | Firebase project ID — `wevibe-dev` (dev) or `wevibe-prod` (prod) |
    | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON — place in `backend/secrets/` (gitignored) |
    | `PORT` | API port — defaults to `3000` |
+   | `APPLE_TEAM_ID` | Apple Developer Team ID — `49DV8UBRZK` (required for Apple token revocation) |
+   | `APPLE_KEY_ID` | Sign in with Apple key ID from Apple Developer portal |
+   | `APPLE_PRIVATE_KEY` | Contents of the `.p8` private key — encode newlines as `\n` in `.env` |
 
    **Firebase service account files** (required when `AUTH_PROVIDER_MODE=firebase`):
    ```
@@ -133,6 +136,8 @@ Node.js/Express API serving the iOS app.
 | `GET` | `/api/v1/auth/me` | Get current user (Bearer token required) |
 | `GET` | `/api/v1/users/profile` | Get own profile |
 | `PATCH` | `/api/v1/users/profile` | Update own profile |
+| `PATCH` | `/api/v1/users/fcm-token` | Update FCM push notification token |
+| `DELETE` | `/api/v1/users/me` | Delete account (30-day soft delete + Apple token revocation) |
 
 ### Folder Structure
 

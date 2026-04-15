@@ -217,9 +217,10 @@ final class AuthManager {
                 rawNonce: storedNonce,
                 fullName: appleCredential.fullName
             )
+            let authCode = appleCredential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
             try await Auth.auth().signIn(with: firebaseCredential)
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
-            try await apiClient.loginUser(idToken: token, provider: "apple")
+            try await apiClient.loginUser(idToken: token, provider: "apple", appleAuthCode: authCode)
             await resolvePostAuthState()
         } catch APIError.banned {
             try? Auth.auth().signOut()

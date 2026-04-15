@@ -573,6 +573,25 @@ struct APIClient {
          }
      }
     
+    /// POST /api/v1/matching/sessions/:sessionId/final-decision
+    /// Submit final decision when end the matching phase
+    func submitFinalDecision(token: String, sessionId: String, decision: String) async throws {
+            var req = request(path: "/matching/sessions/\(sessionId)/final-decision", method: "POST", token: token)
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: ["decision": decision])
+     
+            print("📤 [Decision] POST final-decision: \(decision) for session \(sessionId)")
+     
+            let (data, response) = try await perform(req)
+            let status = response.statusCode
+     
+            print("📥 [Decision] Status: \(status)")
+            if let raw = String(data: data, encoding: .utf8) { print("📥 [Decision] \(raw)") }
+     
+            if status == 401 { throw APIError.unauthorized }
+            if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        }
+    
 
     // MARK: - Helpers
 

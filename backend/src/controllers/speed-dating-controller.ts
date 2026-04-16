@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
 import { UserRepository } from '../repositories/user-repository';
-import { SpeedDatingService } from '../services/speed-dating-service';
+import { SpeedDatingService, SessionEndedReason } from '../services/speed-dating-service';
 import { PermanentChatService } from '../services/permanent-chat-service';
 import { socketServer } from '../websocket/socket-server';
 import { notificationService } from '../services/notification-service';
 import { badRequest, unauthorized } from '../utils/errors';
 import { prisma } from '../db/prisma-client';
+
+type SessionEndedPayload = {
+  sessionId: string;
+  reason: SessionEndedReason;
+  matchId?: string;
+  endedByUserId?: string;
+};
 
 export class SpeedDatingController {
   constructor(
@@ -190,14 +197,21 @@ export class SpeedDatingController {
       req.body.accept,
     );
 
-    // Contract: only notify move_to_permanent_updated once conversion actually succeeds.
     const counterpartId = result.session.counterpart.userId;
-    if (counterpartId && result.match?.matchId) {
-      socketServer.notifyUser(counterpartId, 'speed_dating.session.move_to_permanent_updated', {
+
+    if (result.endedReason === 'graduated' && result.match?.matchId) {
+      this.emitSessionEnded([userId, counterpartId], {
+        sessionId,
+        reason: 'graduated',
+        matchId: result.match.matchId,
+      });
+    } else if (counterpartId) {
+      socketServer.notifyUser(counterpartId, 'speed_dating.session.move_to_permanent_responded', {
         v: 1,
         data: {
           sessionId,
-          matchId: result.match.matchId,
+          respondedByUserId: userId,
+          accepted: false,
         },
       });
     }
@@ -229,9 +243,15 @@ export class SpeedDatingController {
       normalizedDecision,
     );
 
-    // Notify counterpart
     const counterpartId = result.session.counterpart.userId;
-    if (counterpartId) {
+
+    if (result.endedReason) {
+      this.emitSessionEnded([userId, counterpartId], {
+        sessionId,
+        reason: result.endedReason,
+        matchId: result.match?.matchId,
+      });
+    } else if (counterpartId) {
       socketServer.notifyUser(counterpartId, 'speed_dating.session.final_decision_updated', {
         v: 1,
         data: {
@@ -240,16 +260,6 @@ export class SpeedDatingController {
           decision: normalizedDecision,
         },
       });
-
-      if (result.match?.matchId) {
-        socketServer.notifyUser(counterpartId, 'speed_dating.session.move_to_permanent_updated', {
-          v: 1,
-          data: {
-            sessionId,
-            matchId: result.match.matchId,
-          },
-        });
-      }
     }
 
     await this.publishBadgeUpdates([userId, counterpartId]);
@@ -266,16 +276,12 @@ export class SpeedDatingController {
 
     const result = await this.speedDatingService.endSession(userId, sessionId);
 
-    // Notify counterpart
     const counterpartId = result.session.counterpart.userId;
-    if (counterpartId) {
-      socketServer.notifyUser(counterpartId, 'speed_dating.session.ended', {
-        v: 1,
-        data: {
-          sessionId,
-        },
-      });
-    }
+    this.emitSessionEnded([userId, counterpartId], {
+      sessionId,
+      reason: 'ended_early',
+      endedByUserId: result.endedByUserId ?? userId,
+    });
 
     await this.publishBadgeUpdates([userId, counterpartId]);
 
@@ -284,6 +290,32 @@ export class SpeedDatingController {
       data: result,
     });
   };
+
+  private emitSessionEnded(
+    userIds: Array<string | null | undefined>,
+    payload: SessionEndedPayload,
+  ): void {
+    const seen = new Set<string>();
+    const data: Record<string, unknown> = {
+      sessionId: payload.sessionId,
+      reason: payload.reason,
+    };
+    if (payload.matchId) {
+      data.matchId = payload.matchId;
+    }
+    if (payload.endedByUserId) {
+      data.endedByUserId = payload.endedByUserId;
+    }
+
+    for (const id of userIds) {
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      socketServer.notifyUser(id, 'speed_dating.session.ended', {
+        v: 1,
+        data,
+      });
+    }
+  }
 
   private async resolveUserId(req: Request): Promise<string> {
     const firebaseUid = req.auth?.uid;

@@ -64,6 +64,7 @@ CREATE TABLE profiles (
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     display_name VARCHAR(100),
+    nickname VARCHAR(50),
     birth_date DATE,
     gender VARCHAR(50),
     sex enum_sex,
@@ -194,12 +195,15 @@ CREATE TABLE speed_dating_sessions (
     user_b_id UUID REFERENCES users(id) ON DELETE CASCADE,
     started_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP(6), -- Set to started_at + 3 minutes in application logic
-    
+
     -- Double Opt-in Decision
     user_a_decision enum_decision DEFAULT 'pending',
     user_b_decision enum_decision DEFAULT 'pending',
-    
-    status VARCHAR(50) -- 'active', 'waiting_decision', 'matched', 'closed'
+
+    status VARCHAR(50), -- 'active', 'awaiting_decision', 'graduated', 'archived', 'archived_mismatch', 'ended_early', 'expired', plus counter/locked variants
+
+    -- Audit: which participant manually ended the session (only set for ended_early)
+    ended_by_user_id UUID
 );
 
 -- 9. Speed Dating Messages Table

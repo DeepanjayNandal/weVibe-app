@@ -80,6 +80,13 @@ export type SendMessageResult = {
   session: SessionDetail;
 };
 
+export type SessionEndedReason =
+  | 'graduated'
+  | 'archived_no_match'
+  | 'archived_mismatch'
+  | 'ended_early'
+  | 'expired';
+
 export type SpeedDatingActionResult = {
   session: SessionDetail;
   match: {
@@ -87,6 +94,8 @@ export type SpeedDatingActionResult = {
     status: string | null;
     messageCount: number;
   } | null;
+  endedReason?: SessionEndedReason;
+  endedByUserId?: string;
 };
 
 const MESSAGE_LIMIT_PER_USER = 20;
@@ -100,7 +109,10 @@ const STATUS_AWAITING_DECISION_LOCKED = 'awaiting_decision_locked';
 const STATUS_GRADUATED = 'graduated';
 const STATUS_EXPIRED = 'expired';
 const STATUS_ARCHIVED = 'archived';
+const STATUS_ARCHIVED_MISMATCH = 'archived_mismatch';
 const STATUS_ENDED_EARLY = 'ended_early';
+
+export const SPEED_DATING_STATUS_ARCHIVED_MISMATCH = STATUS_ARCHIVED_MISMATCH;
 
 const DECISION_PENDING: enum_decision = 'pending';
 const DECISION_YES: enum_decision = 'yes';
@@ -496,6 +508,7 @@ export class SpeedDatingService {
 
   async requestMoveToPermanent(userId: string, sessionId: string): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -545,6 +558,7 @@ export class SpeedDatingService {
     accept: boolean,
   ): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -558,7 +572,8 @@ export class SpeedDatingService {
 
       if (accept) {
         const match = await this.graduateSession(tx, activeSession);
-        return this.buildActionResult(tx, userId, sessionId, match);
+        const result = await this.buildActionResult(tx, userId, sessionId, match);
+        return { ...result, endedReason: 'graduated' };
       }
 
       if (internalStatus === STATUS_ACTIVE_COUNTER_PENDING) {
@@ -599,6 +614,7 @@ export class SpeedDatingService {
     }
 
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -617,38 +633,56 @@ export class SpeedDatingService {
 
       const nextMyDecision = normalizedDecision;
       const nextOtherDecision = perspective.otherDecision;
+      const awaitingStatusGuard = [STATUS_AWAITING_DECISION, STATUS_AWAITING_DECISION_LOCKED];
 
       if (nextMyDecision === DECISION_YES && nextOtherDecision === DECISION_YES) {
-        await tx.speed_dating_sessions.update({
-          where: { id: sessionId },
+        const updated = await tx.speed_dating_sessions.updateMany({
+          where: { id: sessionId, status: { in: awaitingStatusGuard } },
           data: this.buildDecisionUpdateData(perspective.isUserA, DECISION_YES, DECISION_YES),
         });
+        if (updated.count === 0) {
+          throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+        }
         const refreshed = await tx.speed_dating_sessions.findUnique({ where: { id: sessionId } });
         if (!refreshed) {
           throw new AppError('Session not found after decision update', 404, 'SESSION_NOT_FOUND');
         }
         const match = await this.graduateSession(tx, refreshed);
-        return this.buildActionResult(tx, userId, sessionId, match);
+        const result = await this.buildActionResult(tx, userId, sessionId, match);
+        return { ...result, endedReason: 'graduated' };
       }
 
       let nextStatus = internalStatus;
+      let endedReason: SessionEndedReason | undefined;
       if (nextMyDecision === DECISION_NO && nextOtherDecision === DECISION_NO) {
         nextStatus = STATUS_ARCHIVED;
+        endedReason = 'archived_no_match';
+      } else if (
+        (nextMyDecision === DECISION_YES && nextOtherDecision === DECISION_NO) ||
+        (nextMyDecision === DECISION_NO && nextOtherDecision === DECISION_YES)
+      ) {
+        nextStatus = STATUS_ARCHIVED_MISMATCH;
+        endedReason = 'archived_mismatch';
       }
 
-      await tx.speed_dating_sessions.update({
-        where: { id: sessionId },
+      const updated = await tx.speed_dating_sessions.updateMany({
+        where: { id: sessionId, status: { in: awaitingStatusGuard } },
         data: this.buildDecisionUpdateData(perspective.isUserA, nextMyDecision, nextOtherDecision, {
           status: nextStatus,
         }),
       });
+      if (updated.count === 0) {
+        throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+      }
 
-      return this.buildActionResult(tx, userId, sessionId, null);
+      const result = await this.buildActionResult(tx, userId, sessionId, null);
+      return endedReason ? { ...result, endedReason } : result;
     });
   }
 
   async endSession(userId: string, sessionId: string): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -658,16 +692,19 @@ export class SpeedDatingService {
         badRequest('Session cannot be ended in the current state', 'SESSION_END_NOT_ALLOWED');
       }
 
-      await tx.speed_dating_sessions.update({
-        where: { id: sessionId },
+      const updated = await tx.speed_dating_sessions.updateMany({
+        where: { id: sessionId, status: { in: OPENABLE_STATUSES } },
         data: {
           status: STATUS_ENDED_EARLY,
-          user_a_decision: DECISION_PENDING,
-          user_b_decision: DECISION_PENDING,
+          ended_by_user_id: userId,
         },
       });
+      if (updated.count === 0) {
+        throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+      }
 
-      return this.buildActionResult(tx, userId, sessionId, null);
+      const result = await this.buildActionResult(tx, userId, sessionId, null);
+      return { ...result, endedReason: 'ended_early', endedByUserId: userId };
     });
   }
 
@@ -710,6 +747,10 @@ export class SpeedDatingService {
     assertTwoPartyParticipant(session, userId);
 
     return session;
+  }
+
+  private async lockSessionRow(tx: Prisma.TransactionClient, sessionId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM speed_dating_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
   }
 
   private async getAuthorizedSessionRecord(

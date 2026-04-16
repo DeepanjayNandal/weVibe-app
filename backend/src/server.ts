@@ -87,6 +87,7 @@ const speedDatingExpirySweepHandle = setInterval(() => {
             v: 1 as const,
             data: {
               sessionId: session.id,
+              reason: 'expired' as const,
             },
           };
 

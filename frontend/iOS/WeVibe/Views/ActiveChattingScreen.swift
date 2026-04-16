@@ -142,6 +142,9 @@ struct ActiveChatView: View {
     // Early match request from partner (heart button on their side)
     @State private var showPartnerRequestPopup: Bool = false
 
+    // Confirmation before sending early match request
+    @State private var showEarlyMatchConfirm: Bool = false
+
     // Both said yes — matched!
     @State private var matchedPermanentMatchId: String? = nil
     @State private var showMatchedCelebration: Bool     = false
@@ -291,6 +294,36 @@ struct ActiveChatView: View {
                     }
             }
         }
+        // ── Early match confirmation (before sending request)
+        .overlay(alignment: .bottom) {
+            if showEarlyMatchConfirm {
+                EarlyMatchConfirmSheet(
+                    onConfirm: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showEarlyMatchConfirm = false
+                        }
+                        requestEarlyMatch()
+                    },
+                    onCancel: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showEarlyMatchConfirm = false
+                        }
+                    }
+                )
+                .transition(.move(edge: .bottom))
+                .ignoresSafeArea(edges: .bottom)
+            }
+        }
+        .overlay {
+            if showEarlyMatchConfirm {
+                Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showEarlyMatchConfirm = false
+                        }
+                    }
+            }
+        }
         // ── Partner requested early match
         .overlay(alignment: .bottom) {
             if showPartnerRequestPopup {
@@ -421,12 +454,14 @@ struct ActiveChatView: View {
 
     private var inputBar: some View {
         HStack(spacing: 10) {
-            // ❤️ Heart — early match request OR show decision sheet
+            // ❤️ Heart — shows confirmation first, then sends request
             Button {
                 if isSessionEnded {
                     triggerSessionEnd()
                 } else {
-                    requestEarlyMatch()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showEarlyMatchConfirm = true
+                    }
                 }
             } label: {
                 Image(systemName: "heart.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
@@ -1034,5 +1069,80 @@ private struct MatchedCelebrationOverlay: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Early Match Confirm Sheet
+
+private struct EarlyMatchConfirmSheet: View {
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // Handle
+            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 20)
+
+            // Icon
+            Text("💚")
+                .font(.system(size: 52))
+                .padding(.bottom, 12)
+
+            // Title
+            Text("Match early?")
+                .font(.system(size: 22, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A"))
+                .padding(.bottom, 6)
+
+            // Subtitle
+            Text("You like them that much already? 😄\nSend them a match request and see if they feel the same!")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#5A8A5A"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 28)
+
+            VStack(spacing: 10) {
+
+                // Confirm
+                Button(action: onConfirm) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 14))
+                        Text("Yes, send match request!")
+                            .font(.system(size: 16, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .shadow(color: Color(hex: "#1A8C4E").opacity(0.35), radius: 10, x: 0, y: 4)
+                    )
+                }
+                .buttonStyle(ScaleButtonStyle())
+
+                // Cancel
+                Button(action: onCancel) {
+                    Text("Not yet, keep chatting")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color(hex: "#5A8A5A"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
     }
 }

@@ -249,6 +249,11 @@ model users {
   // After 30 days the purge job hard-deletes the row via CASCADE.
   // If the user logs back in within 30 days, deleted_at is cleared (reactivation).
   deleted_at                                                   DateTime?               @db.Timestamp(6)
+  // fcm_token: Firebase Cloud Messaging device token — updated by iOS after login, cleared on 404 from FCM
+  fcm_token                                                    String?                 @db.VarChar(500)
+  // apple_refresh_token: stored on first Apple Sign-In to support token revocation on account deletion
+  // Required by App Store Review Guideline 5.1.1 — must revoke when user deletes account
+  apple_refresh_token                                          String?                 @db.VarChar(2000)
   // onboarding_complete: set to true after user submits the onboarding survey (POST /api/v1/users/profile)
   // iOS uses this to decide whether to route to onboarding or the main app after login
   onboarding_complete                                          Boolean?                @default(false)

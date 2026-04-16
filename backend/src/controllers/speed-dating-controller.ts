@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { SpeedDatingService } from '../services/speed-dating-service';
 import { PermanentChatService } from '../services/permanent-chat-service';
 import { socketServer } from '../websocket/socket-server';
+import { notificationService } from '../services/notification-service';
 import { badRequest, unauthorized } from '../utils/errors';
 import { prisma } from '../db/prisma-client';
 
@@ -133,6 +134,12 @@ export class SpeedDatingController {
           },
         },
       });
+      void notificationService.sendPushToUser(
+        counterpartId,
+        'New message',
+        result.message.content,
+        { type: 'speed_dating_message', sessionId },
+      );
     }
 
     await this.publishBadgeUpdates([userId, counterpartId]);

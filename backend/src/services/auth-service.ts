@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { forbidden, unauthorized } from '../utils/errors';
 import { AuthVerifier } from './auth/auth-verifier';
 import { LoginInput, RegisterInput } from './auth/types';
+import { exchangeAppleCode } from './apple-auth-service';
 
 export class AuthService {
   constructor(
@@ -75,6 +76,17 @@ export class AuthService {
     }
 
     await this.userRepository.touchLastActive(user.id);
+
+    // Exchange the one-time Apple authorization code for a refresh token and store it.
+    // Fire-and-forget: token exchange failure must not block the login response.
+    if (input.provider === 'apple' && input.appleAuthCode && input.appleBundleId) {
+      void exchangeAppleCode(input.appleAuthCode, input.appleBundleId).then((refreshToken) => {
+        if (refreshToken) {
+          void this.userRepository.updateAppleRefreshToken(user.id, refreshToken);
+        }
+      });
+    }
+
     return user;
   }
 
@@ -98,15 +110,11 @@ export class AuthService {
     }
 
     if (user.deleted_at) {
-      // Apply the same 30-day grace period as login() — if the user is within
-      // the window, reactivate silently so they can get back in without re-logging.
-      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      if (user.deleted_at > cutoff) {
-        await this.userRepository.reactivateUser(user.id);
-        user = { ...user, deleted_at: null };
-      } else {
-        forbidden('Account has been deleted', 'USER_DELETED');
-      }
+      // /auth/me is a passive session check — it must never silently reactivate a deleted
+      // account. Only an explicit login() gesture (user typing credentials or tapping SSO)
+      // should trigger reactivation within the 30-day grace period.
+      // Return 403 regardless of how recently the account was deleted.
+      forbidden('Account has been deleted', 'USER_DELETED');
     }
 
     return user;

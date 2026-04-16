@@ -133,8 +133,8 @@ The project uses **manual signing** via [fastlane match](https://docs.fastlane.t
 | `LocationManager` | CLLocationManager wrapper — reverse geocodes and syncs to backend on movement |
 | `SocketService` | Socket.IO client — real-time messaging and match events |
 | `MatchmakingService` | Speed dating queue join/leave + match-found coordination |
-| `APIClient` | All REST calls for auth and profile |
-| `ChatAPIClient` | REST calls for speed-dating sessions and permanent chat |
+| `APIClient` | All REST calls to the backend (auth, profile, photos, speed-dating, permanent chat) |
+| `ChatAPIClient` | Response model structs only (`SpeedDatingDetail`, `ActiveChatDetail`) |
 
 ---
 

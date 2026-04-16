@@ -101,8 +101,8 @@ cd frontend/iOS && bundle exec fastlane add_device
 | `LocationManager` | CLLocationManager wrapper — reverse geocodes and syncs to backend |
 | `SocketService` | Socket.IO client — real-time messaging and match events |
 | `MatchmakingService` | Speed dating queue join/leave + match-found coordination |
-| `APIClient` | All REST calls to the backend |
-| `ChatAPIClient` | REST calls for speed-dating and permanent chat |
+| `APIClient` | All REST calls to the backend (auth, profile, photos, speed-dating, permanent chat) |
+| `ChatAPIClient` | Response model structs only (`SpeedDatingDetail`, `ActiveChatDetail`) |
 
 ### SPM Dependencies
 
@@ -278,6 +278,8 @@ The backend runs Socket.IO with a Redis adapter for horizontal scaling. Authenti
 | `speed_dating.typing.updated` | `{ sessionId, userId, isTyping }` | Typing indicator |
 | `speed_dating.session.ended` | `{ sessionId }` | Session expired or ended |
 | `permanent.message.created` | `{ matchId, message }` | Incoming permanent-chat message |
+| `permanent.match.removed` | `{ matchId }` | Counterpart removed the match |
+| `permanent.match.blocked` | `{ matchId, blockedByUserId }` | Counterpart blocked current user |
 | `error` | `{ code, message }` | Server-side error |
 
 ### Folder Structure

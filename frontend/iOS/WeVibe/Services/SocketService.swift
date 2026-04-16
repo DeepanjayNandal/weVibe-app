@@ -49,6 +49,7 @@ struct IncomingPermanentMessage: Sendable, Equatable {
     let messageId: String
     let content: String
     let senderId: String
+    let createdAt: String
 
     init?(_ dict: [String: Any]) {
         guard let matchId   = dict["matchId"] as? String,
@@ -60,6 +61,7 @@ struct IncomingPermanentMessage: Sendable, Equatable {
         self.messageId = messageId
         self.content   = content
         self.senderId  = senderId
+        self.createdAt = msg["createdAt"] as? String ?? ""
     }
 }
 
@@ -91,6 +93,12 @@ final class SocketService {
 
     /// Latest permanent chat message — consumed by PermanentChatView.
     var lastPermanentMessage: IncomingPermanentMessage?
+
+    /// matchId of a permanent match that was removed by the counterpart.
+    var lastMatchRemovedId: String?
+
+    /// matchId of a permanent match where the counterpart blocked the current user.
+    var lastMatchBlockedId: String?
 
     /// sessionId of a speed dating session that just ended server-side.
     var lastSpeedDatingSessionEnded: String?
@@ -223,6 +231,24 @@ final class SocketService {
                   let msg      = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
+            }
+        }
+
+        socket?.on("permanent.match.removed") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let matchId  = payload["matchId"] as? String else { return }
+            Task { @MainActor [weak self] in
+                self?.lastMatchRemovedId = matchId
+            }
+        }
+
+        socket?.on("permanent.match.blocked") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let matchId  = payload["matchId"] as? String else { return }
+            Task { @MainActor [weak self] in
+                self?.lastMatchBlockedId = matchId
             }
         }
     }

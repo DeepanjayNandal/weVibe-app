@@ -767,6 +767,123 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
+    // MARK: - Permanent Chat Messages
+
+    struct PermanentMessageItem {
+        let messageId: String
+        let matchId: String
+        let senderId: String
+        let content: String
+        let createdAt: String?
+    }
+
+    struct PermanentMessagesResult {
+        let counterpartUserId: String
+        let messages: [PermanentMessageItem]
+    }
+
+    /// GET /matching/matches/:matchId/messages — fetches full message history for a permanent match.
+    func getMatchMessages(matchId: String, token: String) async throws -> PermanentMessagesResult {
+        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct MatchItem: Decodable {
+                    struct Counterpart: Decodable {
+                        let userId: String?
+                    }
+                    let counterpart: Counterpart
+                }
+                struct Msg: Decodable {
+                    let id: String
+                    let matchId: String?
+                    let senderId: String?
+                    let content: String
+                    let createdAt: String?
+                }
+                let match: MatchItem
+                let messages: [Msg]
+            }
+            let data: DataBody
+        }
+
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            let items = resp.data.messages.map {
+                PermanentMessageItem(
+                    messageId: $0.id,
+                    matchId:   $0.matchId ?? matchId,
+                    senderId:  $0.senderId ?? "",
+                    content:   $0.content,
+                    createdAt: $0.createdAt
+                )
+            }
+            return PermanentMessagesResult(
+                counterpartUserId: resp.data.match.counterpart.userId ?? "",
+                messages: items
+            )
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    struct SendPermanentMessageResult {
+        let messageId: String
+        let content: String
+        let senderId: String
+        let createdAt: String?
+    }
+
+    /// POST /matching/matches/:matchId/messages — sends a message in a permanent match.
+    func sendPermanentMessage(matchId: String, content: String, token: String) async throws -> SendPermanentMessageResult {
+        var req = request(path: "/matching/matches/\(matchId)/messages", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["content": content])
+
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Msg: Decodable {
+                    let id: String
+                    let content: String
+                    let senderId: String?
+                    let createdAt: String?
+                }
+                let message: Msg
+            }
+            let data: DataBody
+        }
+
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            return SendPermanentMessageResult(
+                messageId: resp.data.message.id,
+                content:   resp.data.message.content,
+                senderId:  resp.data.message.senderId ?? "",
+                createdAt: resp.data.message.createdAt
+            )
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    /// PATCH /matching/matches/:matchId/read — marks all messages in the match as read.
+    func markMatchMessagesRead(matchId: String, token: String) async throws {
+        let req = request(path: "/matching/matches/\(matchId)/read", method: "PATCH", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     // MARK: - Helpers
 
     private func request(path: String, method: String, token: String) -> URLRequest {

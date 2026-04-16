@@ -242,6 +242,7 @@ struct ChatListView: View {
                 ChatListItem(
                     matchId:          match.matchId,
                     name:             match.counterpartDisplayName,
+                    initials:         nil,
                     avatarSystemIcon: nil,
                     lastMessage:      match.lastMessageContent ?? "",
                     isMine:           false,

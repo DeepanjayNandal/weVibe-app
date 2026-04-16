@@ -193,11 +193,17 @@ struct APIClient {
     }
 
     /// POST /auth/login — creates or finds the backend user record for SSO and email login.
-    func loginUser(idToken: String, provider: String) async throws {
+    /// Pass `appleAuthCode` for Apple Sign-In so the backend can exchange it for an Apple
+    /// refresh token and store it for later revocation on account deletion (App Store 5.1.1).
+    func loginUser(idToken: String, provider: String, appleAuthCode: String? = nil) async throws {
         var req = URLRequest(url: base.appendingPathComponent("/auth/login"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: String] = ["provider": provider, "idToken": idToken]
+        var body: [String: String] = ["provider": provider, "idToken": idToken]
+        if let code = appleAuthCode, !code.isEmpty {
+            body["appleAuthCode"] = code
+            body["appleBundleId"] = Bundle.main.bundleIdentifier ?? ""
+        }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (_, response) = try await perform(req)
         let status = response.statusCode
@@ -217,6 +223,17 @@ struct APIClient {
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 409 { return }
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// PATCH /users/fcm-token — stores the FCM push token on the backend for this user.
+    func updateFCMToken(token: String, fcmToken: String) async throws {
+        var req = request(path: "/users/fcm-token", method: "PATCH", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["fcmToken": fcmToken])
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }

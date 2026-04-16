@@ -1,0 +1,4 @@
+git_url("https://github.com/amurark3/wevibe-certs")
+storage_mode("git")
+app_identifier(["com.wevibe1.appdev", "com.wevibe1.app"])
+api_key_path("fastlane/api_key.json")

@@ -7,6 +7,7 @@ struct ChatListItem: Identifiable {
     let id = UUID()
     let matchId: String
     let name: String?
+    let initials: String?  
     let avatarSystemIcon: String?
     let lastMessage: String
     let isMine: Bool
@@ -46,11 +47,11 @@ struct ChatListView: View {
 
     // Placeholder until matched chat API is built
     private let matchedChats: [ChatListItem] = [
-        ChatListItem(matchId: "match-1", name: "Emelie", avatarSystemIcon: "person.fill",
+        ChatListItem(matchId: "match-1", name: "Emelie", initials: "EM", avatarSystemIcon: "person.fill",
                      lastMessage: "Sticker 😍", isMine: false, timeAgo: "23 min", unreadCount: 1, isTyping: false),
-        ChatListItem(matchId: "match-2", name: "Abigail", avatarSystemIcon: "person.fill",
+        ChatListItem(matchId: "match-2", name: "Abigail", initials: "AB", avatarSystemIcon: "person.fill",
                      lastMessage: "", isMine: false, timeAgo: "27 min", unreadCount: 2, isTyping: true),
-        ChatListItem(matchId: "match-3", name: "Elizabeth", avatarSystemIcon: "person.fill",
+        ChatListItem(matchId: "match-3", name: "Elizabeth", initials: "EL", avatarSystemIcon: "person.fill",
                      lastMessage: "Ok, see you then.", isMine: false, timeAgo: "33 min", unreadCount: 0, isTyping: false),
     ]
 
@@ -156,18 +157,35 @@ struct ChatListView: View {
             let sessions = result.data?.sessions ?? []
 
             anonymousChats = sessions.compactMap { session -> ChatListItem? in
-                guard let sessionId = session?.sessionId else { return nil }
+                guard let sessionId = session.sessionId else { return nil }
+
+                // ── Last message display logic
+                // unread > 0  → message is from partner (not mine)
+                // unread = 0  → last message is mine or no messages yet
+                let lastMsg: String
+                let isMine: Bool
+
+                if let content = session.lastMessageContent, !content.isEmpty {
+                    lastMsg = content
+                    isMine  = session.unreadCount == 0 && session.isLastMessageMine
+                } else {
+                    lastMsg = statusLabel(session.status)
+                    isMine  = false
+                }
+
                 return ChatListItem(
                     matchId:          sessionId,
                     name:             nil,
+                    initials:         session.counterpart?.initials,
                     avatarSystemIcon: nil,
-                    lastMessage:      statusLabel(session?.status),
-                    isMine:           false,
-                    timeAgo:          expiryLabel(session?.sessionExpiresAt),
-                    unreadCount:      0,
+                    lastMessage:      lastMsg,
+                    isMine:           isMine,
+                    timeAgo:          timeAgoLabel(session.lastMessageAt ?? session.sessionExpiresAt),
+                    unreadCount:      session.unreadCount,
                     isTyping:         false
                 )
             }
+            print("✅ [ChatList] \(anonymousChats.count) speed dating sessions loaded")
         } catch {
             sessionsError = "Couldn't load sessions"
             print("❌ [ChatList] fetchSessions: \(error)")
@@ -180,24 +198,29 @@ struct ChatListView: View {
 
     private func statusLabel(_ status: String?) -> String {
         switch status {
-        case "active":  return "Active session"
+        case "active":  return "Say hello! 👋"
         case "ended":   return "Session ended"
         case "matched": return "Matched! 🎉"
         default:        return ""
         }
     }
 
-    private func expiryLabel(_ isoString: String?) -> String {
-        guard let isoString,
-              let date = ISO8601DateFormatter().date(from: isoString)
+    private func timeAgoLabel(_ isoString: String?) -> String {
+        guard let isoString else { return "" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: isoString)
+                      ?? ISO8601DateFormatter().date(from: isoString)
         else { return "" }
-        let remaining = date.timeIntervalSinceNow
-        guard remaining > 0 else { return "Expired" }
-        let hours   = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        if hours   > 0 { return "\(hours)h left" }
-        if minutes > 0 { return "\(minutes)m left" }
-        return "< 1m left"
+
+        let diff = Int(Date().timeIntervalSince(date))
+        if diff < 60                { return "just now" }
+        if diff < 3600              { return "\(diff / 60)m ago" }
+        if diff < 86400             { return "\(diff / 3600)h ago" }
+        if diff < 86400 * 7         { return "\(diff / 86400)d ago" }
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f.string(from: date)
     }
 
     // MARK: - Header
@@ -271,30 +294,42 @@ private struct ChatRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(isAnonymous ? "Anonymous" : (item.name ?? "Unknown"))
+                    Text(isAnonymous
+                         ? (item.initials ?? "??")
+                         : (item.name ?? item.initials ?? "Unknown"))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
                     Text(item.timeAgo)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.white.opacity(0.35))
+                        .foregroundStyle(
+                            item.unreadCount > 0
+                                ? AppTheme.primaryButton
+                                : Color.white.opacity(0.35)
+                        )
                 }
                 HStack {
                     if item.isTyping {
                         TypingIndicator()
                     } else {
                         Text(item.isMine ? "You: \(item.lastMessage)" : item.lastMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .font(.system(size: 13, weight: item.unreadCount > 0 ? .semibold : .regular))
+                            .foregroundStyle(
+                                item.unreadCount > 0
+                                    ? Color.white.opacity(0.9)
+                                    : Color.white.opacity(0.5)
+                            )
                             .lineLimit(1)
                     }
                     Spacer()
+                    // Badge: "1+" for multiple unreads, exact count for single
                     if item.unreadCount > 0 {
-                        Text("\(item.unreadCount)")
+                        Text(item.unreadCount > 1 ? "1+" : "1")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.black)
-                            .frame(width: 22, height: 22)
-                            .background(Circle().fill(AppTheme.primaryButton))
+                            .frame(minWidth: 22, minHeight: 22)
+                            .padding(.horizontal, item.unreadCount > 1 ? 6 : 0)
+                            .background(Capsule().fill(AppTheme.primaryButton))
                     }
                 }
             }
@@ -311,9 +346,15 @@ private struct ChatRowView: View {
                 Circle()
                     .fill(Color.white.opacity(0.07))
                     .overlay(Circle().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-                Image(systemName: "person.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.white.opacity(0.3))
+                if let initials = item.initials, !initials.isEmpty {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.6))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color.white.opacity(0.3))
+                }
             }
         } else {
             ZStack {
@@ -322,9 +363,15 @@ private struct ChatRowView: View {
                         colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
-                Image(systemName: "person.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.white.opacity(0.8))
+                if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
             }
             .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
         }
@@ -370,7 +417,6 @@ private struct EmptySessionsView: View {
         VStack(spacing: 0) {
             Spacer()
             ZStack {
-                // Sparkles
                 SparkleView(size: 10, delay: 0)
                     .offset(x: -70, y: -30)
                     .opacity(sparkle1)

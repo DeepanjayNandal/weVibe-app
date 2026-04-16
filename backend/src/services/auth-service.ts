@@ -56,11 +56,11 @@ export class AuthService {
     }
 
     if (!user) {
-      unauthorized('Unable to login with provided token', 'LOGIN_FAILED');
+      return unauthorized('Unable to login with provided token', 'LOGIN_FAILED');
     }
 
     if (user.is_banned) {
-      forbidden('User is banned', 'USER_BANNED');
+      return forbidden('User is banned', 'USER_BANNED');
     }
 
     // Grace period reactivation: if the user deleted their account but returns
@@ -102,11 +102,11 @@ export class AuthService {
     }
 
     if (!user) {
-      unauthorized('User not found', 'USER_NOT_FOUND');
+      return unauthorized('User not found', 'USER_NOT_FOUND');
     }
 
     if (user.is_banned) {
-      forbidden('User is banned', 'USER_BANNED');
+      return forbidden('User is banned', 'USER_BANNED');
     }
 
     if (user.deleted_at) {
@@ -114,7 +114,7 @@ export class AuthService {
       // account. Only an explicit login() gesture (user typing credentials or tapping SSO)
       // should trigger reactivation within the 30-day grace period.
       // Return 403 regardless of how recently the account was deleted.
-      forbidden('Account has been deleted', 'USER_DELETED');
+      return forbidden('Account has been deleted', 'USER_DELETED');
     }
 
     return user;

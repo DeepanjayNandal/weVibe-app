@@ -35,7 +35,7 @@ function toJsonArray(photos: StoredPhoto[]): Prisma.InputJsonValue {
 
 async function resolveUserId(firebaseUid: string): Promise<string> {
   const user = await userRepository.findByFirebaseUid(firebaseUid);
-  if (!user) unauthorized('User not found', 'USER_NOT_FOUND');
+  if (!user) return unauthorized('User not found', 'USER_NOT_FOUND');
   return user.id;   // ← this is the actual UUID used in profiles.user_id
 }
 

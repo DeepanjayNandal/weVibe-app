@@ -181,6 +181,7 @@ model speed_dating_sessions {
   status                                       String?   @db.VarChar(50)
   user_a_decision                              enum_decision? @default(pending)
   user_b_decision                              enum_decision? @default(pending)
+  ended_by_user_id                             String?   @db.Uuid
   users_speed_dating_sessions_user_a_idTousers users?    @relation("speed_dating_sessions_user_a_idTousers", fields: [user_a_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users_speed_dating_sessions_user_b_idTousers users?    @relation("speed_dating_sessions_user_b_idTousers", fields: [user_b_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   speed_dating_messages                        speed_dating_messages[]

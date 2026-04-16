@@ -1074,12 +1074,23 @@ Content-Type: application/json
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
 | 404 | `SESSION_NOT_FOUND` | Session does not exist |
+| 409 | `SESSION_STATE_CONFLICT` | Session state changed concurrently (e.g. expired by the timer sweep) before the response could be applied; client should refetch |
+
+**Socket events**
+
+- Accept path: `speed_dating.session.ended { reason: "graduated", matchId }` is emitted to **both participants** (replaces the former `speed_dating.session.move_to_permanent_responded` + `speed_dating.session.move_to_permanent_updated` pair).
+- Decline path: `speed_dating.session.move_to_permanent_responded { respondedByUserId, accepted: false }` is emitted to the requester only. Session remains open and messaging continues.
 
 ---
 
 ### 22. Submit Final Decision
 
-Records the user's yes/no answer once a session reaches `awaiting_decision`. If both users answer yes, the session graduates to permanent chat. If both answer no, the session is archived.
+Records the user's yes/no answer once a session reaches `awaiting_decision`. Terminal transitions by outcome:
+
+- Both `yes` → session graduates to permanent chat (`status: "graduated"`, match created).
+- Both `no` → session archived (`status: "archived"`).
+- One `yes`, one `no` → session archived as mismatch (`status: "archived_mismatch"`); the session terminates immediately instead of staying in `awaiting_decision`.
+- Only the first of two decisions submitted → session remains `awaiting_decision`.
 
 ```
 POST /api/v1/matching/sessions/:sessionId/final-decision
@@ -1106,12 +1117,20 @@ Content-Type: application/json
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
 | 404 | `SESSION_NOT_FOUND` | Session does not exist |
+| 409 | `SESSION_STATE_CONFLICT` | Session state changed concurrently before the response could be applied; client should refetch |
+
+**Socket events**
+
+- Both-yes graduation → `speed_dating.session.ended { reason: "graduated", matchId }` to both participants.
+- Both-no archive → `speed_dating.session.ended { reason: "archived_no_match" }` to both participants.
+- Mismatch (one yes, one no) → `speed_dating.session.ended { reason: "archived_mismatch" }` to both participants.
+- Partial vote (first of two) → `speed_dating.session.final_decision_updated { userId, decision }` to the counterpart only. No terminal event.
 
 ---
 
 ### 23. End Speed Dating Session Early
 
-Ends the session immediately without graduating it to permanent chat.
+Ends the session immediately without graduating it to permanent chat. The caller's identity is recorded in `ended_by_user_id` for audit. Existing `user_a_decision` / `user_b_decision` values are **preserved** (not reset), so tools can reason about pending intent at the moment of termination.
 
 ```
 POST /api/v1/matching/sessions/:sessionId/end
@@ -1145,6 +1164,11 @@ Authorization: Bearer <firebase-id-token>
 | 401 | `USER_NOT_FOUND` | Verified token but no matching user in DB |
 | 403 | `CHAT_FORBIDDEN` | User is not a participant of this session |
 | 404 | `SESSION_NOT_FOUND` | Session does not exist |
+| 409 | `SESSION_STATE_CONFLICT` | Session state changed concurrently before the response could be applied; client should refetch |
+
+**Socket events**
+
+- `speed_dating.session.ended { reason: "ended_early", endedByUserId }` is emitted to **both participants** (including the caller). This replaces the earlier counterpart-only emission without a `reason` field.
 
 ---
 
@@ -1454,10 +1478,30 @@ If authentication fails, server rejects the connection during handshake with one
 {
   "v": 1,
   "data": {
-    "sessionId": "uuid"
+    "sessionId": "uuid",
+    "reason": "graduated",
+    "matchId": "uuid",
+    "endedByUserId": "uuid"
   }
 }
 ```
+
+Terminal event emitted to **both** participants whenever a session reaches a final state. Fields:
+
+| Field | Type | When present | Meaning |
+|---|---|---|---|
+| `sessionId` | uuid | always | Target speed dating session |
+| `reason` | string | always | One of `graduated`, `archived_no_match`, `archived_mismatch`, `ended_early`, `expired` |
+| `matchId` | uuid | only when `reason === 'graduated'` | ID of the newly created permanent match |
+| `endedByUserId` | uuid | only when `reason === 'ended_early'` | Which participant manually ended the session |
+
+`reason` values:
+
+- `graduated` — both sides agreed (either via `submitFinalDecision` both `yes`, or early `respondToMoveToPermanent` accept). `matchId` present.
+- `archived_no_match` — both sides submitted `no` in `submitFinalDecision`.
+- `archived_mismatch` — one side said `yes`, the other said `no` in `submitFinalDecision`. Session terminates immediately instead of staying in `awaiting_decision`.
+- `ended_early` — one participant called `POST /sessions/:id/end`. `endedByUserId` present.
+- `expired` — the 24h timer elapsed while the session was still in any non-terminal state. Emitted by the backend sweep.
 
 `speed_dating.session.read_updated`
 ```json
@@ -1482,16 +1526,19 @@ If authentication fails, server rejects the connection during handshake with one
 }
 ```
 
-`speed_dating.session.move_to_permanent_updated`
+`speed_dating.session.move_to_permanent_responded`
 ```json
 {
   "v": 1,
   "data": {
     "sessionId": "uuid",
-    "matchId": "uuid"
+    "respondedByUserId": "uuid",
+    "accepted": false
   }
 }
 ```
+
+Emitted to the requester **only when the counterpart declines** (`accepted` is always `false`). When the counterpart accepts, the session immediately graduates and the terminal `speed_dating.session.ended { reason: "graduated", matchId }` event is sent to both participants instead.
 
 `speed_dating.session.final_decision_updated`
 ```json
@@ -1504,6 +1551,8 @@ If authentication fails, server rejects the connection during handshake with one
   }
 }
 ```
+
+Emitted to the counterpart **only when a partial vote is recorded** (the other user has not yet submitted a final decision). Once both decisions land, the session transitions to a terminal state and the outcome is delivered via `speed_dating.session.ended` instead (with `reason: "graduated"`, `"archived_no_match"`, or `"archived_mismatch"` as appropriate).
 
 `speed_dating.typing.updated`
 ```json

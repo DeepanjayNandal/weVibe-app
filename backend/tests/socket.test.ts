@@ -358,7 +358,7 @@ describe('Socket Contract Integration', () => {
     await prisma.$disconnect();
   });
 
-  test('emits move_to_permanent_requested immediately and move_to_permanent_updated only when conversion succeeds', async () => {
+  test('emits move_to_permanent_requested immediately and session.ended { reason: graduated } when conversion succeeds', async () => {
     const socketA: ClientSocket = ioClient(`http://localhost:${port}`, {
       query: { token: tokenA },
     });
@@ -410,23 +410,29 @@ describe('Socket Contract Integration', () => {
     expect(requestPhaseEvent.data.sessionId).toBe(sessionId);
     expect(requestPhaseEvent.data.requestedByUserId).toBe(requesterUser!.id);
 
-    const moveUpdatedEvent = await new Promise<any>((resolve) => {
-      socketA.once('speed_dating.session.move_to_permanent_updated', resolve);
-
-      void request(app)
+    const [endedA, endedB] = await Promise.all([
+      new Promise<any>((resolve) => {
+        socketA.once('speed_dating.session.ended', resolve);
+        setTimeout(() => resolve(null), 1500);
+      }),
+      new Promise<any>((resolve) => {
+        socketB.once('speed_dating.session.ended', resolve);
+        setTimeout(() => resolve(null), 1500);
+      }),
+      request(app)
         .post(`/api/v1/matching/sessions/${sessionId}/move-to-permanent/respond`)
         .set('Authorization', `Bearer ${tokenB}`)
-        .send({ accept: true })
-        .then(() => undefined);
+        .send({ accept: true }),
+    ]);
 
-      setTimeout(() => resolve(null), 1500);
-    });
-
-    expect(moveUpdatedEvent).not.toBeNull();
-    expect(moveUpdatedEvent.v).toBe(1);
-    expect(moveUpdatedEvent.data.sessionId).toBe(sessionId);
-    expect(typeof moveUpdatedEvent.data.matchId).toBe('string');
-    expect(moveUpdatedEvent.data.matchId.length).toBeGreaterThan(0);
+    for (const event of [endedA, endedB]) {
+      expect(event).not.toBeNull();
+      expect(event.v).toBe(1);
+      expect(event.data.sessionId).toBe(sessionId);
+      expect(event.data.reason).toBe('graduated');
+      expect(typeof event.data.matchId).toBe('string');
+      expect(event.data.matchId.length).toBeGreaterThan(0);
+    }
 
     socketA.disconnect();
     socketB.disconnect();
@@ -457,7 +463,7 @@ describe('Socket Contract Integration', () => {
       data: {
         status: 'awaiting_decision',
         user_a_decision: 'pending',
-        user_b_decision: 'no',
+        user_b_decision: 'pending',
       },
     });
 

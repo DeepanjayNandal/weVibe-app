@@ -87,6 +87,14 @@ export type SessionEndedReason =
   | 'ended_early'
   | 'expired';
 
+export type ExpiredSessionResult = {
+  sessionId: string;
+  userAId: string | null;
+  userBId: string | null;
+  endedReason: SessionEndedReason;
+  matchId?: string;
+};
+
 export type SpeedDatingActionResult = {
   session: SessionDetail;
   match: {
@@ -706,6 +714,86 @@ export class SpeedDatingService {
       const result = await this.buildActionResult(tx, userId, sessionId, null);
       return { ...result, endedReason: 'ended_early', endedByUserId: userId };
     });
+  }
+
+  async expireDueSessions(): Promise<ExpiredSessionResult[]> {
+    const now = new Date();
+    const dueSessions = await prisma.speed_dating_sessions.findMany({
+      where: {
+        expires_at: { lte: now },
+        status: { in: EXPIRABLE_STATUSES },
+      },
+      select: { id: true },
+    });
+
+    const results: ExpiredSessionResult[] = [];
+
+    for (const { id: sessionId } of dueSessions) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          await this.lockSessionRow(tx, sessionId);
+          const session = await tx.speed_dating_sessions.findUnique({
+            where: { id: sessionId },
+          });
+          if (!session) return null;
+
+          const normalizedStatus = normalizeSessionStatus(session.status);
+          if (!normalizedStatus || !EXPIRABLE_STATUSES.includes(normalizedStatus)) {
+            return null;
+          }
+          if (!session.expires_at || session.expires_at.getTime() > Date.now()) {
+            return null;
+          }
+
+          const decisionA = normalizeDecision(session.user_a_decision);
+          const decisionB = normalizeDecision(session.user_b_decision);
+
+          if (decisionA === DECISION_YES && decisionB === DECISION_YES) {
+            const match = await this.graduateSession(tx, session);
+            return {
+              sessionId,
+              userAId: session.user_a_id,
+              userBId: session.user_b_id,
+              endedReason: 'graduated' as SessionEndedReason,
+              matchId: match.id,
+            };
+          }
+
+          let nextStatus: string = STATUS_EXPIRED;
+          let endedReason: SessionEndedReason = 'expired';
+          if (decisionA === DECISION_NO && decisionB === DECISION_NO) {
+            nextStatus = STATUS_ARCHIVED;
+            endedReason = 'archived_no_match';
+          } else if (
+            (decisionA === DECISION_YES && decisionB === DECISION_NO) ||
+            (decisionA === DECISION_NO && decisionB === DECISION_YES)
+          ) {
+            nextStatus = STATUS_ARCHIVED_MISMATCH;
+            endedReason = 'archived_mismatch';
+          }
+
+          await tx.speed_dating_sessions.update({
+            where: { id: sessionId },
+            data: { status: nextStatus },
+          });
+
+          return {
+            sessionId,
+            userAId: session.user_a_id,
+            userBId: session.user_b_id,
+            endedReason,
+          };
+        });
+
+        if (result) {
+          results.push(result);
+        }
+      } catch (error) {
+        console.error(`[speed_dating] failed to expire session ${sessionId}:`, error);
+      }
+    }
+
+    return results;
   }
 
   private async expireUserSessions(userId: string): Promise<void> {

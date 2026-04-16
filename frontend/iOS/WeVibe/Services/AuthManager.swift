@@ -217,9 +217,10 @@ final class AuthManager {
                 rawNonce: storedNonce,
                 fullName: appleCredential.fullName
             )
+            let authCode = appleCredential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
             try await Auth.auth().signIn(with: firebaseCredential)
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
-            try await apiClient.loginUser(idToken: token, provider: "apple")
+            try await apiClient.loginUser(idToken: token, provider: "apple", appleAuthCode: authCode)
             await resolvePostAuthState()
         } catch APIError.banned {
             try? Auth.auth().signOut()
@@ -340,6 +341,32 @@ final class AuthManager {
         appState = .unauthenticated
     }
 
+    // MARK: - FCM Token
+
+    /// Sends the current FCM token to the backend. Fire-and-forget — never blocks auth flow.
+    private func syncFCMToken(idToken: String) {
+        guard let fcmToken = AppDelegate.fcmToken else { return }
+        Task {
+            try? await apiClient.updateFCMToken(token: idToken, fcmToken: fcmToken)
+        }
+    }
+
+    /// Call once after app launch to re-sync FCM token whenever it refreshes.
+    func observeFCMTokenRefresh() {
+        NotificationCenter.default.addObserver(
+            forName: .fcmTokenRefreshed,
+            object: nil,
+            queue: nil
+        ) { [weak self] notification in
+            guard let fcmToken = notification.userInfo?["token"] as? String else { return }
+            Task { @MainActor [weak self] in
+                guard let self, self.appState == .authenticated else { return }
+                guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                try? await self.apiClient.updateFCMToken(token: token, fcmToken: fcmToken)
+            }
+        }
+    }
+
     // MARK: - Network Retry
 
     /// Called by NetworkErrorView "Try Again" button — re-runs the post-auth check.
@@ -376,6 +403,7 @@ final class AuthManager {
             }
 
             appState = session.onboardingComplete ? .authenticated : .onboarding
+            syncFCMToken(idToken: token)
 
         } catch APIError.unauthorized {
             // Token rejected — session is invalid, force back to login.

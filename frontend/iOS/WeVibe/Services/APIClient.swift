@@ -40,18 +40,12 @@ struct SessionStatus {
     let onboardingComplete: Bool
     let isBanned: Bool
 }
-struct SessionResult {
-    let sessionId: String?
-    let sessionExpiresAt: String?
-    let status: String?
-}
-struct ListSessionsDetailResult {
-    let sessions: [SessionResult?]
-}
-
-struct ListSessionsResult {
-    let success: Bool
-    let data: ListSessionsDetailResult?
+struct SessionCounterpartSummary {
+    let userId: String
+    let firstName: String
+    let nickname: String?
+    let initials: String
+    let blurredPhotoUrl: String?
 }
 
 struct MatchListItem {
@@ -73,6 +67,26 @@ struct SessionCounterpart {
     let firstName: String
     let initials: String
     let blurredPhotoUrl: String?
+}
+ 
+struct SessionResult {
+    let sessionId: String?
+    let sessionExpiresAt: String?
+    let status: String?
+    let lastMessageContent: String?
+    let lastMessageAt: String?
+    let isLastMessageMine: Bool
+    let unreadCount: Int
+    let counterpart: SessionCounterpartSummary?
+}
+ 
+struct ListSessionsDetailResult {
+    let sessions: [SessionResult]
+}
+ 
+struct ListSessionsResult {
+    let success: Bool
+    let data: ListSessionsDetailResult?
 }
  
 struct SessionMoveToPermanent {
@@ -193,11 +207,17 @@ struct APIClient {
     }
 
     /// POST /auth/login — creates or finds the backend user record for SSO and email login.
-    func loginUser(idToken: String, provider: String) async throws {
+    /// Pass `appleAuthCode` for Apple Sign-In so the backend can exchange it for an Apple
+    /// refresh token and store it for later revocation on account deletion (App Store 5.1.1).
+    func loginUser(idToken: String, provider: String, appleAuthCode: String? = nil) async throws {
         var req = URLRequest(url: base.appendingPathComponent("/auth/login"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: String] = ["provider": provider, "idToken": idToken]
+        var body: [String: String] = ["provider": provider, "idToken": idToken]
+        if let code = appleAuthCode, !code.isEmpty {
+            body["appleAuthCode"] = code
+            body["appleBundleId"] = Bundle.main.bundleIdentifier ?? ""
+        }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (_, response) = try await perform(req)
         let status = response.statusCode
@@ -217,6 +237,17 @@ struct APIClient {
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 409 { return }
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// PATCH /users/fcm-token — stores the FCM push token on the backend for this user.
+    func updateFCMToken(token: String, fcmToken: String) async throws {
+        var req = request(path: "/users/fcm-token", method: "PATCH", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["fcmToken": fcmToken])
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
@@ -409,47 +440,65 @@ struct APIClient {
     /// GET /matching/sessions - get all the speed dating sessions
     /// Returns all the chat sessions that user are matching too
     func getAllSpeedDatingSessions(token: String) async throws -> ListSessionsResult {
-            let req = request(path: "/matching/sessions", method: "GET", token: token)
-            let (data, response) = try await perform(req)
-            let status = response.statusCode
-            if status == 401 { throw APIError.unauthorized }
-            if !(200..<300).contains(status) { throw APIError.serverError(status) }
-
-            struct Resp: Decodable {
-                struct DataBody: Decodable {
-                    struct Session: Decodable {
-                        let sessionId: String?
-                        let sessionExpiresAt: String?
-                        let status: String?
-
-                        enum CodingKeys: String, CodingKey {
-                            case sessionId       = "sessionId"
-                            case sessionExpiresAt = "sessionExpiresAt"
-                            case status
-                        }
-                    }
-                    let sessions: [Session]
-                }
-                let success: Bool
-                let data: DataBody?
-            }
-
-            let resp = try JSONDecoder().decode(Resp.self, from: data)
-
-            let sessions: [SessionResult] = (resp.data?.sessions ?? []).map {
-                SessionResult(
-                    sessionId:        $0.sessionId,
-                    sessionExpiresAt: $0.sessionExpiresAt,
-                    status:           $0.status
-                )
-            }
-
-            return ListSessionsResult(
-                success: resp.success,
-                data: ListSessionsDetailResult(sessions: sessions)
-            )
-        }
+           let req = request(path: "/matching/sessions", method: "GET", token: token)
+           let (data, response) = try await perform(req)
+           let status = response.statusCode
+           if status == 401 { throw APIError.unauthorized }
+           if !(200..<300).contains(status) { throw APIError.serverError(status) }
     
+           struct Resp: Decodable {
+               struct DataBody: Decodable {
+                   struct Session: Decodable {
+                       struct Counterpart: Decodable {
+                           let userId: String?
+                           let firstName: String?
+                           let nickname: String?
+                           let initials: String?
+                           let blurredPhotoUrl: String?
+                       }
+                       let sessionId: String?
+                       let sessionExpiresAt: String?
+                       let status: String?
+                       let lastMessageContent: String?
+                       let lastMessageAt: String?
+                       let isLastMessageMine: Bool?
+                       let unreadCount: Int?
+                       let counterpart: Counterpart?
+                   }
+                   let sessions: [Session]
+               }
+               let success: Bool
+               let data: DataBody?
+           }
+    
+           let resp = try JSONDecoder().decode(Resp.self, from: data)
+    
+           let sessions: [SessionResult] = (resp.data?.sessions ?? []).map { s in
+               SessionResult(
+                   sessionId:          s.sessionId,
+                   sessionExpiresAt:   s.sessionExpiresAt,
+                   status:             s.status,
+                   lastMessageContent: s.lastMessageContent,
+                   lastMessageAt:      s.lastMessageAt,
+                   isLastMessageMine:  s.isLastMessageMine ?? false,
+                   unreadCount:        s.unreadCount ?? 0,
+                   counterpart: s.counterpart.map {
+                       SessionCounterpartSummary(
+                           userId:          $0.userId ?? "",
+                           firstName:       $0.firstName ?? "",
+                           nickname:        $0.nickname,
+                           initials:        $0.initials ?? "??",
+                           blurredPhotoUrl: $0.blurredPhotoUrl
+                       )
+                   }
+               )
+           }
+    
+           return ListSessionsResult(
+               success: resp.success,
+               data: ListSessionsDetailResult(sessions: sessions)
+           )
+       }
     
     /// GET /matching/sessions/sessionId - get the speed dating sessions detail
     /// Returns speed dating session detail

@@ -40,24 +40,39 @@ struct SessionStatus {
     let onboardingComplete: Bool
     let isBanned: Bool
 }
-struct SessionResult {
-    let sessionId: String?
-    let sessionExpiresAt: String?
-    let status: String?
-}
-struct ListSessionsDetailResult {
-    let sessions: [SessionResult?]
+struct SessionCounterpartSummary {
+    let userId: String
+    let firstName: String
+    let nickname: String?
+    let initials: String
+    let blurredPhotoUrl: String?
 }
 
-struct ListSessionsResult {
-    let success: Bool
-    let data: ListSessionsDetailResult?
-}
 struct SessionCounterpart {
     let userId: String
     let firstName: String
     let initials: String
     let blurredPhotoUrl: String?
+}
+ 
+struct SessionResult {
+    let sessionId: String?
+    let sessionExpiresAt: String?
+    let status: String?
+    let lastMessageContent: String?
+    let lastMessageAt: String?
+    let isLastMessageMine: Bool
+    let unreadCount: Int
+    let counterpart: SessionCounterpartSummary?
+}
+ 
+struct ListSessionsDetailResult {
+    let sessions: [SessionResult]
+}
+ 
+struct ListSessionsResult {
+    let success: Bool
+    let data: ListSessionsDetailResult?
 }
  
 struct SessionMoveToPermanent {
@@ -394,47 +409,65 @@ struct APIClient {
     /// GET /matching/sessions - get all the speed dating sessions
     /// Returns all the chat sessions that user are matching too
     func getAllSpeedDatingSessions(token: String) async throws -> ListSessionsResult {
-            let req = request(path: "/matching/sessions", method: "GET", token: token)
-            let (data, response) = try await perform(req)
-            let status = response.statusCode
-            if status == 401 { throw APIError.unauthorized }
-            if !(200..<300).contains(status) { throw APIError.serverError(status) }
-
-            struct Resp: Decodable {
-                struct DataBody: Decodable {
-                    struct Session: Decodable {
-                        let sessionId: String?
-                        let sessionExpiresAt: String?
-                        let status: String?
-
-                        enum CodingKeys: String, CodingKey {
-                            case sessionId       = "sessionId"
-                            case sessionExpiresAt = "sessionExpiresAt"
-                            case status
-                        }
-                    }
-                    let sessions: [Session]
-                }
-                let success: Bool
-                let data: DataBody?
-            }
-
-            let resp = try JSONDecoder().decode(Resp.self, from: data)
-
-            let sessions: [SessionResult] = (resp.data?.sessions ?? []).map {
-                SessionResult(
-                    sessionId:        $0.sessionId,
-                    sessionExpiresAt: $0.sessionExpiresAt,
-                    status:           $0.status
-                )
-            }
-
-            return ListSessionsResult(
-                success: resp.success,
-                data: ListSessionsDetailResult(sessions: sessions)
-            )
-        }
+           let req = request(path: "/matching/sessions", method: "GET", token: token)
+           let (data, response) = try await perform(req)
+           let status = response.statusCode
+           if status == 401 { throw APIError.unauthorized }
+           if !(200..<300).contains(status) { throw APIError.serverError(status) }
     
+           struct Resp: Decodable {
+               struct DataBody: Decodable {
+                   struct Session: Decodable {
+                       struct Counterpart: Decodable {
+                           let userId: String?
+                           let firstName: String?
+                           let nickname: String?
+                           let initials: String?
+                           let blurredPhotoUrl: String?
+                       }
+                       let sessionId: String?
+                       let sessionExpiresAt: String?
+                       let status: String?
+                       let lastMessageContent: String?
+                       let lastMessageAt: String?
+                       let isLastMessageMine: Bool?
+                       let unreadCount: Int?
+                       let counterpart: Counterpart?
+                   }
+                   let sessions: [Session]
+               }
+               let success: Bool
+               let data: DataBody?
+           }
+    
+           let resp = try JSONDecoder().decode(Resp.self, from: data)
+    
+           let sessions: [SessionResult] = (resp.data?.sessions ?? []).map { s in
+               SessionResult(
+                   sessionId:          s.sessionId,
+                   sessionExpiresAt:   s.sessionExpiresAt,
+                   status:             s.status,
+                   lastMessageContent: s.lastMessageContent,
+                   lastMessageAt:      s.lastMessageAt,
+                   isLastMessageMine:  s.isLastMessageMine ?? false,
+                   unreadCount:        s.unreadCount ?? 0,
+                   counterpart: s.counterpart.map {
+                       SessionCounterpartSummary(
+                           userId:          $0.userId ?? "",
+                           firstName:       $0.firstName ?? "",
+                           nickname:        $0.nickname,
+                           initials:        $0.initials ?? "??",
+                           blurredPhotoUrl: $0.blurredPhotoUrl
+                       )
+                   }
+               )
+           }
+    
+           return ListSessionsResult(
+               success: resp.success,
+               data: ListSessionsDetailResult(sessions: sessions)
+           )
+       }
     
     /// GET /matching/sessions/sessionId - get the speed dating sessions detail
     /// Returns speed dating session detail

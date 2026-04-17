@@ -246,7 +246,7 @@ struct ChatListView: View {
                     avatarSystemIcon: nil,
                     lastMessage:      match.lastMessageContent ?? "",
                     isMine:           false,
-                    timeAgo:          timeAgoLabel(match.lastMessageAt),
+                    timeAgo:          timeListAgoLabel(match.lastMessageAt),
                     unreadCount:      match.unreadCount,
                     isTyping:         false
                 )
@@ -261,7 +261,7 @@ struct ChatListView: View {
 
     // MARK: - Helpers
 
-    private func timeAgoLabel(_ isoString: String?) -> String {
+    private func timeListAgoLabel(_ isoString: String?) -> String {
         guard let isoString,
               let date = ISO8601DateFormatter().date(from: isoString)
         else { return "" }

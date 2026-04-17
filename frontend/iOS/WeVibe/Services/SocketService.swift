@@ -4,7 +4,7 @@ import FirebaseAuth
 
 // MARK: - Event Models
 
-struct MatchFoundEvent: Sendable {
+struct MatchFoundEvent: Sendable, Equatable {
     let sessionId: String
 }
 
@@ -29,6 +29,7 @@ struct IncomingSpeedDatingMessage: Sendable, Equatable {
     }
 }
 
+
 struct IncomingSpeedDatingTyping: Sendable, Equatable {
     let sessionId: String
     let userId: String
@@ -44,12 +45,81 @@ struct IncomingSpeedDatingTyping: Sendable, Equatable {
     }
 }
 
+// Partner tapped heart — requesting early match
+struct IncomingMoveToPermanentRequested: Sendable, Equatable {
+    let sessionId: String
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String else { return nil }
+        self.sessionId = sessionId
+    }
+}
+
+// One user submitted final yes/no — notifies the other
+struct IncomingFinalDecisionUpdated: Sendable, Equatable {
+    let sessionId: String
+    let userId: String
+    let decision: String   // "yes" | "no"
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String,
+              let userId    = dict["userId"]    as? String,
+              let decision  = dict["decision"]  as? String else { return nil }
+        self.sessionId = sessionId
+        self.userId    = userId
+        self.decision  = decision
+    }
+}
+
+// Both said yes — session graduates to permanent chat
+struct IncomingMoveToPermanentUpdated: Sendable, Equatable {
+    let sessionId: String
+    let matchId: String
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String,
+              let matchId   = dict["matchId"]   as? String else { return nil }
+        self.sessionId = sessionId
+        self.matchId   = matchId
+    }
+}
+
+// Partner declined early match request — only sent to the requester
+struct IncomingMoveToPermanentResponded: Sendable, Equatable {
+    let sessionId: String
+    let respondedByUserId: String
+    let accepted: Bool
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId         = dict["sessionId"]         as? String,
+              let respondedByUserId = dict["respondedByUserId"] as? String,
+              let accepted          = dict["accepted"]          as? Bool else { return nil }
+        self.sessionId         = sessionId
+        self.respondedByUserId = respondedByUserId
+        self.accepted          = accepted
+    }
+}
+
+// Session ended with a reason
+struct SpeedDatingSessionEndedEvent: Sendable, Equatable {
+    let sessionId: String
+    let reason: String     // "graduated" | "archived_no_match" | "archived_mismatch" | "ended_early" | "expired"
+    let matchId: String?   // only present when reason == "graduated"
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String,
+              let reason    = dict["reason"]    as? String else { return nil }
+        self.sessionId = sessionId
+        self.reason    = reason
+        self.matchId   = dict["matchId"] as? String
+    }
+}
+
 struct IncomingPermanentMessage: Sendable, Equatable {
     let matchId: String
     let messageId: String
     let content: String
     let senderId: String
-    let createdAt: String
 
     init?(_ dict: [String: Any]) {
         guard let matchId   = dict["matchId"] as? String,
@@ -61,7 +131,6 @@ struct IncomingPermanentMessage: Sendable, Equatable {
         self.messageId = messageId
         self.content   = content
         self.senderId  = senderId
-        self.createdAt = msg["createdAt"] as? String ?? ""
     }
 }
 
@@ -94,14 +163,20 @@ final class SocketService {
     /// Latest permanent chat message — consumed by PermanentChatView.
     var lastPermanentMessage: IncomingPermanentMessage?
 
-    /// matchId of a permanent match that was removed by the counterpart.
-    var lastMatchRemovedId: String?
+    /// sessionId + reason of a speed dating session that just ended server-side.
+    var lastSpeedDatingSessionEnded: SpeedDatingSessionEndedEvent?
 
-    /// matchId of a permanent match where the counterpart blocked the current user.
-    var lastMatchBlockedId: String?
+    /// Partner requested early match (tapped their heart button).
+    var lastMoveToPermanentRequested: IncomingMoveToPermanentRequested?
 
-    /// sessionId of a speed dating session that just ended server-side.
-    var lastSpeedDatingSessionEnded: String?
+    /// Partner submitted their final decision (yes/no).
+    var lastFinalDecisionUpdated: IncomingFinalDecisionUpdated?
+
+    /// Both users said yes — graduated to permanent chat.
+    var lastMoveToPermanentUpdated: IncomingMoveToPermanentUpdated?
+
+    /// Partner declined our early match request.
+    var lastMoveToPermanentResponded: IncomingMoveToPermanentResponded?
 
     // MARK: - Private
 
@@ -167,7 +242,9 @@ final class SocketService {
 
         socket?.on(clientEvent: .reconnectAttempt) { [weak self] _, _ in
             Task { @MainActor [weak self] in
+                // Refresh token on every reconnect attempt per contract §2
                 guard let fresh = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                // Recreate manager with fresh token — v16 config is read-only after init
                 guard let self, let url = URL(string: AppConfig.wsBaseURL) else { return }
                 self.manager = SocketManager(socketURL: url, config: [
                     .log(false),
@@ -215,11 +292,48 @@ final class SocketService {
         }
 
         socket?.on("speed_dating.session.ended") { [weak self] data, _ in
-            guard let envelope  = data.first as? [String: Any],
-                  let payload   = envelope["data"] as? [String: Any],
-                  let sessionId = payload["sessionId"] as? String else { return }
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = SpeedDatingSessionEndedEvent(payload) else { return }
             Task { @MainActor [weak self] in
-                self?.lastSpeedDatingSessionEnded = sessionId
+                self?.lastSpeedDatingSessionEnded = event
+            }
+        }
+
+        socket?.on("speed_dating.session.move_to_permanent_requested") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingMoveToPermanentRequested(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastMoveToPermanentRequested = event
+            }
+        }
+
+        socket?.on("speed_dating.session.final_decision_updated") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingFinalDecisionUpdated(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastFinalDecisionUpdated = event
+            }
+        }
+
+        socket?.on("speed_dating.session.move_to_permanent_responded") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingMoveToPermanentResponded(payload) else { return }
+            Task { @MainActor [weak self] in
+                print("💔 [Socket] move_to_permanent_responded — accepted: \(event.accepted)")
+                self?.lastMoveToPermanentResponded = event
+            }
+        }
+
+        socket?.on("speed_dating.session.move_to_permanent_updated") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingMoveToPermanentUpdated(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastMoveToPermanentUpdated = event
             }
         }
 
@@ -231,24 +345,6 @@ final class SocketService {
                   let msg      = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
-            }
-        }
-
-        socket?.on("permanent.match.removed") { [weak self] data, _ in
-            guard let envelope = data.first as? [String: Any],
-                  let payload  = envelope["data"] as? [String: Any],
-                  let matchId  = payload["matchId"] as? String else { return }
-            Task { @MainActor [weak self] in
-                self?.lastMatchRemovedId = matchId
-            }
-        }
-
-        socket?.on("permanent.match.blocked") { [weak self] data, _ in
-            guard let envelope = data.first as? [String: Any],
-                  let payload  = envelope["data"] as? [String: Any],
-                  let matchId  = payload["matchId"] as? String else { return }
-            Task { @MainActor [weak self] in
-                self?.lastMatchBlockedId = matchId
             }
         }
     }

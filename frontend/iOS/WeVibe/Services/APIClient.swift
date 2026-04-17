@@ -655,6 +655,51 @@ struct APIClient {
          }
      }
     
+    /// POST /api/v1/matching/sessions/:sessionId/final-decision
+    /// Submit final decision when end the matching phase
+    func submitFinalDecision(token: String, sessionId: String, decision: String) async throws {
+            var req = request(path: "/matching/sessions/\(sessionId)/final-decision", method: "POST", token: token)
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: ["decision": decision])
+     
+            let (data, response) = try await perform(req)
+            let status = response.statusCode
+     
+            if status == 401 { throw APIError.unauthorized }
+            if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        }
+    
+    // MARK: - Request Early Match (heart button during active session)
+    // POST /matching/sessions/:sessionId/move-to-permanent/request
+ 
+    func requestMoveToPermanent(token: String, sessionId: String) async throws {
+        var req = request(path: "/matching/sessions/\(sessionId)/move-to-permanent/request",
+                          method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+ 
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+ 
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+ 
+    // MARK: - Respond to Early Match Request (partner responds yes/no)
+    // POST /matching/sessions/:sessionId/move-to-permanent/respond
+ 
+    func respondMoveToPermanent(token: String, sessionId: String, accept: Bool) async throws {
+        var req = request(path: "/matching/sessions/\(sessionId)/move-to-permanent/respond",
+                          method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["accept": accept])
+ 
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+ 
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+    
 
     // MARK: - Match Profile
 

@@ -55,7 +55,7 @@ private struct MessagesLeftBanner: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 13)).foregroundStyle(.red)
-            Text("Only \(count) message\(count == 1 ? "" : "s") left")
+            Text("Only \(count) message\(count == 1 ? "" : "s") left — make them count!")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(.red)
         }
         .padding(.horizontal, 16).padding(.vertical, 10).frame(maxWidth: .infinity)
@@ -63,6 +63,44 @@ private struct MessagesLeftBanner: View {
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(0.25), lineWidth: 1)))
         .padding(.horizontal, 16)
         .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
+// MARK: - Messages Remaining Pill
+
+private struct MessagesRemainingPill: View {
+    let messagesLeft: Int
+    let messageLimit: Int
+
+    private var fraction: CGFloat {
+        guard messageLimit > 0 else { return 1 }
+        return CGFloat(messagesLeft) / CGFloat(messageLimit)
+    }
+    private var pillColor: Color {
+        if messagesLeft <= 3 { return .red }
+        if messagesLeft <= 5 { return Color(hex: "#FF6B35") }
+        return Color(hex: "#1A8C4E")
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9")).frame(height: 4)
+                    RoundedRectangle(cornerRadius: 3).fill(pillColor)
+                        .frame(width: geo.size.width * fraction, height: 4)
+                        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
+                }
+            }
+            .frame(width: 48, height: 4)
+            Text("\(messagesLeft) / \(messageLimit) messages")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(pillColor)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 6)
+        .background(Capsule().fill(pillColor.opacity(0.08))
+            .overlay(Capsule().strokeBorder(pillColor.opacity(0.2), lineWidth: 1)))
+        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
     }
 }
 
@@ -84,28 +122,65 @@ struct ActiveChatView: View {
 
     // Session state
     @State private var sessionDetail: SessionDetail? = nil
-    @State private var secondsRemaining: Int     = 0    
+    @State private var secondsRemaining: Int     = 0
     @State private var messagesLeft: Int         = 20
     @State private var counterpartLabel: String  = "Anonymous"
     @State private var counterpartUserId: String = ""
-    @State private var expiresAt: String         = ""  
+    @State private var expiresAt: String         = ""
 
     // Chat state
     @State private var messages: [ChatMessage]   = []
     @State private var isSending: Bool           = false
 
+    // Session end state
+    // isSessionEnded = chat is disabled (timer expired OR server ended)
+    // hasSubmittedDecision = user already tapped yes/no, now waiting for partner
+    @State private var isSessionEnded: Bool      = false
+    @State private var hasSubmittedDecision: Bool = false
+    @State private var myDecision: String        = ""   // "yes" or "no"
+
+    // Early match request from partner (heart button on their side)
+    @State private var showPartnerRequestPopup: Bool = false
+
+    // Confirmation before sending early match request
+    @State private var showEarlyMatchConfirm: Bool = false
+
+    // Both said yes — matched!
+    @State private var matchedPermanentMatchId: String? = nil
+    @State private var showMatchedCelebration: Bool     = false
+
     // UI state
     @State private var timerTask: Task<Void, Never>? = nil
     @State private var showMatchPopup: Bool   = false
-    @State private var isSessionEnded: Bool   = false
     @State private var showLeaveConfirm: Bool = false
 
     private let apiClient = APIClient()
 
     private var showLowMessagesBanner: Bool { messagesLeft > 0 && messagesLeft <= 5 }
-    private var isChatDisabled: Bool { isSessionEnded || messagesLeft == 0 }
+    // Text input disabled when messages gone OR session ended
+    private var isTextDisabled: Bool { isSessionEnded || messagesLeft == 0 }
+    // Full chat disabled (including heart) only when session truly ended server-side
+    private var isChatDisabled: Bool { isSessionEnded }
 
     var body: some View {
+        mainContent
+            .socketListeners(
+                matchId:          matchId,
+                messages:         $messages,
+                secondsRemaining: $secondsRemaining,
+                showMatchPopup:   $showMatchPopup,
+                showPartnerRequestPopup: $showPartnerRequestPopup,
+                showMatchedCelebration:  $showMatchedCelebration,
+                matchedPermanentMatchId: $matchedPermanentMatchId,
+                hasSubmittedDecision:    $hasSubmittedDecision,
+                socketService:    socketService,
+                triggerSessionEnd: triggerSessionEnd,
+                triggerServerSessionEnd: triggerServerSessionEnd,
+                formatTime:       formatTime
+            )
+    }
+
+    private var mainContent: some View {
         ZStack(alignment: .bottom) {
             LinearGradient(
                 colors: [Color(hex: "#E8F5E9"), Color(hex: "#F0FAF0"), Color(hex: "#FFFFFF")],
@@ -116,7 +191,7 @@ struct ActiveChatView: View {
                 headerBar
                 Divider().background(Color(hex: "#C8E6C9"))
 
-                // ── Sticky session info — always visible above messages
+                // ── Sticky session info
                 VStack(spacing: 6) {
                     CountdownTimerView(secondsRemaining: secondsRemaining)
                     MessagesRemainingPill(
@@ -155,53 +230,19 @@ struct ActiveChatView: View {
                 inputBar
             }
         }
-        .overlay {
-            if isSessionEnded {
-                Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if showMatchPopup {
-                MatchDecisionSheet(
-                    onMatch:   { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false }; onClose() },
-                    onSkip:    { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false }; onClose() },
-                    onDismiss: { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false; isSessionEnded = false } }
-                )
-                .transition(.move(edge: .bottom)).ignoresSafeArea(edges: .bottom)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if showLeaveConfirm {
-                LeaveSessionSheet(
-                    onLeave: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
-                        matchmakingService.cancelSearch()
-                        onLeaveSession()
-                    },
-                    onStay: { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false } }
-                )
-                .transition(.move(edge: .bottom)).ignoresSafeArea(edges: .bottom)
-            }
-        }
-        .overlay {
-            if showLeaveConfirm {
-                Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
-                    .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false } }
-            }
-        }
-        .overlay {
-            if showMatchPopup {
-                Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
-                    .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showMatchPopup = false; isSessionEnded = false } }
-            }
-        }
+        .overlay { sessionEndedDim }
+        .overlay { matchPopupDim }
+        .overlay(alignment: .bottom) { matchPopupSheet }
+        .overlay { leaveConfirmDim }
+        .overlay(alignment: .bottom) { leaveConfirmSheet }
+        .overlay { earlyMatchDim }
+        .overlay(alignment: .bottom) { earlyMatchSheet }
+        .overlay { partnerRequestDim }
+        .overlay(alignment: .bottom) { partnerRequestSheet }
+        .overlay { matchedCelebration }
         .navigationBarHidden(true)
         .onDisappear { timerTask?.cancel() }
-
-        // ── Load on appear
         .task { await loadSession() }
-
-        // ── Recalculate timer from expiresAt when app comes back to foreground
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !expiresAt.isEmpty else { return }
             let f = ISO8601DateFormatter()
@@ -211,33 +252,168 @@ struct ActiveChatView: View {
                 secondsRemaining = remaining
                 if remaining == 0 { triggerSessionEnd() }
             }
-        }
-
-        // ── REALTIME: incoming message from other user via socket
-        .onChange(of: socketService.lastSpeedDatingMessage) { event in
-            guard let event, event.sessionId == matchId else { return }
-            guard !messages.contains(where: { $0.id == event.messageId }) else {
-                socketService.lastSpeedDatingMessage = nil
-                return
+            if hasSubmittedDecision && !showMatchPopup {
+                showMatchPopup = true
             }
-            let incoming = ChatMessage(
-                id:           event.messageId,
-                text:         event.content,
-                isMine:       false,
-                time:         formatTime(event.createdAt),   // ← use actual createdAt
-                messagesLeft: nil
+        }
+    }
+
+    // MARK: - Overlay Views
+
+    @ViewBuilder private var sessionEndedDim: some View {
+        if isSessionEnded {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+        }
+    }
+
+    @ViewBuilder private var matchPopupDim: some View {
+        if showMatchPopup && !hasSubmittedDecision && !isChatDisabled {
+            Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showMatchPopup = false
+                        isSessionEnded = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var matchPopupSheet: some View {
+        if showMatchPopup {
+            if hasSubmittedDecision {
+                WaitingForPartnerSheet(myDecision: myDecision, onBackToList: { onClose() })
+                    .transition(.move(edge: .bottom))
+                    .ignoresSafeArea(edges: .bottom)
+            } else {
+                MatchDecisionSheet(
+                    onMatch: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            hasSubmittedDecision = true; myDecision = "yes"
+                        }
+                        submitDecision("yes")
+                    },
+                    onSkip: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            hasSubmittedDecision = true; myDecision = "no"
+                        }
+                        submitDecision("no")
+                    },
+                    onDismiss: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showMatchPopup = false
+                        }
+                    },
+                    canDismiss: true
+                )
+                .transition(.move(edge: .bottom))
+                .ignoresSafeArea(edges: .bottom)
+            }
+        }
+    }
+
+    @ViewBuilder private var leaveConfirmDim: some View {
+        if showLeaveConfirm {
+            Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showLeaveConfirm = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var leaveConfirmSheet: some View {
+        if showLeaveConfirm {
+            LeaveSessionSheet(
+                onLeave: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                    matchmakingService.cancelSearch()
+                    onLeaveSession()
+                },
+                onStay: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                }
             )
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                messages.append(incoming)
-            }
-            socketService.lastSpeedDatingMessage = nil
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
         }
+    }
 
-        // ── Server-side session ended
-        .onChange(of: socketService.lastSpeedDatingSessionEnded) { sessionId in
-            guard let sessionId, sessionId == matchId else { return }
-            triggerSessionEnd()
-            socketService.lastSpeedDatingSessionEnded = nil
+    @ViewBuilder private var earlyMatchDim: some View {
+        if showEarlyMatchConfirm {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var earlyMatchSheet: some View {
+        if showEarlyMatchConfirm {
+            EarlyMatchConfirmSheet(
+                onConfirm: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                    requestEarlyMatch()
+                },
+                onCancel: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                }
+            )
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    @ViewBuilder private var partnerRequestDim: some View {
+        if showPartnerRequestPopup {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var partnerRequestSheet: some View {
+        if showPartnerRequestPopup {
+            PartnerRequestSheet(
+                onAccept: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: true)
+                },
+                onDeclineAndContinue: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: false)
+                },
+                onDeclineAndEnd: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: false)
+                    triggerServerSessionEnd()
+                }
+            )
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    @ViewBuilder private var matchedCelebration: some View {
+        if showMatchedCelebration {
+            MatchedCelebrationOverlay(onContinue: { onClose() })
+                .transition(.opacity)
+                .ignoresSafeArea()
         }
     }
 
@@ -262,11 +438,18 @@ struct ActiveChatView: View {
         .padding(.horizontal, 16).padding(.vertical, 12).background(Color(hex: "#F0FAF0"))
     }
 
-    // MARK: - Input Bar
-
     private var inputBar: some View {
         HStack(spacing: 10) {
-            Button { triggerSessionEnd() } label: {
+            // ❤️ Heart — shows confirmation first, then sends request
+            Button {
+                if isSessionEnded {
+                    triggerSessionEnd()
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showEarlyMatchConfirm = true
+                    }
+                }
+            } label: {
                 Image(systemName: "heart.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .background(Circle().fill(LinearGradient(
@@ -276,15 +459,16 @@ struct ActiveChatView: View {
             }
             .disabled(isChatDisabled).opacity(isChatDisabled ? 0.4 : 1)
 
+            // Text field — disabled when out of messages OR session ended
             TextField(messagesLeft > 0 ? "Your message" : "No messages left",
                       text: $messageText, axis: .vertical)
                 .font(.system(size: 15)).foregroundStyle(Color(hex: "#1A3A1A"))
-                .lineLimit(1...4).focused($inputFocused).disabled(isChatDisabled)
+                .lineLimit(1...4).focused($inputFocused).disabled(isTextDisabled)
                 .padding(.horizontal, 16).padding(.vertical, 12)
                 .background(RoundedRectangle(cornerRadius: 24).fill(.white)
                     .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2))
 
-            if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isChatDisabled {
+            if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isTextDisabled {
                 Button { sendMessage() } label: {
                     if isSending {
                         ProgressView().tint(.white).frame(width: 40, height: 40)
@@ -307,7 +491,6 @@ struct ActiveChatView: View {
         guard let user  = Auth.auth().currentUser,
               let token = try? await user.getIDToken() else { return }
 
-        // Session detail
         do {
             let result = try await apiClient.getSpeedDatingSession(token: token, sessionId: matchId)
             if let s = result.session {
@@ -322,12 +505,51 @@ struct ActiveChatView: View {
                 if let expiry = formatter.date(from: s.expiresAt) {
                     secondsRemaining = max(0, Int(expiry.timeIntervalSinceNow))
                 } else {
-                    secondsRemaining = s.remainingSeconds   // fallback
+                    secondsRemaining = s.remainingSeconds
                 }
+
+                let mtp      = s.moveToPermanent
+                let decision = mtp.myDecision
+
+                // ── Restore UI state based on server-side moveToPermanent fields
+
+                if s.status != "active" && s.status != "awaiting_decision" {
+                    // Terminal state (graduated/archived/expired/ended_early) — lock everything
+                    isSessionEnded = true
+                    showMatchPopup = true
+
+                } else if s.status == "awaiting_decision" {
+                    // Both hit 20 messages — final decision phase
+                    if decision == "yes" || decision == "no" {
+                        // Already submitted — show waiting screen
+                        hasSubmittedDecision = true
+                        myDecision           = decision
+                        isSessionEnded       = true
+                        showMatchPopup       = true
+                    } else {
+                        // Haven't decided yet — show decision sheet
+                        isSessionEnded = true
+                        showMatchPopup = true
+                    }
+
+                } else if secondsRemaining == 0 {
+                    // Timer expired locally
+                    isSessionEnded = true
+                    showMatchPopup = true
+
+                } else if mtp.canRespond {
+                    // Partner sent a request and we haven't responded yet — show respond popup
+                    showPartnerRequestPopup = true
+
+                } else if mtp.requestStatus == "pending" && mtp.myDecision == "yes" {
+                    // We sent a request, waiting for partner — could show a subtle indicator
+                    // (no blocking popup — user can still chat)
+                    print("ℹ️ [Chat] We already sent a match request, waiting for partner response")
+                }
+                // Note: messagesLeft == 0 alone doesn't lock — heart button stays for early match
             }
         } catch { print("❌ [Chat] loadSession: \(error)") }
 
-        // Message history
         do {
             let history = try await apiClient.getSpeedDatingMessages(token: token, sessionId: matchId)
             messages = history.map { item in
@@ -341,10 +563,13 @@ struct ActiveChatView: View {
             }
         } catch { print("❌ [Chat] loadHistory: \(error)") }
 
-        startCountdown()
+        // Only start countdown if session is still going
+        if !isSessionEnded {
+            startCountdown()
+        }
     }
 
-    // MARK: - Send (REST → optimistic UI)
+    // MARK: - Send
 
     private func sendMessage() {
         let trimmed = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -362,21 +587,60 @@ struct ActiveChatView: View {
             do {
                 let result = try await apiClient.sendSpeedDatingMessage(
                     token: token, sessionId: matchId, content: trimmed)
-                // Replace optimistic with confirmed message
                 if let idx = messages.firstIndex(where: { $0.id == optimistic.id }) {
                     messages[idx] = ChatMessage(
                         id: result.messageId, text: result.content,
                         isMine: true, time: formatTime(result.createdAt), messagesLeft: messagesLeft)
                 }
             } catch {
-                // Rollback
                 messages.removeAll { $0.id == optimistic.id }
                 messagesLeft += 1
                 messageText   = trimmed
             }
             isSending = false
-            if messagesLeft == 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { triggerSessionEnd() }
+            // Text input auto-disables via isTextDisabled when messagesLeft == 0
+            // Heart button stays active for early match request
+        }
+    }
+
+    // MARK: - Request Early Match (heart button during active session)
+
+    private func requestEarlyMatch() {
+        Task {
+            guard let user  = Auth.auth().currentUser,
+                  let token = try? await user.getIDToken() else { return }
+            do {
+                try await apiClient.requestMoveToPermanent(token: token, sessionId: matchId)
+            } catch {
+                print("❌ [EarlyMatch] Request failed: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Respond to Partner Early Match Request
+
+    private func respondToPartnerRequest(accept: Bool) {
+        Task {
+            guard let user  = Auth.auth().currentUser,
+                  let token = try? await user.getIDToken() else { return }
+            do {
+                try await apiClient.respondMoveToPermanent(token: token, sessionId: matchId, accept: accept)
+            } catch {
+                print("❌ [EarlyMatch] Respond failed: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Submit Final Decision
+
+    private func submitDecision(_ decision: String) {
+        Task {
+            guard let user  = Auth.auth().currentUser,
+                  let token = try? await user.getIDToken() else { return }
+            do {
+                try await apiClient.submitFinalDecision(token: token, sessionId: matchId, decision: decision)
+            } catch {
+                print("❌ [Decision] Failed: \(error)")
             }
         }
     }
@@ -391,14 +655,27 @@ struct ActiveChatView: View {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     secondsRemaining -= 1
-                    if secondsRemaining == 0 { triggerSessionEnd() }
+                    if secondsRemaining == 0 { triggerServerSessionEnd() }
                 }
             }
         }
     }
 
     private func triggerSessionEnd() {
+        guard !showMatchPopup else { return }   // already showing popup
+        // Only fully lock the chat when server says session is over
+        // When just out of messages, keep session visually open but show popup
+        if isSessionEnded {
+            showMatchPopup = true
+            return
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
+    }
+
+    private func triggerServerSessionEnd() {
+        // Called when timer = 0 or server emits session.ended — fully locks everything
         guard !isSessionEnded else { return }
+        timerTask?.cancel()
         withAnimation(.easeInOut(duration: 0.4)) { isSessionEnded = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
@@ -407,7 +684,12 @@ struct ActiveChatView: View {
 
     private func formatTime(_ iso: String?) -> String {
         let f = DateFormatter(); f.dateFormat = "h:mm a"
-        if let iso, let date = ISO8601DateFormatter().date(from: iso) { return f.string(from: date) }
+        if let iso, !iso.isEmpty {
+            let f2 = ISO8601DateFormatter()
+            f2.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = f2.date(from: iso) { return f.string(from: date) }
+            if let date = ISO8601DateFormatter().date(from: iso) { return f.string(from: date) }
+        }
         return f.string(from: Date())
     }
 }
@@ -441,38 +723,56 @@ private struct MessageBubble: View {
 // MARK: - Match Decision Sheet
 
 private struct MatchDecisionSheet: View {
-    var onMatch: () -> Void; var onSkip: () -> Void; var onDismiss: () -> Void
+    var onMatch: () -> Void
+    var onSkip: () -> Void
+    var onDismiss: () -> Void
+    var canDismiss: Bool    // false when messages ran out — must decide
+
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
                 RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9")).frame(width: 36, height: 4)
-                HStack { Spacer()
-                    Button { onDismiss() } label: {
-                        Image(systemName: "xmark").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(hex: "#9E9E9E"))
-                            .frame(width: 28, height: 28).background(Circle().fill(Color(hex: "#F0F0F0")))
-                    }.padding(.trailing, 20)
+                if canDismiss {
+                    HStack {
+                        Spacer()
+                        Button { onDismiss() } label: {
+                            Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color(hex: "#9E9E9E"))
+                                .frame(width: 28, height: 28).background(Circle().fill(Color(hex: "#F0F0F0")))
+                        }.padding(.trailing, 20)
+                    }
                 }
             }.padding(.top, 12).padding(.bottom, 20)
+
             LogoWithoutText(size: 44).padding(.bottom, 14)
-            Text("Session's over! 🎉").font(.system(size: 20, weight: .black)).foregroundStyle(Color(hex: "#1A3A1A")).padding(.bottom, 6)
+            Text("Session's over! 🎉").font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A")).padding(.bottom, 6)
             Text("Did you vibe with this person?\nLet them know before they disappear.")
                 .font(.system(size: 14)).foregroundStyle(Color(hex: "#5A8A5A"))
                 .multilineTextAlignment(.center).lineSpacing(4).padding(.horizontal, 32).padding(.bottom, 28)
+
             HStack(spacing: 16) {
                 Button(action: onSkip) {
                     VStack(spacing: 6) {
                         ZStack {
-                            Circle().fill(Color(hex: "#F5F5F5")).overlay(Circle().strokeBorder(Color(hex: "#E0E0E0"), lineWidth: 1.5)).frame(width: 64, height: 64)
-                            Image(systemName: "xmark").font(.system(size: 22, weight: .bold)).foregroundStyle(Color(hex: "#9E9E9E"))
+                            Circle().fill(Color(hex: "#F5F5F5"))
+                                .overlay(Circle().strokeBorder(Color(hex: "#E0E0E0"), lineWidth: 1.5))
+                                .frame(width: 64, height: 64)
+                            Image(systemName: "xmark").font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(Color(hex: "#9E9E9E"))
                         }
                         Text("nah").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color(hex: "#9E9E9E"))
                     }
                 }.buttonStyle(ScaleButtonStyle())
+
                 Button(action: onMatch) {
                     VStack(spacing: 6) {
                         ZStack {
-                            Circle().fill(LinearGradient(colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .overlay(Circle().strokeBorder(Color(hex: "#1A8C4E").opacity(0.3), lineWidth: 1.5)).frame(width: 64, height: 64)
+                            Circle().fill(LinearGradient(
+                                colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .overlay(Circle().strokeBorder(Color(hex: "#1A8C4E").opacity(0.3), lineWidth: 1.5))
+                                .frame(width: 64, height: 64)
                                 .shadow(color: Color(hex: "#1A8C4E").opacity(0.4), radius: 12, x: 0, y: 4)
                             Image(systemName: "checkmark").font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
                         }
@@ -482,9 +782,109 @@ private struct MatchDecisionSheet: View {
             }.padding(.bottom, 48)
         }
         .frame(maxWidth: .infinity)
-        .background(Color.white.ignoresSafeArea(edges: .bottom).shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
     }
 }
+
+// MARK: - Waiting For Partner Sheet
+
+private struct WaitingForPartnerSheet: View {
+    let myDecision: String
+    var onBackToList: () -> Void
+    @State private var dotScale: [CGFloat] = [1, 1, 1]
+
+    private var decidedYes: Bool { myDecision == "yes" }
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 24)
+
+            ZStack {
+                Circle()
+                    .fill(decidedYes
+                          ? LinearGradient(colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                          : LinearGradient(colors: [Color(hex: "#E0E0E0"), Color(hex: "#BDBDBD")], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 72, height: 72)
+                    .shadow(color: decidedYes ? Color(hex: "#1A8C4E").opacity(0.3) : .clear, radius: 12, x: 0, y: 4)
+                Image(systemName: decidedYes ? "heart.fill" : "xmark")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .padding(.bottom, 20)
+
+            Text(decidedYes ? "You said yes! 💚" : "You passed on this one")
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A"))
+                .padding(.bottom, 8)
+
+            Text("Waiting for their decision...")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#5A8A5A"))
+                .padding(.bottom, 24)
+
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(Color(hex: "#1A8C4E"))
+                        .frame(width: 10, height: 10)
+                        .scaleEffect(dotScale[i])
+                        .animation(
+                            .easeInOut(duration: 0.5)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(i) * 0.2),
+                            value: dotScale[i]
+                        )
+                }
+            }
+            .padding(.bottom, 24)
+
+            Text(decidedYes
+                 ? "If they say yes too, you'll be connected in a permanent chat 🎉"
+                 : "The session has ended. Thanks for chatting!")
+                .font(.system(size: 13))
+                .foregroundStyle(Color(hex: "#9E9E9E"))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 24)
+
+            // Back to list button
+            Button(action: onBackToList) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Back to chats")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(Color(hex: "#1A8C4E"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(hex: "#1A8C4E").opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color(hex: "#1A8C4E").opacity(0.2), lineWidth: 1))
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+        .onAppear {
+            for i in 0..<3 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.15) {
+                    dotScale[i] = 1.6
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Scale Button Style
 
 private struct ScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -499,9 +899,12 @@ private struct LeaveSessionSheet: View {
     var onLeave: () -> Void; var onStay: () -> Void
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9")).frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 20)
-            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 36)).foregroundStyle(Color.orange).padding(.bottom, 12)
-            Text("Leave this session?").font(.system(size: 20, weight: .black)).foregroundStyle(Color(hex: "#1A3A1A")).padding(.bottom, 6)
+            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 20)
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 36)).foregroundStyle(Color.orange).padding(.bottom, 12)
+            Text("Leave this session?").font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A")).padding(.bottom, 6)
             Text("If you leave now, this chat will end\nand you won't be able to come back.")
                 .font(.system(size: 14)).foregroundStyle(Color(hex: "#5A8A5A"))
                 .multilineTextAlignment(.center).lineSpacing(4).padding(.horizontal, 32).padding(.bottom, 28)
@@ -509,63 +912,398 @@ private struct LeaveSessionSheet: View {
                 Button(action: onStay) {
                     Text("Stay in chat").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).frame(height: 52)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(LinearGradient(colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .background(RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
                             .shadow(color: Color(hex: "#1A8C4E").opacity(0.35), radius: 10, x: 0, y: 4))
                 }.buttonStyle(ScaleButtonStyle())
                 Button(action: onLeave) {
-                    Text("Yes, leave").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.red.opacity(0.8))
+                    Text("Yes, leave").font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.red.opacity(0.8))
                         .frame(maxWidth: .infinity).frame(height: 48)
                         .background(RoundedRectangle(cornerRadius: 14).fill(Color.red.opacity(0.06))
-                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.red.opacity(0.2), lineWidth: 1)))
+                            .overlay(RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)))
                 }.buttonStyle(ScaleButtonStyle())
             }.padding(.horizontal, 24).padding(.bottom, 48)
         }
         .frame(maxWidth: .infinity)
-        .background(Color.white.ignoresSafeArea(edges: .bottom).shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
     }
 }
 
-private struct MessagesRemainingPill: View {
-    let messagesLeft: Int
-    let messageLimit: Int
+// MARK: - Partner Request Sheet
 
-    private var fraction: CGFloat {
-        guard messageLimit > 0 else { return 1 }
-        return CGFloat(messagesLeft) / CGFloat(messageLimit)
-    }
-    private var pillColor: Color {
-        if messagesLeft <= 3 { return .red }
-        if messagesLeft <= 5 { return Color(hex: "#FF6B35") }
-        return Color(hex: "#1A8C4E")
-    }
+private struct PartnerRequestSheet: View {
+    var onAccept: () -> Void
+    var onDeclineAndContinue: () -> Void
+    var onDeclineAndEnd: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Mini progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(hex: "#C8E6C9"))
-                        .frame(height: 4)
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(pillColor)
-                        .frame(width: geo.size.width * fraction, height: 4)
-                        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
+        VStack(spacing: 0) {
+
+            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 20)
+
+            Text("💚").font(.system(size: 44)).padding(.bottom, 12)
+
+            Text("They want to match!")
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A")).padding(.bottom, 6)
+
+            Text("Your chat partner sent a match request.\nDo you want to match with them?")
+                .font(.system(size: 14)).foregroundStyle(Color(hex: "#5A8A5A"))
+                .multilineTextAlignment(.center).lineSpacing(4)
+                .padding(.horizontal, 32).padding(.bottom, 28)
+
+            VStack(spacing: 10) {
+
+                // Yes — accept
+                Button(action: onAccept) {
+                    Text("Yes, match! 💚")
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).frame(height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(LinearGradient(
+                                    colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .shadow(color: Color(hex: "#1A8C4E").opacity(0.35), radius: 10, x: 0, y: 4))
+                }.buttonStyle(ScaleButtonStyle())
+
+                // Not yet — decline but keep chatting
+                Button(action: onDeclineAndContinue) {
+                    Text("Not yet — keep chatting")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(hex: "#1A8C4E"))
+                        .frame(maxWidth: .infinity).frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color(hex: "#1A8C4E").opacity(0.06))
+                                .overlay(RoundedRectangle(cornerRadius: 14)
+                                    .strokeBorder(Color(hex: "#1A8C4E").opacity(0.2), lineWidth: 1)))
+                }.buttonStyle(ScaleButtonStyle())
+
+                // No — decline and end session
+                Button(action: onDeclineAndEnd) {
+                    Text("No thanks, end session")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.red.opacity(0.7))
+                }
+                .padding(.top, 4)
+            }
+            .padding(.horizontal, 24).padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+    }
+}
+
+// MARK: - Matched Celebration Overlay
+
+private struct MatchedCelebrationOverlay: View {
+    var onContinue: () -> Void
+    @State private var scale: CGFloat  = 0.5
+    @State private var opacity: Double = 0
+    @State private var heartScale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.75).ignoresSafeArea()
+
+            VStack(spacing: 20) {
+
+                // Pulsing heart
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 72))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .scaleEffect(heartScale)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            heartScale = 1.15
+                        }
+                    }
+                    .padding(.bottom, 4)
+
+                Text("It's a Match! 🎉")
+                    .font(.system(size: 32, weight: .black))
+                    .foregroundStyle(.white)
+
+                Text("You both said yes!\nYou're now connected in\na permanent chat.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 40)
+
+                Button(action: onContinue) {
+                    Text("Go to chat 💬")
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).frame(height: 54)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(LinearGradient(
+                                    colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .shadow(color: Color(hex: "#1A8C4E").opacity(0.5), radius: 12, x: 0, y: 4))
+                }
+                .padding(.horizontal, 40)
+                .padding(.top, 10)
+            }
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    scale   = 1
+                    opacity = 1
                 }
             }
-            .frame(width: 48, height: 4)
-
-            Text("\(messagesLeft) / \(messageLimit) messages")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(pillColor)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(pillColor.opacity(0.08))
-                .overlay(Capsule().strokeBorder(pillColor.opacity(0.2), lineWidth: 1))
-        )
-        .animation(.easeInOut(duration: 0.3), value: messagesLeft)
+    }
+}
+
+// MARK: - Early Match Confirm Sheet
+
+private struct EarlyMatchConfirmSheet: View {
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // Handle
+            RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#C8E6C9"))
+                .frame(width: 36, height: 4).padding(.top, 12).padding(.bottom, 20)
+
+            // Icon
+            Text("💚")
+                .font(.system(size: 52))
+                .padding(.bottom, 12)
+
+            // Title
+            Text("Match early?")
+                .font(.system(size: 22, weight: .black))
+                .foregroundStyle(Color(hex: "#1A3A1A"))
+                .padding(.bottom, 6)
+
+            // Subtitle
+            Text("You like them that much already? 😄\nSend them a match request and see if they feel the same!")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#5A8A5A"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 28)
+
+            VStack(spacing: 10) {
+
+                // Confirm
+                Button(action: onConfirm) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 14))
+                        Text("Yes, send match request!")
+                            .font(.system(size: 16, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .shadow(color: Color(hex: "#1A8C4E").opacity(0.35), radius: 10, x: 0, y: 4)
+                    )
+                }
+                .buttonStyle(ScaleButtonStyle())
+
+                // Cancel
+                Button(action: onCancel) {
+                    Text("Not yet, keep chatting")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color(hex: "#5A8A5A"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.white.ignoresSafeArea(edges: .bottom)
+            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+    }
+}
+
+// MARK: - Socket Listeners (split into small modifiers to avoid type-check timeout)
+
+private struct MessageSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var messages: [ChatMessage]
+    let socketService: SocketService
+    let formatTime: (String?) -> String
+ 
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastSpeedDatingMessage) {
+            guard let event = socketService.lastSpeedDatingMessage,
+                  event.sessionId == matchId else { return }
+
+            guard !messages.contains(where: { $0.id == event.messageId }) else {
+                socketService.lastSpeedDatingMessage = nil
+                return
+            }
+
+            let msg = ChatMessage(
+                id: event.messageId,
+                text: event.content,
+                isMine: false,
+                time: formatTime(event.createdAt),
+                messagesLeft: nil
+            )
+
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                messages.append(msg)
+            }
+            socketService.lastSpeedDatingMessage = nil
+        }
+    }
+}
+ 
+
+private struct SessionEndedSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var showMatchedCelebration: Bool
+    @Binding var matchedPermanentMatchId: String?
+    let socketService: SocketService
+    let triggerServerSessionEnd: () -> Void
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastSpeedDatingSessionEnded) { event in
+            guard let event, event.sessionId == matchId else { return }
+            if event.reason == "graduated", let mId = event.matchId, matchedPermanentMatchId == nil {
+                matchedPermanentMatchId = mId
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                    showMatchPopup = false
+                    showMatchedCelebration = true
+                }
+            } else {
+                triggerServerSessionEnd()
+            }
+            socketService.lastSpeedDatingSessionEnded = nil
+        }
+    }
+}
+
+private struct PartnerRequestSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showPartnerRequestPopup: Bool
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentRequested) { event in
+            guard let event, event.sessionId == matchId else { return }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showPartnerRequestPopup = true }
+            socketService.lastMoveToPermanentRequested = nil
+        }
+    }
+}
+
+private struct PartnerRespondedSocketModifier: ViewModifier {
+    let matchId: String
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentResponded) { event in
+            guard let event, event.sessionId == matchId else { return }
+            socketService.lastMoveToPermanentResponded = nil
+        }
+    }
+}
+
+private struct FinalDecisionSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var hasSubmittedDecision: Bool
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastFinalDecisionUpdated) { event in
+            guard let event, event.sessionId == matchId else { return }
+            socketService.lastFinalDecisionUpdated = nil
+            if !hasSubmittedDecision && !showMatchPopup {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
+            }
+        }
+    }
+}
+
+private struct MoveToPermanentSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var showMatchedCelebration: Bool
+    @Binding var matchedPermanentMatchId: String?
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentUpdated) { event in
+            guard let event, event.sessionId == matchId else { return }
+            matchedPermanentMatchId = event.matchId
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                showMatchPopup = false
+                showMatchedCelebration = true
+            }
+            socketService.lastMoveToPermanentUpdated = nil
+        }
+    }
+}
+
+private extension View {
+    func socketListeners(
+        matchId: String,
+        messages: Binding<[ChatMessage]>,
+        secondsRemaining: Binding<Int>,
+        showMatchPopup: Binding<Bool>,
+        showPartnerRequestPopup: Binding<Bool>,
+        showMatchedCelebration: Binding<Bool>,
+        matchedPermanentMatchId: Binding<String?>,
+        hasSubmittedDecision: Binding<Bool>,
+        socketService: SocketService,
+        triggerSessionEnd: @escaping () -> Void,
+        triggerServerSessionEnd: @escaping () -> Void,
+        formatTime: @escaping (String?) -> String
+    ) -> some View {
+        self
+            .modifier(MessageSocketModifier(
+                matchId: matchId, messages: messages,
+                socketService: socketService, formatTime: formatTime))
+            .modifier(SessionEndedSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                showMatchedCelebration: showMatchedCelebration,
+                matchedPermanentMatchId: matchedPermanentMatchId,
+                socketService: socketService,
+                triggerServerSessionEnd: triggerServerSessionEnd))
+            .modifier(PartnerRequestSocketModifier(
+                matchId: matchId, showPartnerRequestPopup: showPartnerRequestPopup,
+                socketService: socketService))
+            .modifier(PartnerRespondedSocketModifier(
+                matchId: matchId, socketService: socketService))
+            .modifier(FinalDecisionSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                hasSubmittedDecision: hasSubmittedDecision,
+                socketService: socketService))
+            .modifier(MoveToPermanentSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                showMatchedCelebration: showMatchedCelebration,
+                matchedPermanentMatchId: matchedPermanentMatchId,
+                socketService: socketService))
     }
 }

@@ -163,6 +163,24 @@ struct ActiveChatView: View {
     private var isChatDisabled: Bool { isSessionEnded }
 
     var body: some View {
+        mainContent
+            .socketListeners(
+                matchId:          matchId,
+                messages:         $messages,
+                secondsRemaining: $secondsRemaining,
+                showMatchPopup:   $showMatchPopup,
+                showPartnerRequestPopup: $showPartnerRequestPopup,
+                showMatchedCelebration:  $showMatchedCelebration,
+                matchedPermanentMatchId: $matchedPermanentMatchId,
+                hasSubmittedDecision:    $hasSubmittedDecision,
+                socketService:    socketService,
+                triggerSessionEnd: triggerSessionEnd,
+                triggerServerSessionEnd: triggerServerSessionEnd,
+                formatTime:       formatTime
+            )
+    }
+
+    private var mainContent: some View {
         ZStack(alignment: .bottom) {
             LinearGradient(
                 colors: [Color(hex: "#E8F5E9"), Color(hex: "#F0FAF0"), Color(hex: "#FFFFFF")],
@@ -212,159 +230,16 @@ struct ActiveChatView: View {
                 inputBar
             }
         }
-        // Dim when session ended
-        .overlay {
-            if isSessionEnded {
-                Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
-            }
-        }
-        // ── Decision sheet OR waiting sheet
-        .overlay(alignment: .bottom) {
-            if showMatchPopup {
-                if hasSubmittedDecision {
-                    WaitingForPartnerSheet(
-                        myDecision: myDecision,
-                        onBackToList: { onClose() }
-                    )
-                    .transition(.move(edge: .bottom))
-                    .ignoresSafeArea(edges: .bottom)
-                } else {
-                    // User hasn't decided yet — show match/skip buttons
-                    MatchDecisionSheet(
-                        onMatch: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                hasSubmittedDecision = true
-                                myDecision = "yes"
-                            }
-                            submitDecision("yes")
-                        },
-                        onSkip: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                hasSubmittedDecision = true
-                                myDecision = "no"
-                            }
-                            submitDecision("no")
-                        },
-                        onDismiss: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                showMatchPopup = false
-                                if !isSessionEnded { isSessionEnded = false }
-                            }
-                        },
-                        canDismiss: true   // always dismissible — user can go back to list
-                    )
-                    .transition(.move(edge: .bottom))
-                    .ignoresSafeArea(edges: .bottom)
-                }
-            }
-        }
-        // Leave confirmation
-        .overlay(alignment: .bottom) {
-            if showLeaveConfirm {
-                LeaveSessionSheet(
-                    onLeave: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
-                        matchmakingService.cancelSearch()
-                        onLeaveSession()
-                    },
-                    onStay: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
-                    }
-                )
-                .transition(.move(edge: .bottom)).ignoresSafeArea(edges: .bottom)
-            }
-        }
-        .overlay {
-            if showLeaveConfirm {
-                Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
-                    }
-            }
-        }
-        // Tap outside match popup — only dismissible when triggered by heart button (not messages-out)
-        .overlay {
-            if showMatchPopup && !hasSubmittedDecision && !isChatDisabled {
-                Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showMatchPopup = false
-                            isSessionEnded = false
-                        }
-                    }
-            }
-        }
-        // ── Early match confirmation (before sending request)
-        .overlay(alignment: .bottom) {
-            if showEarlyMatchConfirm {
-                EarlyMatchConfirmSheet(
-                    onConfirm: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showEarlyMatchConfirm = false
-                        }
-                        requestEarlyMatch()
-                    },
-                    onCancel: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showEarlyMatchConfirm = false
-                        }
-                    }
-                )
-                .transition(.move(edge: .bottom))
-                .ignoresSafeArea(edges: .bottom)
-            }
-        }
-        .overlay {
-            if showEarlyMatchConfirm {
-                Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showEarlyMatchConfirm = false
-                        }
-                    }
-            }
-        }
-        // ── Partner requested early match
-        .overlay(alignment: .bottom) {
-            if showPartnerRequestPopup {
-                PartnerRequestSheet(
-                    onAccept: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showPartnerRequestPopup = false
-                        }
-                        respondToPartnerRequest(accept: true)
-                    },
-                    onDeclineAndContinue: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showPartnerRequestPopup = false
-                        }
-                        respondToPartnerRequest(accept: false)
-                    },
-                    onDeclineAndEnd: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            showPartnerRequestPopup = false
-                        }
-                        respondToPartnerRequest(accept: false)
-                        triggerServerSessionEnd()
-                    }
-                )
-                .transition(.move(edge: .bottom))
-                .ignoresSafeArea(edges: .bottom)
-            }
-        }
-        .overlay {
-            if showPartnerRequestPopup {
-                Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
-            }
-        }
-        // ── Both matched — celebration
-        .overlay {
-            if showMatchedCelebration {
-                MatchedCelebrationOverlay(onContinue: { onClose() })
-                    .transition(.opacity)
-                    .ignoresSafeArea()
-            }
-        }
+        .overlay { sessionEndedDim }
+        .overlay { matchPopupDim }
+        .overlay(alignment: .bottom) { matchPopupSheet }
+        .overlay { leaveConfirmDim }
+        .overlay(alignment: .bottom) { leaveConfirmSheet }
+        .overlay { earlyMatchDim }
+        .overlay(alignment: .bottom) { earlyMatchSheet }
+        .overlay { partnerRequestDim }
+        .overlay(alignment: .bottom) { partnerRequestSheet }
+        .overlay { matchedCelebration }
         .navigationBarHidden(true)
         .onDisappear { timerTask?.cancel() }
         .task { await loadSession() }
@@ -381,53 +256,164 @@ struct ActiveChatView: View {
                 showMatchPopup = true
             }
         }
-        .onChange(of: socketService.lastSpeedDatingMessage) { event in
-            guard let event, event.sessionId == matchId else { return }
-            guard !messages.contains(where: { $0.id == event.messageId }) else {
-                socketService.lastSpeedDatingMessage = nil
-                return
+    }
+
+    // MARK: - Overlay Views
+
+    @ViewBuilder private var sessionEndedDim: some View {
+        if isSessionEnded {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+        }
+    }
+
+    @ViewBuilder private var matchPopupDim: some View {
+        if showMatchPopup && !hasSubmittedDecision && !isChatDisabled {
+            Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showMatchPopup = false
+                        isSessionEnded = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var matchPopupSheet: some View {
+        if showMatchPopup {
+            if hasSubmittedDecision {
+                WaitingForPartnerSheet(myDecision: myDecision, onBackToList: { onClose() })
+                    .transition(.move(edge: .bottom))
+                    .ignoresSafeArea(edges: .bottom)
+            } else {
+                MatchDecisionSheet(
+                    onMatch: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            hasSubmittedDecision = true; myDecision = "yes"
+                        }
+                        submitDecision("yes")
+                    },
+                    onSkip: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            hasSubmittedDecision = true; myDecision = "no"
+                        }
+                        submitDecision("no")
+                    },
+                    onDismiss: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showMatchPopup = false
+                        }
+                    },
+                    canDismiss: true
+                )
+                .transition(.move(edge: .bottom))
+                .ignoresSafeArea(edges: .bottom)
             }
-            let incoming = ChatMessage(
-                id:           event.messageId,
-                text:         event.content,
-                isMine:       false,
-                time:         formatTime(event.createdAt),
-                messagesLeft: nil
+        }
+    }
+
+    @ViewBuilder private var leaveConfirmDim: some View {
+        if showLeaveConfirm {
+            Color.black.opacity(0.15).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showLeaveConfirm = false
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder private var leaveConfirmSheet: some View {
+        if showLeaveConfirm {
+            LeaveSessionSheet(
+                onLeave: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                    matchmakingService.cancelSearch()
+                    onLeaveSession()
+                },
+                onStay: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
+                }
             )
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                messages.append(incoming)
-            }
-            socketService.lastSpeedDatingMessage = nil
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
         }
-        .onChange(of: socketService.lastSpeedDatingSessionEnded) { sessionId in
-            guard let sessionId, sessionId == matchId else { return }
-            triggerServerSessionEnd()
-            socketService.lastSpeedDatingSessionEnded = nil
+    }
+
+    @ViewBuilder private var earlyMatchDim: some View {
+        if showEarlyMatchConfirm {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                }
         }
-        // Partner tapped heart — wants to match early
-        .onChange(of: socketService.lastMoveToPermanentRequested) { event in
-            guard let event, event.sessionId == matchId else { return }
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                showPartnerRequestPopup = true
-            }
-            socketService.lastMoveToPermanentRequested = nil
+    }
+
+    @ViewBuilder private var earlyMatchSheet: some View {
+        if showEarlyMatchConfirm {
+            EarlyMatchConfirmSheet(
+                onConfirm: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                    requestEarlyMatch()
+                },
+                onCancel: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showEarlyMatchConfirm = false
+                    }
+                }
+            )
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
         }
-        // Partner submitted final decision (yes/no) after session ends
-        .onChange(of: socketService.lastFinalDecisionUpdated) { event in
-            guard let event, event.sessionId == matchId else { return }
-            print("🗳️ [Chat] Partner decided: \(event.decision)")
-            socketService.lastFinalDecisionUpdated = nil
-            // No UI change needed — we wait for move_to_permanent_updated if both yes
+    }
+
+    @ViewBuilder private var partnerRequestDim: some View {
+        if showPartnerRequestPopup {
+            Color.black.opacity(0.2).ignoresSafeArea().transition(.opacity)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                }
         }
-        // Both said yes — matched!
-        .onChange(of: socketService.lastMoveToPermanentUpdated) { event in
-            guard let event, event.sessionId == matchId else { return }
-            matchedPermanentMatchId = event.matchId
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                showMatchPopup        = false
-                showMatchedCelebration = true
-            }
-            socketService.lastMoveToPermanentUpdated = nil
+    }
+
+    @ViewBuilder private var partnerRequestSheet: some View {
+        if showPartnerRequestPopup {
+            PartnerRequestSheet(
+                onAccept: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: true)
+                },
+                onDeclineAndContinue: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: false)
+                },
+                onDeclineAndEnd: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showPartnerRequestPopup = false
+                    }
+                    respondToPartnerRequest(accept: false)
+                    triggerServerSessionEnd()
+                }
+            )
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    @ViewBuilder private var matchedCelebration: some View {
+        if showMatchedCelebration {
+            MatchedCelebrationOverlay(onContinue: { onClose() })
+                .transition(.opacity)
+                .ignoresSafeArea()
         }
     }
 
@@ -514,13 +500,6 @@ struct ActiveChatView: View {
                 counterpartUserId = s.counterpart.userId
                 messagesLeft      = s.messageLimit - s.myMessageCount
 
-                // Restore decision state if user left and came back
-                let decision = s.moveToPermanent.myDecision
-                if decision == "yes" || decision == "no" {
-                    hasSubmittedDecision = true
-                    myDecision           = decision
-                }
-
                 let formatter = ISO8601DateFormatter()
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 if let expiry = formatter.date(from: s.expiresAt) {
@@ -529,20 +508,45 @@ struct ActiveChatView: View {
                     secondsRemaining = s.remainingSeconds
                 }
 
-                if hasSubmittedDecision {
-                    // Already decided — show waiting screen, lock chat
-                    isSessionEnded = true
-                    showMatchPopup = true
-                } else if s.status != "active" || secondsRemaining == 0 {
-                    // Server ended session — lock everything
-                    isSessionEnded = true
-                    showMatchPopup = true
-                } else if messagesLeft == 0 {
-                    // My messages gone but session still active — show popup, heart still works
-                    showMatchPopup = true
-                }
+                let mtp      = s.moveToPermanent
+                let decision = mtp.myDecision
 
-                print("✅ [Chat] Session — \(messagesLeft) msgs left, \(secondsRemaining)s, decision: \(decision)")
+                // ── Restore UI state based on server-side moveToPermanent fields
+
+                if s.status != "active" && s.status != "awaiting_decision" {
+                    // Terminal state (graduated/archived/expired/ended_early) — lock everything
+                    isSessionEnded = true
+                    showMatchPopup = true
+
+                } else if s.status == "awaiting_decision" {
+                    // Both hit 20 messages — final decision phase
+                    if decision == "yes" || decision == "no" {
+                        // Already submitted — show waiting screen
+                        hasSubmittedDecision = true
+                        myDecision           = decision
+                        isSessionEnded       = true
+                        showMatchPopup       = true
+                    } else {
+                        // Haven't decided yet — show decision sheet
+                        isSessionEnded = true
+                        showMatchPopup = true
+                    }
+
+                } else if secondsRemaining == 0 {
+                    // Timer expired locally
+                    isSessionEnded = true
+                    showMatchPopup = true
+
+                } else if mtp.canRespond {
+                    // Partner sent a request and we haven't responded yet — show respond popup
+                    showPartnerRequestPopup = true
+
+                } else if mtp.requestStatus == "pending" && mtp.myDecision == "yes" {
+                    // We sent a request, waiting for partner — could show a subtle indicator
+                    // (no blocking popup — user can still chat)
+                    print("ℹ️ [Chat] We already sent a match request, waiting for partner response")
+                }
+                // Note: messagesLeft == 0 alone doesn't lock — heart button stays for early match
             }
         } catch { print("❌ [Chat] loadSession: \(error)") }
 
@@ -592,13 +596,10 @@ struct ActiveChatView: View {
                 messages.removeAll { $0.id == optimistic.id }
                 messagesLeft += 1
                 messageText   = trimmed
-                print("❌ [Chat] send failed: \(error)")
             }
             isSending = false
-            // Out of messages → must show decision popup (non-dismissible)
-            if messagesLeft == 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { triggerSessionEnd() }
-            }
+            // Text input auto-disables via isTextDisabled when messagesLeft == 0
+            // Heart button stays active for early match request
         }
     }
 
@@ -610,7 +611,6 @@ struct ActiveChatView: View {
                   let token = try? await user.getIDToken() else { return }
             do {
                 try await apiClient.requestMoveToPermanent(token: token, sessionId: matchId)
-                print("✅ [EarlyMatch] Request sent")
             } catch {
                 print("❌ [EarlyMatch] Request failed: \(error)")
             }
@@ -625,7 +625,6 @@ struct ActiveChatView: View {
                   let token = try? await user.getIDToken() else { return }
             do {
                 try await apiClient.respondMoveToPermanent(token: token, sessionId: matchId, accept: accept)
-                print("✅ [EarlyMatch] Responded: \(accept ? "yes" : "no")")
             } catch {
                 print("❌ [EarlyMatch] Respond failed: \(error)")
             }
@@ -640,12 +639,9 @@ struct ActiveChatView: View {
                   let token = try? await user.getIDToken() else { return }
             do {
                 try await apiClient.submitFinalDecision(token: token, sessionId: matchId, decision: decision)
-                print("✅ [Decision] Submitted: \(decision)")
             } catch {
                 print("❌ [Decision] Failed: \(error)")
-                // Even on error keep waiting state — don't close
             }
-            // Do NOT call onClose() here — stay on screen waiting for partner
         }
     }
 
@@ -1144,5 +1140,170 @@ private struct EarlyMatchConfirmSheet: View {
         .frame(maxWidth: .infinity)
         .background(Color.white.ignoresSafeArea(edges: .bottom)
             .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: -8))
+    }
+}
+
+// MARK: - Socket Listeners (split into small modifiers to avoid type-check timeout)
+
+private struct MessageSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var messages: [ChatMessage]
+    let socketService: SocketService
+    let formatTime: (String?) -> String
+ 
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastSpeedDatingMessage) {
+            guard let event = socketService.lastSpeedDatingMessage,
+                  event.sessionId == matchId else { return }
+
+            guard !messages.contains(where: { $0.id == event.messageId }) else {
+                socketService.lastSpeedDatingMessage = nil
+                return
+            }
+
+            let msg = ChatMessage(
+                id: event.messageId,
+                text: event.content,
+                isMine: false,
+                time: formatTime(event.createdAt),
+                messagesLeft: nil
+            )
+
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                messages.append(msg)
+            }
+            socketService.lastSpeedDatingMessage = nil
+        }
+    }
+}
+ 
+
+private struct SessionEndedSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var showMatchedCelebration: Bool
+    @Binding var matchedPermanentMatchId: String?
+    let socketService: SocketService
+    let triggerServerSessionEnd: () -> Void
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastSpeedDatingSessionEnded) { event in
+            guard let event, event.sessionId == matchId else { return }
+            if event.reason == "graduated", let mId = event.matchId, matchedPermanentMatchId == nil {
+                matchedPermanentMatchId = mId
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                    showMatchPopup = false
+                    showMatchedCelebration = true
+                }
+            } else {
+                triggerServerSessionEnd()
+            }
+            socketService.lastSpeedDatingSessionEnded = nil
+        }
+    }
+}
+
+private struct PartnerRequestSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showPartnerRequestPopup: Bool
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentRequested) { event in
+            guard let event, event.sessionId == matchId else { return }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showPartnerRequestPopup = true }
+            socketService.lastMoveToPermanentRequested = nil
+        }
+    }
+}
+
+private struct PartnerRespondedSocketModifier: ViewModifier {
+    let matchId: String
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentResponded) { event in
+            guard let event, event.sessionId == matchId else { return }
+            socketService.lastMoveToPermanentResponded = nil
+        }
+    }
+}
+
+private struct FinalDecisionSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var hasSubmittedDecision: Bool
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastFinalDecisionUpdated) { event in
+            guard let event, event.sessionId == matchId else { return }
+            socketService.lastFinalDecisionUpdated = nil
+            if !hasSubmittedDecision && !showMatchPopup {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
+            }
+        }
+    }
+}
+
+private struct MoveToPermanentSocketModifier: ViewModifier {
+    let matchId: String
+    @Binding var showMatchPopup: Bool
+    @Binding var showMatchedCelebration: Bool
+    @Binding var matchedPermanentMatchId: String?
+    let socketService: SocketService
+
+    func body(content: Content) -> some View {
+        content.onChange(of: socketService.lastMoveToPermanentUpdated) { event in
+            guard let event, event.sessionId == matchId else { return }
+            matchedPermanentMatchId = event.matchId
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                showMatchPopup = false
+                showMatchedCelebration = true
+            }
+            socketService.lastMoveToPermanentUpdated = nil
+        }
+    }
+}
+
+private extension View {
+    func socketListeners(
+        matchId: String,
+        messages: Binding<[ChatMessage]>,
+        secondsRemaining: Binding<Int>,
+        showMatchPopup: Binding<Bool>,
+        showPartnerRequestPopup: Binding<Bool>,
+        showMatchedCelebration: Binding<Bool>,
+        matchedPermanentMatchId: Binding<String?>,
+        hasSubmittedDecision: Binding<Bool>,
+        socketService: SocketService,
+        triggerSessionEnd: @escaping () -> Void,
+        triggerServerSessionEnd: @escaping () -> Void,
+        formatTime: @escaping (String?) -> String
+    ) -> some View {
+        self
+            .modifier(MessageSocketModifier(
+                matchId: matchId, messages: messages,
+                socketService: socketService, formatTime: formatTime))
+            .modifier(SessionEndedSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                showMatchedCelebration: showMatchedCelebration,
+                matchedPermanentMatchId: matchedPermanentMatchId,
+                socketService: socketService,
+                triggerServerSessionEnd: triggerServerSessionEnd))
+            .modifier(PartnerRequestSocketModifier(
+                matchId: matchId, showPartnerRequestPopup: showPartnerRequestPopup,
+                socketService: socketService))
+            .modifier(PartnerRespondedSocketModifier(
+                matchId: matchId, socketService: socketService))
+            .modifier(FinalDecisionSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                hasSubmittedDecision: hasSubmittedDecision,
+                socketService: socketService))
+            .modifier(MoveToPermanentSocketModifier(
+                matchId: matchId, showMatchPopup: showMatchPopup,
+                showMatchedCelebration: showMatchedCelebration,
+                matchedPermanentMatchId: matchedPermanentMatchId,
+                socketService: socketService))
     }
 }

@@ -4,7 +4,7 @@ import FirebaseAuth
 
 // MARK: - Event Models
 
-struct MatchFoundEvent: Sendable {
+struct MatchFoundEvent: Sendable, Equatable {
     let sessionId: String
 }
 
@@ -28,6 +28,7 @@ struct IncomingSpeedDatingMessage: Sendable, Equatable {
         self.createdAt = msg["createdAt"] as? String ?? ""
     }
 }
+
 
 struct IncomingSpeedDatingTyping: Sendable, Equatable {
     let sessionId: String
@@ -83,12 +84,42 @@ struct IncomingMoveToPermanentUpdated: Sendable, Equatable {
     }
 }
 
+// Partner declined early match request — only sent to the requester
+struct IncomingMoveToPermanentResponded: Sendable, Equatable {
+    let sessionId: String
+    let respondedByUserId: String
+    let accepted: Bool
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId         = dict["sessionId"]         as? String,
+              let respondedByUserId = dict["respondedByUserId"] as? String,
+              let accepted          = dict["accepted"]          as? Bool else { return nil }
+        self.sessionId         = sessionId
+        self.respondedByUserId = respondedByUserId
+        self.accepted          = accepted
+    }
+}
+
+// Session ended with a reason
+struct SpeedDatingSessionEndedEvent: Sendable, Equatable {
+    let sessionId: String
+    let reason: String     // "graduated" | "archived_no_match" | "archived_mismatch" | "ended_early" | "expired"
+    let matchId: String?   // only present when reason == "graduated"
+
+    init?(_ dict: [String: Any]) {
+        guard let sessionId = dict["sessionId"] as? String,
+              let reason    = dict["reason"]    as? String else { return nil }
+        self.sessionId = sessionId
+        self.reason    = reason
+        self.matchId   = dict["matchId"] as? String
+    }
+}
+
 struct IncomingPermanentMessage: Sendable, Equatable {
     let matchId: String
     let messageId: String
     let content: String
     let senderId: String
-    let createdAt: String
 
     init?(_ dict: [String: Any]) {
         guard let matchId   = dict["matchId"] as? String,
@@ -100,7 +131,6 @@ struct IncomingPermanentMessage: Sendable, Equatable {
         self.messageId = messageId
         self.content   = content
         self.senderId  = senderId
-        self.createdAt = msg["createdAt"] as? String ?? ""
     }
 }
 
@@ -133,14 +163,8 @@ final class SocketService {
     /// Latest permanent chat message — consumed by PermanentChatView.
     var lastPermanentMessage: IncomingPermanentMessage?
 
-    /// matchId of a permanent match that was removed by the counterpart.
-    var lastMatchRemovedId: String?
-
-    /// matchId of a permanent match where the counterpart blocked the current user.
-    var lastMatchBlockedId: String?
-
-    /// sessionId of a speed dating session that just ended server-side.
-    var lastSpeedDatingSessionEnded: String?
+    /// sessionId + reason of a speed dating session that just ended server-side.
+    var lastSpeedDatingSessionEnded: SpeedDatingSessionEndedEvent?
 
     /// Partner requested early match (tapped their heart button).
     var lastMoveToPermanentRequested: IncomingMoveToPermanentRequested?
@@ -150,6 +174,9 @@ final class SocketService {
 
     /// Both users said yes — graduated to permanent chat.
     var lastMoveToPermanentUpdated: IncomingMoveToPermanentUpdated?
+
+    /// Partner declined our early match request.
+    var lastMoveToPermanentResponded: IncomingMoveToPermanentResponded?
 
     // MARK: - Private
 
@@ -204,14 +231,12 @@ final class SocketService {
         socket?.on(clientEvent: .connect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = true
-                print("✅ [Socket] Connected")
             }
         }
 
         socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 self?.isConnected = false
-                print("🔌 [Socket] Disconnected")
             }
         }
 
@@ -232,7 +257,6 @@ final class SocketService {
                 self.socket = self.manager?.defaultSocket
                 self.registerHandlers()
                 self.socket?.connect()
-                print("🔄 [Socket] Reconnecting with fresh token")
             }
         }
 
@@ -255,7 +279,6 @@ final class SocketService {
                   let msg      = IncomingSpeedDatingMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastSpeedDatingMessage = msg
-                print("📩 [Socket] speed_dating.message.created — session: \(msg.sessionId)")
             }
         }
 
@@ -269,12 +292,11 @@ final class SocketService {
         }
 
         socket?.on("speed_dating.session.ended") { [weak self] data, _ in
-            guard let envelope  = data.first as? [String: Any],
-                  let payload   = envelope["data"] as? [String: Any],
-                  let sessionId = payload["sessionId"] as? String else { return }
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = SpeedDatingSessionEndedEvent(payload) else { return }
             Task { @MainActor [weak self] in
-                print("⏰ [Socket] speed_dating.session.ended — session: \(sessionId)")
-                self?.lastSpeedDatingSessionEnded = sessionId
+                self?.lastSpeedDatingSessionEnded = event
             }
         }
 
@@ -283,7 +305,6 @@ final class SocketService {
                   let payload  = envelope["data"] as? [String: Any],
                   let event    = IncomingMoveToPermanentRequested(payload) else { return }
             Task { @MainActor [weak self] in
-                print("💚 [Socket] move_to_permanent_requested — session: \(event.sessionId)")
                 self?.lastMoveToPermanentRequested = event
             }
         }
@@ -293,8 +314,17 @@ final class SocketService {
                   let payload  = envelope["data"] as? [String: Any],
                   let event    = IncomingFinalDecisionUpdated(payload) else { return }
             Task { @MainActor [weak self] in
-                print("🗳️ [Socket] final_decision_updated — \(event.userId): \(event.decision)")
                 self?.lastFinalDecisionUpdated = event
+            }
+        }
+
+        socket?.on("speed_dating.session.move_to_permanent_responded") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingMoveToPermanentResponded(payload) else { return }
+            Task { @MainActor [weak self] in
+                print("💔 [Socket] move_to_permanent_responded — accepted: \(event.accepted)")
+                self?.lastMoveToPermanentResponded = event
             }
         }
 
@@ -303,7 +333,6 @@ final class SocketService {
                   let payload  = envelope["data"] as? [String: Any],
                   let event    = IncomingMoveToPermanentUpdated(payload) else { return }
             Task { @MainActor [weak self] in
-                print("🎉 [Socket] move_to_permanent_updated — matchId: \(event.matchId)")
                 self?.lastMoveToPermanentUpdated = event
             }
         }
@@ -316,24 +345,6 @@ final class SocketService {
                   let msg      = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
-            }
-        }
-
-        socket?.on("permanent.match.removed") { [weak self] data, _ in
-            guard let envelope = data.first as? [String: Any],
-                  let payload  = envelope["data"] as? [String: Any],
-                  let matchId  = payload["matchId"] as? String else { return }
-            Task { @MainActor [weak self] in
-                self?.lastMatchRemovedId = matchId
-            }
-        }
-
-        socket?.on("permanent.match.blocked") { [weak self] data, _ in
-            guard let envelope = data.first as? [String: Any],
-                  let payload  = envelope["data"] as? [String: Any],
-                  let matchId  = payload["matchId"] as? String else { return }
-            Task { @MainActor [weak self] in
-                self?.lastMatchBlockedId = matchId
             }
         }
     }

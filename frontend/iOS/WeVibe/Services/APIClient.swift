@@ -662,13 +662,8 @@ struct APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: ["decision": decision])
      
-            print("📤 [Decision] POST final-decision: \(decision) for session \(sessionId)")
-     
             let (data, response) = try await perform(req)
             let status = response.statusCode
-     
-            print("📥 [Decision] Status: \(status)")
-            if let raw = String(data: data, encoding: .utf8) { print("📥 [Decision] \(raw)") }
      
             if status == 401 { throw APIError.unauthorized }
             if !(200..<300).contains(status) { throw APIError.serverError(status) }
@@ -685,9 +680,6 @@ struct APIClient {
         let (data, response) = try await perform(req)
         let status = response.statusCode
  
-        print("📤 [EarlyMatch] Request → status \(status)")
-        if let raw = String(data: data, encoding: .utf8) { print("📥 [EarlyMatch] \(raw)") }
- 
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
@@ -703,9 +695,6 @@ struct APIClient {
  
         let (data, response) = try await perform(req)
         let status = response.statusCode
- 
-        print("📤 [EarlyMatch] Respond \(accept ? "yes" : "no") → status \(status)")
-        if let raw = String(data: data, encoding: .utf8) { print("📥 [EarlyMatch] \(raw)") }
  
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }

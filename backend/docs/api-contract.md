@@ -1695,6 +1695,116 @@ All errors follow this structure:
 
 ---
 
+## Report Endpoints
+
+### Submit Report
+
+Allows users to report other users they are matched with for inappropriate behavior.
+
+```
+POST /api/v1/reports
+Content-Type: application/json
+Authorization: Bearer <firebase-id-token>
+```
+
+**Request Body**
+```json
+{
+  "reportedUserId": "uuid",
+  "reason": "inappropriate_content",
+  "details": "Optional additional details",
+  "matchId": "uuid (optional)"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reportedUserId` | string | yes | UUID of the user being reported |
+| `reason` | string | yes | Reason for the report |
+| `details` | string | no | Additional details about the report |
+| `matchId` | string | no | UUID of the match where the incident occurred |
+
+**Valid Reasons:**
+- `inappropriate_content`
+- `harassment`
+- `spam`
+- `fake_profile`
+- `underage`
+- `scam`
+- `hate_speech`
+- `violence`
+- `other`
+
+**Response 201**
+```json
+{
+  "success": true,
+  "message": "Report submitted successfully"
+}
+```
+
+**Error Responses**
+| Status | Code | Description |
+|---|---|---|
+| 400 | `INVALID_REPORTED_USER_ID` | reportedUserId is missing or invalid |
+| 400 | `INVALID_REPORT_REASON` | reason is missing or invalid |
+| 400 | `SELF_REPORT_NOT_ALLOWED` | Users cannot report themselves |
+| 400 | `REPORTED_USER_NOT_FOUND` | The reported user does not exist |
+| 400 | `DUPLICATE_REPORT` | User has already reported this match |
+| 401 | `UNAUTHORIZED` | Missing or invalid authentication |
+
+### Get User Reports
+
+Get all reports submitted by the authenticated user.
+
+```
+GET /api/v1/reports
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "reporter_user_id": "uuid",
+      "reported_user_id": "uuid",
+      "match_id": "uuid",
+      "reason": "string",
+      "details": "string",
+      "created_at": "timestamp",
+      "users_user_reports_reported": {
+        "id": "uuid",
+        "email": "string"
+      }
+    }
+  ]
+}
+```
+
+### Get Report Count
+
+Get the number of reports for a specific user.
+
+```
+GET /api/v1/reports/count/:userId
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": {
+    "count": 5
+  }
+}
+```
+
+---
+
 ## Health Check
 
 ```

@@ -7,6 +7,7 @@ struct ChatListItem: Identifiable {
     let id = UUID()
     let matchId: String
     let name: String?
+    let initials: String?  
     let avatarSystemIcon: String?
     let lastMessage: String
     let isMine: Bool
@@ -17,7 +18,7 @@ struct ChatListItem: Identifiable {
 
 // MARK: - Inner Tab
 
-private enum ChatInnerTab: CaseIterable {
+enum ChatInnerTab: CaseIterable {
     case anonymous, matched
 
     var label: String {
@@ -34,7 +35,7 @@ struct ChatListView: View {
 
     @Environment(ChatRouter.self) private var chatRouter
 
-    @State private var innerTab: ChatInnerTab = .anonymous
+    @Binding var innerTab: ChatInnerTab
     @Namespace private var tabAnimation
 
     // ── API state
@@ -42,17 +43,12 @@ struct ChatListView: View {
     @State private var isLoadingSessions  = false
     @State private var sessionsError: String? = nil
 
-    private let apiClient = APIClient()
+    @State private var matchedChats: [ChatListItem] = []
+    @State private var isLoadingMatches = false
+    @State private var matchesError: String? = nil
 
+    private let apiClient = APIClient()
     // Placeholder until matched chat API is built
-    private let matchedChats: [ChatListItem] = [
-        ChatListItem(matchId: "match-1", name: "Emelie", avatarSystemIcon: "person.fill",
-                     lastMessage: "Sticker 😍", isMine: false, timeAgo: "23 min", unreadCount: 1, isTyping: false),
-        ChatListItem(matchId: "match-2", name: "Abigail", avatarSystemIcon: "person.fill",
-                     lastMessage: "", isMine: false, timeAgo: "27 min", unreadCount: 2, isTyping: true),
-        ChatListItem(matchId: "match-3", name: "Elizabeth", avatarSystemIcon: "person.fill",
-                     lastMessage: "Ok, see you then.", isMine: false, timeAgo: "33 min", unreadCount: 0, isTyping: false),
-    ]
 
     private var currentList: [ChatListItem] {
         innerTab == .anonymous ? anonymousChats : matchedChats
@@ -98,6 +94,30 @@ struct ChatListView: View {
                         }
                         Spacer()
 
+                    } else if isLoadingMatches && innerTab == .matched {
+                        Spacer()
+                        ProgressView()
+                            .tint(AppTheme.primaryButton)
+                        Spacer()
+
+                    } else if let error = matchesError, innerTab == .matched {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.white.opacity(0.4))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                            Button {
+                                Task { await fetchMatches() }
+                            } label: {
+                                Text("Try again")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.primaryButton)
+                            }
+                        }
+                        Spacer()
+
                     } else if currentList.isEmpty && innerTab == .anonymous {
                         EmptySessionsView()
 
@@ -125,15 +145,24 @@ struct ChatListView: View {
                             .padding(.top, 8)
                             .padding(.bottom, 100)
                         }
-                        .refreshable { await fetchSessions() }
+                        .refreshable {
+                            if innerTab == .anonymous { await fetchSessions() }
+                            else { await fetchMatches() }
+                        }
                         .animation(.easeInOut(duration: 0.2), value: innerTab)
                     }
                 }
             }
         }
-        .task { await fetchSessions() }
+        .task {
+            await fetchSessions()
+            await fetchMatches()
+        }
         .onChange(of: innerTab) { _, tab in
-            if tab == .anonymous { Task { await fetchSessions() } }
+            switch tab {
+            case .anonymous: Task { await fetchSessions() }
+            case .matched:   Task { await fetchMatches() }
+            }
         }
     }
 
@@ -156,18 +185,35 @@ struct ChatListView: View {
             let sessions = result.data?.sessions ?? []
 
             anonymousChats = sessions.compactMap { session -> ChatListItem? in
-                guard let sessionId = session?.sessionId else { return nil }
+                guard let sessionId = session.sessionId else { return nil }
+
+                // ── Last message display logic
+                // unread > 0  → message is from partner (not mine)
+                // unread = 0  → last message is mine or no messages yet
+                let lastMsg: String
+                let isMine: Bool
+
+                if let content = session.lastMessageContent, !content.isEmpty {
+                    lastMsg = content
+                    isMine  = session.unreadCount == 0 && session.isLastMessageMine
+                } else {
+                    lastMsg = statusLabel(session.status)
+                    isMine  = false
+                }
+
                 return ChatListItem(
                     matchId:          sessionId,
                     name:             nil,
+                    initials:         session.counterpart?.initials,
                     avatarSystemIcon: nil,
-                    lastMessage:      statusLabel(session?.status),
-                    isMine:           false,
-                    timeAgo:          expiryLabel(session?.sessionExpiresAt),
-                    unreadCount:      0,
+                    lastMessage:      lastMsg,
+                    isMine:           isMine,
+                    timeAgo:          timeAgoLabel(session.lastMessageAt ?? session.sessionExpiresAt),
+                    unreadCount:      session.unreadCount,
                     isTyping:         false
                 )
             }
+            print("✅ [ChatList] \(anonymousChats.count) speed dating sessions loaded")
         } catch {
             sessionsError = "Couldn't load sessions"
             print("❌ [ChatList] fetchSessions: \(error)")
@@ -176,28 +222,85 @@ struct ChatListView: View {
         isLoadingSessions = false
     }
 
+    // MARK: - Fetch Matches
+
+    private func fetchMatches() async {
+        isLoadingMatches = true
+        matchesError     = nil
+
+        guard let user  = Auth.auth().currentUser,
+              let token = try? await user.getIDToken()
+        else {
+            isLoadingMatches = false
+            matchesError     = "Not signed in"
+            return
+        }
+
+        do {
+            let result = try await apiClient.getAllMatches(token: token)
+            matchedChats = result.matches.map { match in
+                ChatListItem(
+                    matchId:          match.matchId,
+                    name:             match.counterpartDisplayName,
+                    initials:         nil,
+                    avatarSystemIcon: nil,
+                    lastMessage:      match.lastMessageContent ?? "",
+                    isMine:           false,
+                    timeAgo:          timeListAgoLabel(match.lastMessageAt),
+                    unreadCount:      match.unreadCount,
+                    isTyping:         false
+                )
+            }
+        } catch {
+            matchesError = "Couldn't load matches"
+            print("❌ [ChatList] fetchMatches: \(error)")
+        }
+
+        isLoadingMatches = false
+    }
+
     // MARK: - Helpers
+
+    private func timeListAgoLabel(_ isoString: String?) -> String {
+        guard let isoString,
+              let date = ISO8601DateFormatter().date(from: isoString)
+        else { return "" }
+        let elapsed = -date.timeIntervalSinceNow
+        guard elapsed >= 0 else { return "" }
+        let minutes = Int(elapsed) / 60
+        let hours   = minutes / 60
+        let days    = hours / 24
+        if days    > 0 { return "\(days)d ago" }
+        if hours   > 0 { return "\(hours)h ago" }
+        if minutes > 0 { return "\(minutes)m ago" }
+        return "Just now"
+    }
 
     private func statusLabel(_ status: String?) -> String {
         switch status {
-        case "active":  return "Active session"
+        case "active":  return "Say hello! 👋"
         case "ended":   return "Session ended"
         case "matched": return "Matched! 🎉"
         default:        return ""
         }
     }
 
-    private func expiryLabel(_ isoString: String?) -> String {
-        guard let isoString,
-              let date = ISO8601DateFormatter().date(from: isoString)
+    private func timeAgoLabel(_ isoString: String?) -> String {
+        guard let isoString else { return "" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: isoString)
+                      ?? ISO8601DateFormatter().date(from: isoString)
         else { return "" }
-        let remaining = date.timeIntervalSinceNow
-        guard remaining > 0 else { return "Expired" }
-        let hours   = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        if hours   > 0 { return "\(hours)h left" }
-        if minutes > 0 { return "\(minutes)m left" }
-        return "< 1m left"
+
+        let diff = Int(Date().timeIntervalSince(date))
+        if diff < 60                { return "just now" }
+        if diff < 3600              { return "\(diff / 60)m ago" }
+        if diff < 86400             { return "\(diff / 3600)h ago" }
+        if diff < 86400 * 7         { return "\(diff / 86400)d ago" }
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f.string(from: date)
     }
 
     // MARK: - Header
@@ -271,30 +374,42 @@ private struct ChatRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(isAnonymous ? "Anonymous" : (item.name ?? "Unknown"))
+                    Text(isAnonymous
+                         ? (item.initials ?? "??")
+                         : (item.name ?? item.initials ?? "Unknown"))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
                     Text(item.timeAgo)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.white.opacity(0.35))
+                        .foregroundStyle(
+                            item.unreadCount > 0
+                                ? AppTheme.primaryButton
+                                : Color.white.opacity(0.35)
+                        )
                 }
                 HStack {
                     if item.isTyping {
                         TypingIndicator()
                     } else {
                         Text(item.isMine ? "You: \(item.lastMessage)" : item.lastMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .font(.system(size: 13, weight: item.unreadCount > 0 ? .semibold : .regular))
+                            .foregroundStyle(
+                                item.unreadCount > 0
+                                    ? Color.white.opacity(0.9)
+                                    : Color.white.opacity(0.5)
+                            )
                             .lineLimit(1)
                     }
                     Spacer()
+                    // Badge: "1+" for multiple unreads, exact count for single
                     if item.unreadCount > 0 {
-                        Text("\(item.unreadCount)")
+                        Text(item.unreadCount > 1 ? "1+" : "1")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.black)
-                            .frame(width: 22, height: 22)
-                            .background(Circle().fill(AppTheme.primaryButton))
+                            .frame(minWidth: 22, minHeight: 22)
+                            .padding(.horizontal, item.unreadCount > 1 ? 6 : 0)
+                            .background(Capsule().fill(AppTheme.primaryButton))
                     }
                 }
             }
@@ -311,9 +426,15 @@ private struct ChatRowView: View {
                 Circle()
                     .fill(Color.white.opacity(0.07))
                     .overlay(Circle().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-                Image(systemName: "person.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.white.opacity(0.3))
+                if let initials = item.initials, !initials.isEmpty {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.6))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color.white.opacity(0.3))
+                }
             }
         } else {
             ZStack {
@@ -322,9 +443,15 @@ private struct ChatRowView: View {
                         colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
-                Image(systemName: "person.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.white.opacity(0.8))
+                if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
             }
             .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
         }
@@ -370,7 +497,6 @@ private struct EmptySessionsView: View {
         VStack(spacing: 0) {
             Spacer()
             ZStack {
-                // Sparkles
                 SparkleView(size: 10, delay: 0)
                     .offset(x: -70, y: -30)
                     .opacity(sparkle1)
@@ -563,12 +689,13 @@ private struct Arc: Shape {
 private struct SparkleView: View {
     let size: CGFloat
     let delay: Double
+    var color: Color = Color(hex: "#B2F542")
     @State private var rotation: Double = 0
 
     var body: some View {
         Image(systemName: "sparkle")
             .font(.system(size: size))
-            .foregroundStyle(Color(hex: "#B2F542"))
+            .foregroundStyle(color)
             .rotationEffect(.degrees(rotation))
             .onAppear {
                 withAnimation(.linear(duration: 3).repeatForever(autoreverses: false).delay(delay)) {
@@ -581,23 +708,42 @@ private struct SparkleView: View {
 // MARK: - Empty Matched View
 
 private struct EmptyMatchedView: View {
-    @State private var floatY: CGFloat = 0
+
+    @State private var floatY: CGFloat      = 0
+    @State private var eyeScale: CGFloat    = 1
+    @State private var blinkOpacity: Double = 0
+    @State private var sparkle1: CGFloat    = 0
+    @State private var sparkle2: CGFloat    = 0
+    @State private var heartPulse: CGFloat  = 1
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
-            Text("🫧")
-                .font(.system(size: 80))
-                .offset(y: floatY)
-                .padding(.bottom, 24)
+            ZStack {
+                // Sparkles — pink tones
+                SparkleView(size: 10, delay: 0,   color: Color(hex: "#FF6B9D"))
+                    .offset(x: -70, y: -30)
+                    .opacity(sparkle1)
+                SparkleView(size: 8,  delay: 0.3, color: Color(hex: "#FFD6E7"))
+                    .offset(x: 75,  y: -20)
+                    .opacity(sparkle2)
+                SparkleView(size: 6,  delay: 0.6, color: Color(hex: "#FF6B9D"))
+                    .offset(x: 50,  y: -60)
+                    .opacity(sparkle1)
+
+                HeartCharacterView(eyeScale: eyeScale, blinkOpacity: blinkOpacity)
+                    .offset(y: floatY)
+                    .scaleEffect(heartPulse)
+            }
+            .padding(.bottom, 28)
 
             VStack(spacing: 8) {
-                Text("no matches yet bestie")
+                Text("no matches yet")
                     .font(.system(size: 20, weight: .black))
                     .foregroundStyle(.white)
 
-                Text("finish a speed dating session first.\nyou got this 💪")
+                Text("vibe through a speed dating session\nand your match will show up here 💘")
                     .font(.system(size: 14))
                     .foregroundStyle(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
@@ -608,9 +754,175 @@ private struct EmptyMatchedView: View {
             Spacer()
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                floatY = -12
+            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+                floatY = -14
             }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true).delay(0.3)) {
+                heartPulse = 1.07
+            }
+            blinkLoop()
+            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true).delay(0.2)) {
+                sparkle1 = 1
+            }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true).delay(0.8)) {
+                sparkle2 = 1
+            }
+        }
+    }
+
+    private func blinkLoop() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            withAnimation(.easeIn(duration: 0.06)) { blinkOpacity = 1; eyeScale = 0.1 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.easeOut(duration: 0.08)) { blinkOpacity = 0; eyeScale = 1 }
+                blinkLoop()
+            }
+        }
+    }
+}
+
+// MARK: - Heart Character Drawing
+
+private struct HeartCharacterView: View {
+    let eyeScale: CGFloat
+    let blinkOpacity: Double
+
+    var body: some View {
+        ZStack {
+            // Shadow
+            Ellipse()
+                .fill(Color.black.opacity(0.18))
+                .frame(width: 110, height: 22)
+                .offset(y: 68)
+                .blur(radius: 6)
+
+            // Heart body
+            HeartShape()
+                .fill(LinearGradient(
+                    colors: [Color(hex: "#FF6B9D"), Color(hex: "#E91E63")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 120, height: 108)
+                .offset(y: 8)
+
+            // Gloss highlight
+            Ellipse()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 44, height: 20)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -6, y: -22)
+
+            // Left arm
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(hex: "#FF6B9D"))
+                .frame(width: 16, height: 32)
+                .rotationEffect(.degrees(-22))
+                .offset(x: -60, y: 32)
+            // Right arm
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(hex: "#FF6B9D"))
+                .frame(width: 16, height: 32)
+                .rotationEffect(.degrees(22))
+                .offset(x: 60, y: 32)
+
+            // Tiny hearts held in arms
+            Image(systemName: "heart.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(hex: "#FFD6E7"))
+                .offset(x: -62, y: 52)
+            Image(systemName: "heart.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(hex: "#FFD6E7"))
+                .offset(x: 62, y: 52)
+
+            // Left eye white
+            Circle()
+                .fill(.white)
+                .frame(width: 26, height: 26)
+                .offset(x: -20, y: -14)
+            // Right eye white
+            Circle()
+                .fill(.white)
+                .frame(width: 26, height: 26)
+                .offset(x: 20, y: -14)
+
+            // Left pupil
+            Circle()
+                .fill(Color(hex: "#1A1A2E"))
+                .frame(width: 13, height: 13)
+                .scaleEffect(CGSize(width: 1, height: eyeScale))
+                .offset(x: -19, y: -13)
+            // Right pupil
+            Circle()
+                .fill(Color(hex: "#1A1A2E"))
+                .frame(width: 13, height: 13)
+                .scaleEffect(CGSize(width: 1, height: eyeScale))
+                .offset(x: 21, y: -13)
+
+            // Eye shines
+            Circle()
+                .fill(.white.opacity(0.85))
+                .frame(width: 5, height: 5)
+                .offset(x: -13, y: -19)
+            Circle()
+                .fill(.white.opacity(0.85))
+                .frame(width: 5, height: 5)
+                .offset(x: 27, y: -19)
+
+            // Smile
+            Arc(startAngle: .degrees(10), endAngle: .degrees(170))
+                .stroke(Color(hex: "#C2185B"), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .frame(width: 32, height: 13)
+                .offset(y: 2)
+
+            // Rosy cheeks
+            Ellipse()
+                .fill(Color(hex: "#FF1744").opacity(0.22))
+                .frame(width: 20, height: 10)
+                .offset(x: -30, y: -5)
+            Ellipse()
+                .fill(Color(hex: "#FF1744").opacity(0.22))
+                .frame(width: 20, height: 10)
+                .offset(x: 30, y: -5)
+        }
+        .frame(width: 150, height: 160)
+    }
+}
+
+// MARK: - Heart Shape
+
+private struct HeartShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { p in
+            let w = rect.width
+            let h = rect.height
+            p.move(to: CGPoint(x: w / 2, y: h))
+            p.addCurve(
+                to:         CGPoint(x: 0, y: h * 0.3),
+                control1:   CGPoint(x: w * 0.1, y: h * 0.75),
+                control2:   CGPoint(x: 0, y: h * 0.55)
+            )
+            p.addArc(
+                center:     CGPoint(x: w * 0.25, y: h * 0.3),
+                radius:     w * 0.25,
+                startAngle: .degrees(180),
+                endAngle:   .degrees(0),
+                clockwise:  false
+            )
+            p.addArc(
+                center:     CGPoint(x: w * 0.75, y: h * 0.3),
+                radius:     w * 0.25,
+                startAngle: .degrees(180),
+                endAngle:   .degrees(0),
+                clockwise:  false
+            )
+            p.addCurve(
+                to:         CGPoint(x: w / 2, y: h),
+                control1:   CGPoint(x: w, y: h * 0.55),
+                control2:   CGPoint(x: w * 0.9, y: h * 0.75)
+            )
+            p.closeSubpath()
         }
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CoreLocation
 import FirebaseAuth
 import GoogleSignIn
 import AuthenticationServices
@@ -50,6 +51,17 @@ final class AuthManager {
     private var authStateListener: AuthStateDidChangeListenerHandle?
 
     private let apiClient = APIClient()
+
+    // MARK: - Location Sync State
+
+    /// Last coordinates successfully synced to the backend. Nil until first sync.
+    private var lastSyncedLocation: CLLocation?
+    /// Last zip code synced. Used instead of city name — zip codes are unique per area,
+    /// city names are not (e.g. "Springfield" exists in 36 US states).
+    /// Empty string if CLGeocoder didn't return a zip (rare); treated as always-changed.
+    private var lastSyncedZip: String = ""
+    /// Minimum movement (in metres) before re-syncing location to the backend.
+    private let locationSyncThresholdMeters: Double = 1000
 
     // MARK: - Launch
 
@@ -205,9 +217,10 @@ final class AuthManager {
                 rawNonce: storedNonce,
                 fullName: appleCredential.fullName
             )
+            let authCode = appleCredential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
             try await Auth.auth().signIn(with: firebaseCredential)
             let token = try await Auth.auth().currentUser?.getIDToken() ?? ""
-            try await apiClient.loginUser(idToken: token, provider: "apple")
+            try await apiClient.loginUser(idToken: token, provider: "apple", appleAuthCode: authCode)
             await resolvePostAuthState()
         } catch APIError.banned {
             try? Auth.auth().signOut()
@@ -275,6 +288,41 @@ final class AuthManager {
         }
     }
 
+    // MARK: - Location Sync
+
+    /// Called by WeVibeApp via locationManager.onLocationUpdated on every significant GPS change.
+    /// Guards against redundant API calls: skips if the user hasn't moved locationSyncThresholdMeters
+    /// from the last synced position AND the city hasn't changed.
+    func syncLocation(lat: Double, lng: Double, city: String, state: String, zip: String) async {
+        guard appState == .authenticated, let user = Auth.auth().currentUser else { return }
+
+        let newLocation = CLLocation(latitude: lat, longitude: lng)
+        if let last = lastSyncedLocation {
+            let moved = newLocation.distance(from: last)
+            // Compare zip codes — unique per postal area in US/Canada. An empty zip
+            // (CLGeocoder occasionally omits it in rural areas) is treated as changed
+            // so we always sync when zip is unavailable rather than silently skipping.
+            let zipChanged = zip.isEmpty || zip != lastSyncedZip
+            guard moved >= locationSyncThresholdMeters || zipChanged else { return }
+        }
+
+        do {
+            let token = try await user.getIDToken()
+            try await apiClient.updateLocation(
+                token: token,
+                latitude: lat,
+                longitude: lng,
+                city: city,
+                state: state,
+                zip: zip
+            )
+            lastSyncedLocation = newLocation
+            lastSyncedZip = zip
+        } catch {
+            // Silent failure — location sync is non-critical background work.
+        }
+    }
+
     // MARK: - Sign Out
 
     func logout(profileStore: UserProfileStore, onboardingData: OnboardingData) {
@@ -287,8 +335,36 @@ final class AuthManager {
         onboardingData.clear()        // OnboardingData — clears partial draft if user abandoned onboarding
         // TODO: chatStore.clear()    — add when chat feature is built
 
+        lastSyncedLocation = nil
+        lastSyncedZip = ""
         pendingVerificationEmail = ""
         appState = .unauthenticated
+    }
+
+    // MARK: - FCM Token
+
+    /// Sends the current FCM token to the backend. Fire-and-forget — never blocks auth flow.
+    private func syncFCMToken(idToken: String) {
+        guard let fcmToken = AppDelegate.fcmToken else { return }
+        Task {
+            try? await apiClient.updateFCMToken(token: idToken, fcmToken: fcmToken)
+        }
+    }
+
+    /// Call once after app launch to re-sync FCM token whenever it refreshes.
+    func observeFCMTokenRefresh() {
+        NotificationCenter.default.addObserver(
+            forName: .fcmTokenRefreshed,
+            object: nil,
+            queue: nil
+        ) { [weak self] notification in
+            guard let fcmToken = notification.userInfo?["token"] as? String else { return }
+            Task { @MainActor [weak self] in
+                guard let self, self.appState == .authenticated else { return }
+                guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                try? await self.apiClient.updateFCMToken(token: token, fcmToken: fcmToken)
+            }
+        }
     }
 
     // MARK: - Network Retry
@@ -327,6 +403,7 @@ final class AuthManager {
             }
 
             appState = session.onboardingComplete ? .authenticated : .onboarding
+            syncFCMToken(idToken: token)
 
         } catch APIError.unauthorized {
             // Token rejected — session is invalid, force back to login.

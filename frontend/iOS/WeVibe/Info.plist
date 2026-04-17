@@ -11,7 +11,7 @@
 			<string>google-signin-dev</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.754456353577-meprbu3j03h3cv84kt6h2eqlcn2vab07</string>
+				<string>com.googleusercontent.apps.754456353577-aoq1m42jmuo0jjhsjcsk5pe7ltiqapfj</string>
 			</array>
 		</dict>
 		<dict>
@@ -32,6 +32,10 @@
 	</dict>
 	<key>NSApplicationCrashOnExceptions</key>
 	<true/>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>BackgroundColor</key>

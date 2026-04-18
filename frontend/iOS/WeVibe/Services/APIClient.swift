@@ -55,6 +55,7 @@ struct MatchListItem {
     let lastMessageContent: String?
     let unreadCount: Int
     let counterpartDisplayName: String?
+    let counterpartUserId: String?
     let counterpartPhotoUrl: String?
 }
 
@@ -132,7 +133,19 @@ struct MessageHistoryItem {
     let createdAt: String
 }
 
+struct PermanentMessageItem {
+    let messageId: String
+    let content: String
+    let senderId: String
+    let createdAt: String
+}
 
+struct SendPermanentMessageResult {
+    let messageId: String
+    let content: String
+    let senderId: String
+    let createdAt: String
+}
 
 enum APIError: LocalizedError {
     case noProfile                      // 404 — user has no profile yet
@@ -700,6 +713,76 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
     
+    // MARK: - Get Permanent Messages
+    // GET /matching/matches/:matchId/messages
+ 
+    func getPermanentMessages(token: String, matchId: String) async throws -> [PermanentMessageItem] {
+        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+ 
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Msg: Decodable {
+                    let id: String
+                    let matchId: String
+                    let content: String
+                    let senderId: String
+                    let createdAt: String
+                }
+                let messages: [Msg]
+            }
+            let data: DataBody
+        }
+ 
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return resp.data.messages.map {
+            PermanentMessageItem(
+                messageId: $0.id,
+                matchId:   $0.matchId,
+                content:   $0.content,
+                senderId:  $0.senderId,
+                createdAt: $0.createdAt
+            )
+        }
+    }
+    
+    // MARK: - Send Permanent Message
+    // POST /matching/matches/:matchId/messages
+    func sendPermanentMessage(token: String, matchId: String, content: String) async throws -> SendPermanentMessageResult {
+        var req = request(path: "/matching/matches/\(matchId)/messages", method: "POST", token: token)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["content": content])
+ 
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+ 
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Msg: Decodable {
+                    let id: String
+                    let content: String
+                    let senderId: String
+                    let createdAt: String
+                }
+                let message: Msg
+            }
+            let data: DataBody
+        }
+ 
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return SendPermanentMessageResult(
+            messageId: resp.data.message.id,
+            content:   resp.data.message.content,
+            senderId:  resp.data.message.senderId,
+            createdAt: resp.data.message.createdAt
+        )
+    }
+    
 
     // MARK: - Match Profile
 
@@ -762,6 +845,7 @@ struct APIClient {
                     lastMessageContent: m.lastMessageContent,
                     unreadCount: m.unreadCount ?? 0,
                     counterpartDisplayName: m.counterpart?.displayName,
+                    counterpartUserId:      m.counterpart?.userId,
                     counterpartPhotoUrl: m.counterpart?.photoUrl
                 )
             }
@@ -817,9 +901,9 @@ struct APIClient {
     struct PermanentMessageItem {
         let messageId: String
         let matchId: String
-        let senderId: String
         let content: String
-        let createdAt: String?
+        let senderId: String
+        let createdAt: String
     }
 
     struct PermanentMessagesResult {
@@ -862,9 +946,8 @@ struct APIClient {
                 PermanentMessageItem(
                     messageId: $0.id,
                     matchId:   $0.matchId ?? matchId,
-                    senderId:  $0.senderId ?? "",
-                    content:   $0.content,
-                    createdAt: $0.createdAt
+                    content:   $0.content ?? "", senderId:  $0.senderId ?? "",
+                    createdAt: $0.createdAt!
                 )
             }
             return PermanentMessagesResult(

@@ -120,6 +120,7 @@ struct IncomingPermanentMessage: Sendable, Equatable {
     let messageId: String
     let content: String
     let senderId: String
+    let createdAt: String
 
     init?(_ dict: [String: Any]) {
         guard let matchId   = dict["matchId"] as? String,
@@ -131,6 +132,41 @@ struct IncomingPermanentMessage: Sendable, Equatable {
         self.messageId = messageId
         self.content   = content
         self.senderId  = senderId
+        self.createdAt = msg["createdAt"] as? String ?? ""
+    }
+}
+
+struct IncomingPermanentTyping: Sendable, Equatable {
+    let matchId: String
+    let userId: String
+    let isTyping: Bool
+
+    init?(_ dict: [String: Any]) {
+        guard let matchId  = dict["matchId"]  as? String,
+              let userId   = dict["userId"]   as? String,
+              let isTyping = dict["isTyping"] as? Bool else { return nil }
+        self.matchId  = matchId
+        self.userId   = userId
+        self.isTyping = isTyping
+    }
+}
+
+struct IncomingPermanentMatchRemoved: Sendable, Equatable {
+    let matchId: String
+    init?(_ dict: [String: Any]) {
+        guard let matchId = dict["matchId"] as? String else { return nil }
+        self.matchId = matchId
+    }
+}
+
+struct IncomingPermanentMatchBlocked: Sendable, Equatable {
+    let matchId: String
+    let blockedByUserId: String
+    init?(_ dict: [String: Any]) {
+        guard let matchId         = dict["matchId"]         as? String,
+              let blockedByUserId = dict["blockedByUserId"] as? String else { return nil }
+        self.matchId         = matchId
+        self.blockedByUserId = blockedByUserId
     }
 }
 
@@ -162,6 +198,15 @@ final class SocketService {
 
     /// Latest permanent chat message — consumed by PermanentChatView.
     var lastPermanentMessage: IncomingPermanentMessage?
+
+    /// Permanent chat typing indicator.
+    var lastPermanentTyping: IncomingPermanentTyping?
+
+    /// Match was removed by partner.
+    var lastPermanentMatchRemoved: IncomingPermanentMatchRemoved?
+
+    /// User was blocked by partner.
+    var lastPermanentMatchBlocked: IncomingPermanentMatchBlocked?
 
     /// sessionId + reason of a speed dating session that just ended server-side.
     var lastSpeedDatingSessionEnded: SpeedDatingSessionEndedEvent?
@@ -345,6 +390,33 @@ final class SocketService {
                   let msg      = IncomingPermanentMessage(payload) else { return }
             Task { @MainActor [weak self] in
                 self?.lastPermanentMessage = msg
+            }
+        }
+
+        socket?.on("permanent.typing.updated") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingPermanentTyping(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastPermanentTyping = event
+            }
+        }
+
+        socket?.on("permanent.match.removed") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingPermanentMatchRemoved(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastPermanentMatchRemoved = event
+            }
+        }
+
+        socket?.on("permanent.match.blocked") { [weak self] data, _ in
+            guard let envelope = data.first as? [String: Any],
+                  let payload  = envelope["data"] as? [String: Any],
+                  let event    = IncomingPermanentMatchBlocked(payload) else { return }
+            Task { @MainActor [weak self] in
+                self?.lastPermanentMatchBlocked = event
             }
         }
     }

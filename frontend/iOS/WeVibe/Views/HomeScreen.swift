@@ -117,10 +117,11 @@ private struct ChatTab: View {
                                 selectedTab = .speedDating
                             }
                         )
-                case .permanentChat(let matchId, let name):
+                case .permanentChat(let matchId, let name, let counterpartUserId):
                     PermanentChatView(
                         matchId: matchId,
                         matchName: name,
+                        counterpartUserId: counterpartUserId,
                         onBack: {
                             chatInnerTab = .matched
                             chatRouter.popToRoot()

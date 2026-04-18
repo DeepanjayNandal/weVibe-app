@@ -7,7 +7,8 @@ struct ChatListItem: Identifiable {
     let id = UUID()
     let matchId: String
     let name: String?
-    let initials: String?  
+    let initials: String?
+    let counterpartUserId: String      // used by PermanentChatView for isMine logic
     let avatarSystemIcon: String?
     let lastMessage: String
     let isMine: Bool
@@ -17,7 +18,6 @@ struct ChatListItem: Identifiable {
 }
 
 // MARK: - Inner Tab
-
 enum ChatInnerTab: CaseIterable {
     case anonymous, matched
 
@@ -48,7 +48,6 @@ struct ChatListView: View {
     @State private var matchesError: String? = nil
 
     private let apiClient = APIClient()
-    // Placeholder until matched chat API is built
 
     private var currentList: [ChatListItem] {
         innerTab == .anonymous ? anonymousChats : matchedChats
@@ -56,113 +55,115 @@ struct ChatListView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.primaryBackground
-                .ignoresSafeArea()
-
+            AppTheme.primaryBackground.ignoresSafeArea()
             VStack(spacing: 0) {
-
                 header
-
                 innerTabPicker
                     .padding(.horizontal, 24)
                     .padding(.top, 20)
                     .padding(.bottom, 8)
-
-                // ── Content area
-                Group {
-                    if isLoadingSessions && innerTab == .anonymous {
-                        Spacer()
-                        ProgressView()
-                            .tint(AppTheme.primaryButton)
-                        Spacer()
-
-                    } else if let error = sessionsError, innerTab == .anonymous {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Text(error)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
-                            Button {
-                                Task { await fetchSessions() }
-                            } label: {
-                                Text("Try again")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.primaryButton)
-                            }
-                        }
-                        Spacer()
-
-                    } else if isLoadingMatches && innerTab == .matched {
-                        Spacer()
-                        ProgressView()
-                            .tint(AppTheme.primaryButton)
-                        Spacer()
-
-                    } else if let error = matchesError, innerTab == .matched {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Text(error)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
-                            Button {
-                                Task { await fetchMatches() }
-                            } label: {
-                                Text("Try again")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.primaryButton)
-                            }
-                        }
-                        Spacer()
-
-                    } else if currentList.isEmpty && innerTab == .anonymous {
-                        EmptySessionsView()
-
-                    } else if currentList.isEmpty && innerTab == .matched {
-                        EmptyMatchedView()
-
-                    } else {
-                        ScrollView(showsIndicators: false) {
-                            LazyVStack(spacing: 0) {
-                                ForEach(currentList) { item in
-                                    ChatRowView(item: item, isAnonymous: innerTab == .anonymous)
-                                        .onTapGesture {
-                                            if innerTab == .anonymous {
-                                                chatRouter.navigate(to: .activeChat(matchId: item.matchId))
-                                            } else {
-                                                chatRouter.navigate(to: .permanentChat(matchId: item.matchId))
-                                            }
-                                        }
-                                    Rectangle()
-                                        .fill(Color.white.opacity(0.06))
-                                        .frame(height: 1)
-                                        .padding(.leading, 84)
-                                }
-                            }
-                            .padding(.top, 8)
-                            .padding(.bottom, 100)
-                        }
-                        .refreshable {
-                            if innerTab == .anonymous { await fetchSessions() }
-                            else { await fetchMatches() }
-                        }
-                        .animation(.easeInOut(duration: 0.2), value: innerTab)
-                    }
-                }
+                contentArea
             }
         }
         .task {
-            await fetchSessions()
-            await fetchMatches()
+            async let s: () = fetchSessions()
+            async let m: () = fetchMatches()
+            _ = await (s, m)
         }
         .onChange(of: innerTab) { _, tab in
             switch tab {
             case .anonymous: Task { await fetchSessions() }
             case .matched:   Task { await fetchMatches() }
             }
+        }
+    }
+
+    @ViewBuilder private var contentArea: some View {
+        if innerTab == .anonymous {
+            anonymousContent
+        } else {
+            matchedContent
+        }
+    }
+
+    @ViewBuilder private var anonymousContent: some View {
+        if isLoadingSessions {
+            Spacer()
+            ProgressView().tint(AppTheme.primaryButton)
+            Spacer()
+        } else if let error = sessionsError {
+            Spacer()
+            errorView(message: error) { Task { await fetchSessions() } }
+            Spacer()
+        } else if anonymousChats.isEmpty {
+            EmptySessionsView()
+        } else {
+            chatList(items: anonymousChats, isAnonymous: true)
+        }
+    }
+
+    @ViewBuilder private var matchedContent: some View {
+        if isLoadingMatches {
+            Spacer()
+            ProgressView().tint(AppTheme.primaryButton)
+            Spacer()
+        } else if let error = matchesError {
+            Spacer()
+            errorView(message: error) { Task { await fetchMatches() } }
+            Spacer()
+        } else if matchedChats.isEmpty {
+            EmptyMatchedView()
+        } else {
+            chatList(items: matchedChats, isAnonymous: false)
+        }
+    }
+
+    @ViewBuilder private func errorView(message: String, retry: @escaping () -> Void) -> some View {
+        VStack(spacing: 12) {
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button(action: retry) {
+                Text("Try again")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryButton)
+            }
+        }
+    }
+
+    @ViewBuilder private func chatList(items: [ChatListItem], isAnonymous: Bool) -> some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(items) { item in
+                    ChatRowView(item: item, isAnonymous: isAnonymous)
+                        .onTapGesture { handleTap(item: item, isAnonymous: isAnonymous) }
+                    Rectangle()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(height: 1)
+                        .padding(.leading, 84)
+                }
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 100)
+        }
+        .refreshable {
+            if isAnonymous { await fetchSessions() }
+            else { await fetchMatches() }
+        }
+        .animation(.easeInOut(duration: 0.2), value: innerTab)
+    }
+
+    private func handleTap(item: ChatListItem, isAnonymous: Bool) {
+        if isAnonymous {
+            chatRouter.navigate(to: .activeChat(matchId: item.matchId))
+        } else {
+            chatRouter.navigate(to: .permanentChat(
+                matchId:           item.matchId,
+                name:              item.name ?? "Match",
+                counterpartUserId: item.counterpartUserId
+            ))
         }
     }
 
@@ -202,19 +203,22 @@ struct ChatListView: View {
                 }
 
                 return ChatListItem(
-                    matchId:          sessionId,
-                    name:             nil,
-                    initials:         session.counterpart?.initials,
-                    avatarSystemIcon: nil,
-                    lastMessage:      lastMsg,
-                    isMine:           isMine,
-                    timeAgo:          timeAgoLabel(session.lastMessageAt ?? session.sessionExpiresAt),
-                    unreadCount:      session.unreadCount,
-                    isTyping:         false
+                    matchId:           sessionId,
+                    name:              nil,
+                    initials:          session.counterpart?.initials,
+                    counterpartUserId: session.counterpart?.userId ?? "",
+                    avatarSystemIcon:  nil,
+                    lastMessage:       lastMsg,
+                    isMine:            isMine,
+                    timeAgo:           timeAgoLabel(session.lastMessageAt ?? session.sessionExpiresAt),
+                    unreadCount:       session.unreadCount,
+                    isTyping:          false
                 )
             }
+            print("✅ [ChatList] \(anonymousChats.count) speed dating sessions loaded")
         } catch {
             sessionsError = "Couldn't load sessions"
+            print("❌ [ChatList] fetchSessions: \(error)")
         }
 
         isLoadingSessions = false
@@ -237,41 +241,33 @@ struct ChatListView: View {
         do {
             let result = try await apiClient.getAllMatches(token: token)
             matchedChats = result.matches.map { match in
-                ChatListItem(
-                    matchId:          match.matchId,
-                    name:             match.counterpartDisplayName,
-                    initials:         nil,
-                    avatarSystemIcon: nil,
-                    lastMessage:      match.lastMessageContent ?? "",
-                    isMine:           false,
-                    timeAgo:          timeListAgoLabel(match.lastMessageAt),
-                    unreadCount:      match.unreadCount,
-                    isTyping:         false
+                let lastMsg = match.lastMessageContent?.isEmpty == false
+                    ? match.lastMessageContent!
+                    : "Say hello! 👋"
+
+                return ChatListItem(
+                    matchId:           match.matchId,
+                    name:              match.counterpartDisplayName,
+                    initials:          nil,
+                    counterpartUserId: match.counterpartUserId ?? "",
+                    avatarSystemIcon:  nil,
+                    lastMessage:       lastMsg,
+                    isMine:            false,
+                    timeAgo:           timeAgoLabel(match.lastMessageAt),
+                    unreadCount:       match.unreadCount,
+                    isTyping:          false
                 )
             }
+            print("✅ [ChatList] \(matchedChats.count) matches loaded")
         } catch {
             matchesError = "Couldn't load matches"
+            print("❌ [ChatList] fetchMatches: \(error)")
         }
 
         isLoadingMatches = false
     }
 
     // MARK: - Helpers
-
-    private func timeListAgoLabel(_ isoString: String?) -> String {
-        guard let isoString,
-              let date = ISO8601DateFormatter().date(from: isoString)
-        else { return "" }
-        let elapsed = -date.timeIntervalSinceNow
-        guard elapsed >= 0 else { return "" }
-        let minutes = Int(elapsed) / 60
-        let hours   = minutes / 60
-        let days    = hours / 24
-        if days    > 0 { return "\(days)d ago" }
-        if hours   > 0 { return "\(hours)h ago" }
-        if minutes > 0 { return "\(minutes)m ago" }
-        return "Just now"
-    }
 
     private func statusLabel(_ status: String?) -> String {
         switch status {
@@ -371,6 +367,7 @@ private struct ChatRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
+                    // Title: show initials for anonymous, name for matched
                     Text(isAnonymous
                          ? (item.initials ?? "??")
                          : (item.name ?? item.initials ?? "Unknown"))
@@ -493,7 +490,10 @@ private struct EmptySessionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
+
+            // ── Frog SVG-style character in pure SwiftUI
             ZStack {
+                // Sparkles
                 SparkleView(size: 10, delay: 0)
                     .offset(x: -70, y: -30)
                     .opacity(sparkle1)
@@ -509,10 +509,22 @@ private struct EmptySessionsView: View {
             }
             .padding(.bottom, 28)
 
+            // Copy
             VStack(spacing: 8) {
-                Text("No active session yet")
+                Text("no one here but us frogs 🐸")
                     .font(.system(size: 20, weight: .black))
                     .foregroundStyle(.white)
+
+                Text("you haven't matched with anyone yet.\ngo join the speed dating queue!")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+
+                Text("it literally takes 20 messages 💀")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppTheme.primaryButton.opacity(0.7))
+                    .padding(.top, 4)
             }
             .padding(.horizontal, 40)
 
@@ -686,13 +698,12 @@ private struct Arc: Shape {
 private struct SparkleView: View {
     let size: CGFloat
     let delay: Double
-    var color: Color = Color(hex: "#B2F542")
     @State private var rotation: Double = 0
 
     var body: some View {
         Image(systemName: "sparkle")
             .font(.system(size: size))
-            .foregroundStyle(color)
+            .foregroundStyle(Color(hex: "#B2F542"))
             .rotationEffect(.degrees(rotation))
             .onAppear {
                 withAnimation(.linear(duration: 3).repeatForever(autoreverses: false).delay(delay)) {
@@ -705,42 +716,23 @@ private struct SparkleView: View {
 // MARK: - Empty Matched View
 
 private struct EmptyMatchedView: View {
-
-    @State private var floatY: CGFloat      = 0
-    @State private var eyeScale: CGFloat    = 1
-    @State private var blinkOpacity: Double = 0
-    @State private var sparkle1: CGFloat    = 0
-    @State private var sparkle2: CGFloat    = 0
-    @State private var heartPulse: CGFloat  = 1
+    @State private var floatY: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
-            ZStack {
-                // Sparkles — pink tones
-                SparkleView(size: 10, delay: 0,   color: Color(hex: "#FF6B9D"))
-                    .offset(x: -70, y: -30)
-                    .opacity(sparkle1)
-                SparkleView(size: 8,  delay: 0.3, color: Color(hex: "#FFD6E7"))
-                    .offset(x: 75,  y: -20)
-                    .opacity(sparkle2)
-                SparkleView(size: 6,  delay: 0.6, color: Color(hex: "#FF6B9D"))
-                    .offset(x: 50,  y: -60)
-                    .opacity(sparkle1)
-
-                HeartCharacterView(eyeScale: eyeScale, blinkOpacity: blinkOpacity)
-                    .offset(y: floatY)
-                    .scaleEffect(heartPulse)
-            }
-            .padding(.bottom, 28)
+            Text("🫧")
+                .font(.system(size: 80))
+                .offset(y: floatY)
+                .padding(.bottom, 24)
 
             VStack(spacing: 8) {
-                Text("no matches yet")
+                Text("no matches yet bestie")
                     .font(.system(size: 20, weight: .black))
                     .foregroundStyle(.white)
 
-                Text("vibe through a speed dating session\nand your match will show up here 💘")
+                Text("finish a speed dating session first.\nyou got this 💪")
                     .font(.system(size: 14))
                     .foregroundStyle(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
@@ -751,175 +743,9 @@ private struct EmptyMatchedView: View {
             Spacer()
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-                floatY = -14
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                floatY = -12
             }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true).delay(0.3)) {
-                heartPulse = 1.07
-            }
-            blinkLoop()
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true).delay(0.2)) {
-                sparkle1 = 1
-            }
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true).delay(0.8)) {
-                sparkle2 = 1
-            }
-        }
-    }
-
-    private func blinkLoop() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-            withAnimation(.easeIn(duration: 0.06)) { blinkOpacity = 1; eyeScale = 0.1 }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                withAnimation(.easeOut(duration: 0.08)) { blinkOpacity = 0; eyeScale = 1 }
-                blinkLoop()
-            }
-        }
-    }
-}
-
-// MARK: - Heart Character Drawing
-
-private struct HeartCharacterView: View {
-    let eyeScale: CGFloat
-    let blinkOpacity: Double
-
-    var body: some View {
-        ZStack {
-            // Shadow
-            Ellipse()
-                .fill(Color.black.opacity(0.18))
-                .frame(width: 110, height: 22)
-                .offset(y: 68)
-                .blur(radius: 6)
-
-            // Heart body
-            HeartShape()
-                .fill(LinearGradient(
-                    colors: [Color(hex: "#FF6B9D"), Color(hex: "#E91E63")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .frame(width: 120, height: 108)
-                .offset(y: 8)
-
-            // Gloss highlight
-            Ellipse()
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 44, height: 20)
-                .rotationEffect(.degrees(-18))
-                .offset(x: -6, y: -22)
-
-            // Left arm
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: "#FF6B9D"))
-                .frame(width: 16, height: 32)
-                .rotationEffect(.degrees(-22))
-                .offset(x: -60, y: 32)
-            // Right arm
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: "#FF6B9D"))
-                .frame(width: 16, height: 32)
-                .rotationEffect(.degrees(22))
-                .offset(x: 60, y: 32)
-
-            // Tiny hearts held in arms
-            Image(systemName: "heart.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(Color(hex: "#FFD6E7"))
-                .offset(x: -62, y: 52)
-            Image(systemName: "heart.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(Color(hex: "#FFD6E7"))
-                .offset(x: 62, y: 52)
-
-            // Left eye white
-            Circle()
-                .fill(.white)
-                .frame(width: 26, height: 26)
-                .offset(x: -20, y: -14)
-            // Right eye white
-            Circle()
-                .fill(.white)
-                .frame(width: 26, height: 26)
-                .offset(x: 20, y: -14)
-
-            // Left pupil
-            Circle()
-                .fill(Color(hex: "#1A1A2E"))
-                .frame(width: 13, height: 13)
-                .scaleEffect(CGSize(width: 1, height: eyeScale))
-                .offset(x: -19, y: -13)
-            // Right pupil
-            Circle()
-                .fill(Color(hex: "#1A1A2E"))
-                .frame(width: 13, height: 13)
-                .scaleEffect(CGSize(width: 1, height: eyeScale))
-                .offset(x: 21, y: -13)
-
-            // Eye shines
-            Circle()
-                .fill(.white.opacity(0.85))
-                .frame(width: 5, height: 5)
-                .offset(x: -13, y: -19)
-            Circle()
-                .fill(.white.opacity(0.85))
-                .frame(width: 5, height: 5)
-                .offset(x: 27, y: -19)
-
-            // Smile
-            Arc(startAngle: .degrees(10), endAngle: .degrees(170))
-                .stroke(Color(hex: "#C2185B"), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .frame(width: 32, height: 13)
-                .offset(y: 2)
-
-            // Rosy cheeks
-            Ellipse()
-                .fill(Color(hex: "#FF1744").opacity(0.22))
-                .frame(width: 20, height: 10)
-                .offset(x: -30, y: -5)
-            Ellipse()
-                .fill(Color(hex: "#FF1744").opacity(0.22))
-                .frame(width: 20, height: 10)
-                .offset(x: 30, y: -5)
-        }
-        .frame(width: 150, height: 160)
-    }
-}
-
-// MARK: - Heart Shape
-
-private struct HeartShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { p in
-            let w = rect.width
-            let h = rect.height
-            p.move(to: CGPoint(x: w / 2, y: h))
-            p.addCurve(
-                to:         CGPoint(x: 0, y: h * 0.3),
-                control1:   CGPoint(x: w * 0.1, y: h * 0.75),
-                control2:   CGPoint(x: 0, y: h * 0.55)
-            )
-            p.addArc(
-                center:     CGPoint(x: w * 0.25, y: h * 0.3),
-                radius:     w * 0.25,
-                startAngle: .degrees(180),
-                endAngle:   .degrees(0),
-                clockwise:  false
-            )
-            p.addArc(
-                center:     CGPoint(x: w * 0.75, y: h * 0.3),
-                radius:     w * 0.25,
-                startAngle: .degrees(180),
-                endAngle:   .degrees(0),
-                clockwise:  false
-            )
-            p.addCurve(
-                to:         CGPoint(x: w / 2, y: h),
-                control1:   CGPoint(x: w, y: h * 0.55),
-                control2:   CGPoint(x: w * 0.9, y: h * 0.75)
-            )
-            p.closeSubpath()
         }
     }
 }

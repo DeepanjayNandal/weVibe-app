@@ -11,6 +11,16 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter((item) => item.length > 0);
 }
 
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+
+  throw new Error(`Invalid boolean env value: ${value}`);
+}
+
 function buildDatabaseUrl(): string {
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL;
@@ -42,4 +52,18 @@ export const env = {
   // Optional comma-separated CORS allowlist for socket.io browser clients.
   // Leave empty for native apps (iOS) where CORS does not apply.
   wsCorsOrigins: parseCsvEnv(process.env.WS_CORS_ORIGINS),
+  get matchmakingRecentMatchCooldownEnabled(): boolean {
+    return parseBooleanEnv(process.env.MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED) ?? process.env.NODE_ENV === 'production';
+  },
+  // Upstash Redis URL for Socket.IO multi-instance adapter (Cloud Run).
+  // Must use rediss:// scheme (TLS). Omit in local dev to use in-memory adapter.
+  upstashRedisUrl: process.env.UPSTASH_REDIS_URL ?? null,
+
+  // Apple Sign-In credentials — required for Apple refresh token exchange and revocation
+  // on account deletion (App Store Review Guideline 5.1.1).
+  // APPLE_PRIVATE_KEY: content of the .p8 file from Apple Developer portal.
+  //   Newlines must be encoded as \n in the .env file.
+  appleTeamId: process.env.APPLE_TEAM_ID ?? '',
+  appleKeyId: process.env.APPLE_KEY_ID ?? '',
+  applePrivateKey: (process.env.APPLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
 };

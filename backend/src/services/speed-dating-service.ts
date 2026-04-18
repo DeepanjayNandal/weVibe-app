@@ -39,9 +39,13 @@ export type SessionListItem = {
   myMessageCount: number;
   otherMessageCount: number;
   messageLimit: number;
+  lastMessageContent: string | null;
+  lastMessageAt: Date | null;
+  isLastMessageMine: boolean;
   counterpart: {
     userId: string | null;
     firstName: string | null;
+    nickname: string | null;
     initials: string | null;
     blurredPhotoUrl: string | null;
   };
@@ -76,6 +80,21 @@ export type SendMessageResult = {
   session: SessionDetail;
 };
 
+export type SessionEndedReason =
+  | 'graduated'
+  | 'archived_no_match'
+  | 'archived_mismatch'
+  | 'ended_early'
+  | 'expired';
+
+export type ExpiredSessionResult = {
+  sessionId: string;
+  userAId: string | null;
+  userBId: string | null;
+  endedReason: SessionEndedReason;
+  matchId?: string;
+};
+
 export type SpeedDatingActionResult = {
   session: SessionDetail;
   match: {
@@ -83,6 +102,8 @@ export type SpeedDatingActionResult = {
     status: string | null;
     messageCount: number;
   } | null;
+  endedReason?: SessionEndedReason;
+  endedByUserId?: string;
 };
 
 const MESSAGE_LIMIT_PER_USER = 20;
@@ -96,7 +117,10 @@ const STATUS_AWAITING_DECISION_LOCKED = 'awaiting_decision_locked';
 const STATUS_GRADUATED = 'graduated';
 const STATUS_EXPIRED = 'expired';
 const STATUS_ARCHIVED = 'archived';
+const STATUS_ARCHIVED_MISMATCH = 'archived_mismatch';
 const STATUS_ENDED_EARLY = 'ended_early';
+
+export const SPEED_DATING_STATUS_ARCHIVED_MISMATCH = STATUS_ARCHIVED_MISMATCH;
 
 const DECISION_PENDING: enum_decision = 'pending';
 const DECISION_YES: enum_decision = 'yes';
@@ -279,9 +303,10 @@ export class SpeedDatingService {
     const ids = sessions.map((session) => session.id);
     const messageCountMap = await this.buildMessageCountMap(ids);
     const unreadCountMap = await this.buildUnreadCountMap(ids, userId);
+    const lastMessageMap = await this.buildLastMessageMap(ids);
 
     return sessions.map((session) =>
-      this.toSessionListItem(session, userId, messageCountMap, unreadCountMap),
+      this.toSessionListItem(session, userId, messageCountMap, unreadCountMap, lastMessageMap),
     );
   }
 
@@ -293,8 +318,9 @@ export class SpeedDatingService {
     const refreshedSession = await this.getAuthorizedSession(userId, sessionId);
     const messageCountMap = await this.buildMessageCountMap([sessionId]);
     const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId);
+    const lastMessageMap = await this.buildLastMessageMap([sessionId]);
 
-    return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap);
+    return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap);
   }
 
   async getSessionMessages(userId: string, sessionId: string): Promise<SessionMessagesResult> {
@@ -312,9 +338,10 @@ export class SpeedDatingService {
 
       const messageCountMap = await this.buildMessageCountMap([sessionId], tx);
       const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
       return {
-        session: this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap),
+        session: this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap),
         messages: messages.map(messageToPayload),
       };
     });
@@ -339,8 +366,9 @@ export class SpeedDatingService {
       const refreshedSession = await this.getAuthorizedSession(userId, sessionId, tx);
       const messageCountMap = await this.buildMessageCountMap([sessionId], tx);
       const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
-      return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap);
+      return this.toSessionListItem(refreshedSession, userId, messageCountMap, unreadCountMap, lastMessageMap);
     });
   }
 
@@ -463,10 +491,12 @@ export class SpeedDatingService {
       }
 
       const countMap = await this.buildMessageCountMap([sessionId], tx);
+      const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, tx);
+      const lastMessageMap = await this.buildLastMessageMap([sessionId], tx);
 
       return {
         message: messageToPayload(message),
-        session: this.toSessionListItem(fullSession, userId, countMap),
+        session: this.toSessionListItem(fullSession, userId, countMap, unreadCountMap, lastMessageMap),
       };
     });
 
@@ -486,6 +516,7 @@ export class SpeedDatingService {
 
   async requestMoveToPermanent(userId: string, sessionId: string): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -535,6 +566,7 @@ export class SpeedDatingService {
     accept: boolean,
   ): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -548,7 +580,8 @@ export class SpeedDatingService {
 
       if (accept) {
         const match = await this.graduateSession(tx, activeSession);
-        return this.buildActionResult(tx, userId, sessionId, match);
+        const result = await this.buildActionResult(tx, userId, sessionId, match);
+        return { ...result, endedReason: 'graduated' };
       }
 
       if (internalStatus === STATUS_ACTIVE_COUNTER_PENDING) {
@@ -589,6 +622,7 @@ export class SpeedDatingService {
     }
 
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -607,38 +641,56 @@ export class SpeedDatingService {
 
       const nextMyDecision = normalizedDecision;
       const nextOtherDecision = perspective.otherDecision;
+      const awaitingStatusGuard = [STATUS_AWAITING_DECISION, STATUS_AWAITING_DECISION_LOCKED];
 
       if (nextMyDecision === DECISION_YES && nextOtherDecision === DECISION_YES) {
-        await tx.speed_dating_sessions.update({
-          where: { id: sessionId },
+        const updated = await tx.speed_dating_sessions.updateMany({
+          where: { id: sessionId, status: { in: awaitingStatusGuard } },
           data: this.buildDecisionUpdateData(perspective.isUserA, DECISION_YES, DECISION_YES),
         });
+        if (updated.count === 0) {
+          throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+        }
         const refreshed = await tx.speed_dating_sessions.findUnique({ where: { id: sessionId } });
         if (!refreshed) {
           throw new AppError('Session not found after decision update', 404, 'SESSION_NOT_FOUND');
         }
         const match = await this.graduateSession(tx, refreshed);
-        return this.buildActionResult(tx, userId, sessionId, match);
+        const result = await this.buildActionResult(tx, userId, sessionId, match);
+        return { ...result, endedReason: 'graduated' };
       }
 
       let nextStatus = internalStatus;
+      let endedReason: SessionEndedReason | undefined;
       if (nextMyDecision === DECISION_NO && nextOtherDecision === DECISION_NO) {
         nextStatus = STATUS_ARCHIVED;
+        endedReason = 'archived_no_match';
+      } else if (
+        (nextMyDecision === DECISION_YES && nextOtherDecision === DECISION_NO) ||
+        (nextMyDecision === DECISION_NO && nextOtherDecision === DECISION_YES)
+      ) {
+        nextStatus = STATUS_ARCHIVED_MISMATCH;
+        endedReason = 'archived_mismatch';
       }
 
-      await tx.speed_dating_sessions.update({
-        where: { id: sessionId },
+      const updated = await tx.speed_dating_sessions.updateMany({
+        where: { id: sessionId, status: { in: awaitingStatusGuard } },
         data: this.buildDecisionUpdateData(perspective.isUserA, nextMyDecision, nextOtherDecision, {
           status: nextStatus,
         }),
       });
+      if (updated.count === 0) {
+        throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+      }
 
-      return this.buildActionResult(tx, userId, sessionId, null);
+      const result = await this.buildActionResult(tx, userId, sessionId, null);
+      return endedReason ? { ...result, endedReason } : result;
     });
   }
 
   async endSession(userId: string, sessionId: string): Promise<SpeedDatingActionResult> {
     return prisma.$transaction(async (tx) => {
+      await this.lockSessionRow(tx, sessionId);
       const session = await this.getAuthorizedSessionRecord(tx, userId, sessionId);
       const expiredSession = await this.expireSessionIfNeeded(session, tx);
       const activeSession = expiredSession ?? session;
@@ -648,17 +700,100 @@ export class SpeedDatingService {
         badRequest('Session cannot be ended in the current state', 'SESSION_END_NOT_ALLOWED');
       }
 
-      await tx.speed_dating_sessions.update({
-        where: { id: sessionId },
+      const updated = await tx.speed_dating_sessions.updateMany({
+        where: { id: sessionId, status: { in: OPENABLE_STATUSES } },
         data: {
           status: STATUS_ENDED_EARLY,
-          user_a_decision: DECISION_PENDING,
-          user_b_decision: DECISION_PENDING,
+          ended_by_user_id: userId,
         },
       });
+      if (updated.count === 0) {
+        throw new AppError('Session state changed during update', 409, 'SESSION_STATE_CONFLICT');
+      }
 
-      return this.buildActionResult(tx, userId, sessionId, null);
+      const result = await this.buildActionResult(tx, userId, sessionId, null);
+      return { ...result, endedReason: 'ended_early', endedByUserId: userId };
     });
+  }
+
+  async expireDueSessions(): Promise<ExpiredSessionResult[]> {
+    const now = new Date();
+    const dueSessions = await prisma.speed_dating_sessions.findMany({
+      where: {
+        expires_at: { lte: now },
+        status: { in: EXPIRABLE_STATUSES },
+      },
+      select: { id: true },
+    });
+
+    const results: ExpiredSessionResult[] = [];
+
+    for (const { id: sessionId } of dueSessions) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          await this.lockSessionRow(tx, sessionId);
+          const session = await tx.speed_dating_sessions.findUnique({
+            where: { id: sessionId },
+          });
+          if (!session) return null;
+
+          const normalizedStatus = normalizeSessionStatus(session.status);
+          if (!normalizedStatus || !EXPIRABLE_STATUSES.includes(normalizedStatus)) {
+            return null;
+          }
+          if (!session.expires_at || session.expires_at.getTime() > Date.now()) {
+            return null;
+          }
+
+          const decisionA = normalizeDecision(session.user_a_decision);
+          const decisionB = normalizeDecision(session.user_b_decision);
+
+          if (decisionA === DECISION_YES && decisionB === DECISION_YES) {
+            const match = await this.graduateSession(tx, session);
+            return {
+              sessionId,
+              userAId: session.user_a_id,
+              userBId: session.user_b_id,
+              endedReason: 'graduated' as SessionEndedReason,
+              matchId: match.id,
+            };
+          }
+
+          let nextStatus: string = STATUS_EXPIRED;
+          let endedReason: SessionEndedReason = 'expired';
+          if (decisionA === DECISION_NO && decisionB === DECISION_NO) {
+            nextStatus = STATUS_ARCHIVED;
+            endedReason = 'archived_no_match';
+          } else if (
+            (decisionA === DECISION_YES && decisionB === DECISION_NO) ||
+            (decisionA === DECISION_NO && decisionB === DECISION_YES)
+          ) {
+            nextStatus = STATUS_ARCHIVED_MISMATCH;
+            endedReason = 'archived_mismatch';
+          }
+
+          await tx.speed_dating_sessions.update({
+            where: { id: sessionId },
+            data: { status: nextStatus },
+          });
+
+          return {
+            sessionId,
+            userAId: session.user_a_id,
+            userBId: session.user_b_id,
+            endedReason,
+          };
+        });
+
+        if (result) {
+          results.push(result);
+        }
+      } catch (error) {
+        console.error(`[speed_dating] failed to expire session ${sessionId}:`, error);
+      }
+    }
+
+    return results;
   }
 
   private async expireUserSessions(userId: string): Promise<void> {
@@ -700,6 +835,10 @@ export class SpeedDatingService {
     assertTwoPartyParticipant(session, userId);
 
     return session;
+  }
+
+  private async lockSessionRow(tx: Prisma.TransactionClient, sessionId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM speed_dating_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
   }
 
   private async getAuthorizedSessionRecord(
@@ -801,6 +940,31 @@ export class SpeedDatingService {
       if (!row.session_id) continue;
       const unreadCount = typeof row._count === 'object' ? (row._count._all ?? 0) : 0;
       map.set(row.session_id, unreadCount);
+    }
+
+    return map;
+  }
+
+  private async buildLastMessageMap(
+    sessionIds: string[],
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ): Promise<Map<string, speed_dating_messages>> {
+    const map = new Map<string, speed_dating_messages>();
+
+    if (sessionIds.length === 0) {
+      return map;
+    }
+
+    const latestMessages = await db.speed_dating_messages.findMany({
+      where: { session_id: { in: sessionIds } },
+      orderBy: { created_at: 'desc' },
+      distinct: ['session_id'],
+    });
+
+    for (const msg of latestMessages) {
+      if (msg.session_id) {
+        map.set(msg.session_id, msg);
+      }
     }
 
     return map;
@@ -971,9 +1135,11 @@ export class SpeedDatingService {
     }
 
     const countMap = await this.buildMessageCountMap([sessionId], db);
+    const unreadCountMap = await this.buildUnreadCountMap([sessionId], userId, db);
+    const lastMessageMap = await this.buildLastMessageMap([sessionId], db);
 
     return {
-      session: this.toSessionListItem(fullSession, userId, countMap),
+      session: this.toSessionListItem(fullSession, userId, countMap, unreadCountMap, lastMessageMap),
       match: match ? buildMatchSummary(match) : null,
     };
   }
@@ -983,6 +1149,7 @@ export class SpeedDatingService {
     userId: string,
     messageCountMap: Map<string, Map<string, number>>,
     unreadCountMap: Map<string, number> = new Map<string, number>(),
+    lastMessageMap: Map<string, speed_dating_messages> = new Map<string, speed_dating_messages>(),
   ): SessionListItem {
     const participantIds = getTwoPartyParticipantIds(session);
     const isUserA = isUserAInTwoParty(session, userId);
@@ -999,6 +1166,7 @@ export class SpeedDatingService {
     const otherMessageCount = countForSession.get(otherId) ?? 0;
 
     const firstName = extractFirstName(counterpartUser?.profiles?.display_name);
+    const nickname = (counterpartUser?.profiles as any)?.nickname ?? null;
     const initials = extractInitials(counterpartUser?.profiles?.display_name);
     const blurredPhotoUrl = extractBlurredPhotoUrl(counterpartUser?.profiles?.photos ?? null);
 
@@ -1013,6 +1181,11 @@ export class SpeedDatingService {
 
     const unreadCount = unreadCountMap.get(session.id) ?? 0;
 
+    const lastMessage = lastMessageMap.get(session.id);
+    const lastMessageContent = lastMessage?.content ?? null;
+    const lastMessageAt = lastMessage?.created_at ?? null;
+    const isLastMessageMine = lastMessage?.sender_id === userId;
+
     return {
       sessionId: session.id,
       status: publicStatus,
@@ -1025,9 +1198,13 @@ export class SpeedDatingService {
       myMessageCount,
       otherMessageCount,
       messageLimit: MESSAGE_LIMIT_PER_USER,
+      lastMessageContent,
+      lastMessageAt,
+      isLastMessageMine,
       counterpart: {
         userId: counterpartUser?.id ?? null,
         firstName,
+        nickname,
         initials,
         blurredPhotoUrl,
       },

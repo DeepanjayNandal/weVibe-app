@@ -14,4 +14,10 @@ export interface RegisterInput {
 export interface LoginInput {
   provider: AuthProvider;
   idToken: string;
+  // Apple Sign-In only — one-time code for server-side token exchange.
+  // Provided on first sign-in; absent on subsequent sign-ins.
+  appleAuthCode?: string;
+  // The app bundle ID that generated the appleAuthCode (com.wevibe1.app or com.wevibe1.appdev).
+  // Required when appleAuthCode is present.
+  appleBundleId?: string;
 }

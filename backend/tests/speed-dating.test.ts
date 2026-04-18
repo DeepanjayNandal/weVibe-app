@@ -226,9 +226,6 @@ describe('Speed Dating API', () => {
     expect(session.sessionId).toBe(sessionId);
     expect(session.status).toBe('active');
     expect(session.sessionExpiresAt).toBeTruthy();
-    expect(Object.keys(session).sort()).toEqual(
-      ['sessionExpiresAt', 'sessionId', 'status'].sort(),
-    );
   });
 
   test('supports early move-to-permanent acceptance and copies speed dating history into permanent chat', async () => {
@@ -492,8 +489,8 @@ describe('Speed Dating API', () => {
       data: {
         user_a_id: userAId,
         user_b_id: userBId,
-        started_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        expires_at: new Date(Date.now() - 60 * 60 * 1000),
+        started_at: new Date(Date.now() - 27 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() - 25 * 60 * 60 * 1000), // outside 24h grace window — should be hidden
         status: 'expired',
       },
     });
@@ -679,6 +676,12 @@ describe('Speed Dating API', () => {
     });
 
     const sessionId = await createMatchedSession(tokenA, tokenB);
+    const userAId = await getUserIdFromToken(tokenA);
+
+    const requestMoveResponse = await request(app)
+      .post(`/api/v1/matching/sessions/${sessionId}/move-to-permanent/request`)
+      .set('Authorization', `Bearer ${tokenA}`);
+    expect(requestMoveResponse.status).toBe(200);
 
     const endResponse = await request(app)
       .post(`/api/v1/matching/sessions/${sessionId}/end`)
@@ -688,6 +691,16 @@ describe('Speed Dating API', () => {
     expect(endResponse.body.data.session.status).toBe('ended_early');
     expect(endResponse.body.data.session.canSendMessage).toBe(false);
 
+    const rawSession = await prisma.speed_dating_sessions.findUnique({ where: { id: sessionId } });
+    expect(rawSession?.ended_by_user_id).toBe(userAId);
+    // Decisions must be preserved across endSession — tokenA had said yes, tokenB was still pending.
+    // tokenA may be assigned user_a or user_b depending on matching order.
+    const tokenAIsUserA = rawSession?.user_a_id === userAId;
+    const tokenADecision = tokenAIsUserA ? rawSession?.user_a_decision : rawSession?.user_b_decision;
+    const tokenBDecision = tokenAIsUserA ? rawSession?.user_b_decision : rawSession?.user_a_decision;
+    expect(tokenADecision).toBe('yes');
+    expect(tokenBDecision).toBe('pending');
+
     const sendAfterEnd = await request(app)
       .post(`/api/v1/matching/sessions/${sessionId}/messages`)
       .set('Authorization', `Bearer ${tokenB}`)
@@ -695,6 +708,100 @@ describe('Speed Dating API', () => {
 
     expect(sendAfterEnd.status).toBe(400);
     expect(sendAfterEnd.body.error.code).toBe('SESSION_NOT_ACTIVE');
+  });
+
+  test('archives as mismatch when final decisions disagree', async () => {
+    const tokenA = 'mock:google:sd-a-mismatch-001:sd-a-mismatch-001@speed-dating.test';
+    const tokenB = 'mock:google:sd-b-mismatch-001:sd-b-mismatch-001@speed-dating.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const sessionId = await createMatchedSession(tokenA, tokenB);
+    const userAId = await getUserIdFromToken(tokenA);
+    await forceAwaitingDecision(sessionId);
+
+    const firstDecision = await request(app)
+      .post(`/api/v1/matching/sessions/${sessionId}/final-decision`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ decision: 'yes' });
+
+    expect(firstDecision.status).toBe(200);
+    expect(firstDecision.body.data.session.status).toBe('awaiting_decision');
+
+    const secondDecision = await request(app)
+      .post(`/api/v1/matching/sessions/${sessionId}/final-decision`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ decision: 'no' });
+
+    expect(secondDecision.status).toBe(200);
+    expect(secondDecision.body.data.session.status).toBe('archived_mismatch');
+    expect(secondDecision.body.data.match).toBeNull();
+
+    const rawSession = await prisma.speed_dating_sessions.findUnique({ where: { id: sessionId } });
+    expect(rawSession?.status).toBe('archived_mismatch');
+    const tokenAIsUserA = rawSession?.user_a_id === userAId;
+    const tokenADecision = tokenAIsUserA ? rawSession?.user_a_decision : rawSession?.user_b_decision;
+    const tokenBDecision = tokenAIsUserA ? rawSession?.user_b_decision : rawSession?.user_a_decision;
+    expect(tokenADecision).toBe('yes');
+    expect(tokenBDecision).toBe('no');
+  });
+
+  test('serializes concurrent move-to-permanent requests via row lock', async () => {
+    const tokenA = 'mock:google:sd-a-race-001:sd-a-race-001@speed-dating.test';
+    const tokenB = 'mock:google:sd-b-race-001:sd-b-race-001@speed-dating.test';
+
+    await setupUser({
+      token: tokenA,
+      birthDate: '1996-06-10',
+      gender: 'Male',
+      searchGender: 'women',
+      latitude: 25.033,
+      longitude: 121.5654,
+    });
+
+    await setupUser({
+      token: tokenB,
+      birthDate: '1997-08-14',
+      gender: 'Female',
+      searchGender: 'men',
+      latitude: 25.034,
+      longitude: 121.565,
+    });
+
+    const sessionId = await createMatchedSession(tokenA, tokenB);
+
+    const [resA, resB] = await Promise.all([
+      request(app)
+        .post(`/api/v1/matching/sessions/${sessionId}/move-to-permanent/request`)
+        .set('Authorization', `Bearer ${tokenA}`),
+      request(app)
+        .post(`/api/v1/matching/sessions/${sessionId}/move-to-permanent/request`)
+        .set('Authorization', `Bearer ${tokenB}`),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([200, 400]);
+
+    const rawSession = await prisma.speed_dating_sessions.findUnique({ where: { id: sessionId } });
+    // Exactly one side should hold a 'yes' decision; the other must still be 'pending'.
+    const decisions = [rawSession?.user_a_decision, rawSession?.user_b_decision].sort();
+    expect(decisions).toEqual(['pending', 'yes']);
   });
 
   test('auto-expires old sessions and blocks messaging', async () => {

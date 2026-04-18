@@ -145,9 +145,9 @@ Node.js/Express API serving the iOS app.
    | `FIREBASE_PROJECT_ID` | Firebase project ID — `wevibe-dev` (dev) or `wevibe-prod` (prod) |
    | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON — place in `backend/secrets/` (gitignored) |
    | `PORT` | API port — defaults to `3000` |
-   | `APPLE_TEAM_ID` | Apple Developer Team ID |
-   | `APPLE_KEY_ID` | Sign in with Apple key ID (from Apple Developer portal) |
-   | `APPLE_PRIVATE_KEY` | Contents of the `.p8` private key file — encode newlines as `\n` in `.env` |
+   | `APPLE_TEAM_ID` | Apple Developer Team ID — `49DV8UBRZK` (required for Apple token revocation) |
+   | `APPLE_KEY_ID` | Sign in with Apple key ID from Apple Developer portal |
+   | `APPLE_PRIVATE_KEY` | Contents of the `.p8` private key — encode newlines as `\n` in `.env` |
 
    **Firebase service account files** (required when `AUTH_PROVIDER_MODE=firebase`):
    ```
@@ -197,90 +197,11 @@ Node.js/Express API serving the iOS app.
 | `POST` | `/api/v1/auth/register` | Create backend user after Firebase registration |
 | `POST` | `/api/v1/auth/login` | Login / upsert backend user after Firebase sign-in |
 | `POST` | `/api/v1/auth/logout` | Logout (Bearer token required) |
-| `GET` | `/api/v1/auth/me` | Get current user auth state |
-
-**Profile**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/v1/users/profile` | Submit onboarding data, create profile |
-| `GET` | `/api/v1/users/profile` | Fetch full profile |
-| `PATCH` | `/api/v1/users/profile` | Update profile fields (partial) |
-| `POST` | `/api/v1/users/profile/photos/upload-url` | Get signed GCS PUT URL |
-| `POST` | `/api/v1/users/profile/photos/finalize` | Confirm upload, write photo record |
-| `DELETE` | `/api/v1/users/profile/photos/:photoId` | Delete photo |
-| `PATCH` | `/api/v1/users/profile/photos/reorder` | Update photo display order |
-| `POST` | `/api/v1/users/profile/personality` | Submit personality test answers |
-
-**Matchmaking / Queue**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/v1/matching/queue/join` | Join speed-dating queue |
-| `POST` | `/api/v1/matching/queue/leave` | Leave queue |
-| `GET` | `/api/v1/matching/queue/status` | Queue status |
-| `GET` | `/api/v1/matching/sessions` | List active speed-dating sessions |
-
-**Speed Dating Sessions**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/v1/matching/sessions/:sessionId` | Session detail |
-| `GET` | `/api/v1/matching/sessions/:sessionId/messages` | Session message history |
-| `POST` | `/api/v1/matching/sessions/:sessionId/messages` | Send message |
-| `PATCH` | `/api/v1/matching/sessions/:sessionId/read` | Mark session messages read |
-| `POST` | `/api/v1/matching/sessions/:sessionId/move-to-permanent/request` | Request permanent match |
-| `POST` | `/api/v1/matching/sessions/:sessionId/move-to-permanent/respond` | Respond to permanent match request |
-| `POST` | `/api/v1/matching/sessions/:sessionId/final-decision` | Submit final like/pass decision |
-| `POST` | `/api/v1/matching/sessions/:sessionId/end` | End session early |
-
-**Permanent Chat (Matches)**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/v1/matching/matches` | List permanent matches |
-| `GET` | `/api/v1/matching/matches/:matchId` | Match detail |
-| `GET` | `/api/v1/matching/matches/:matchId/messages` | Match message history |
-| `GET` | `/api/v1/matching/matches/:matchId/profile` | Matched user's profile |
-| `PATCH` | `/api/v1/matching/matches/:matchId/read` | Mark match messages read |
-| `POST` | `/api/v1/matching/matches/:matchId/messages` | Send message |
-| `POST` | `/api/v1/matching/matches/:matchId/remove` | Remove match |
-| `POST` | `/api/v1/matching/matches/:matchId/block` | Block counterpart |
-| `POST` | `/api/v1/matching/matches/:matchId/report` | Report counterpart |
-
-**Account**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `PATCH` | `/api/v1/users/fcm-token` | Store/refresh device FCM token |
-| `GET` | `/api/v1/matching/chats/badges` | Unread badge counts |
-| `DELETE` | `/api/v1/users/me` | Soft-delete account (30-day grace period) |
-
-Full API contract: [docs/api-contract.md](docs/api-contract.md)
-
-### WebSocket (Socket.IO)
-
-The backend runs Socket.IO with a Redis adapter for horizontal scaling. Authentication uses a Firebase Bearer token passed during handshake.
-
-**Client → Server**
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `typing` | `{ chatType, chatId, isTyping }` | Relay typing indicator to peer |
-| `ping` | — | Keepalive |
-
-**Server → Client**
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `matching.queue.matched` | `{ sessionId }` | Match found |
-| `speed_dating.message.created` | `{ sessionId, message }` | Incoming speed-dating message |
-| `speed_dating.typing.updated` | `{ sessionId, userId, isTyping }` | Typing indicator |
-| `speed_dating.session.ended` | `{ sessionId }` | Session expired or ended |
-| `permanent.message.created` | `{ matchId, message }` | Incoming permanent-chat message |
-| `permanent.match.removed` | `{ matchId }` | Counterpart removed the match |
-| `permanent.match.blocked` | `{ matchId, blockedByUserId }` | Counterpart blocked current user |
-| `error` | `{ code, message }` | Server-side error |
+| `GET` | `/api/v1/auth/me` | Get current user (Bearer token required) |
+| `GET` | `/api/v1/users/profile` | Get own profile |
+| `PATCH` | `/api/v1/users/profile` | Update own profile |
+| `PATCH` | `/api/v1/users/fcm-token` | Update FCM push notification token |
+| `DELETE` | `/api/v1/users/me` | Delete account (30-day soft delete + Apple token revocation) |
 
 ### Folder Structure
 

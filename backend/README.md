@@ -109,7 +109,10 @@ Run all commands from the `weVibe-app/` directory using `--prefix backend`.
    In `backend/.env`, set:
    ```
    AUTH_PROVIDER_MODE=mock
+   MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED=false
    ```
+
+   Set `MATCHMAKING_RECENT_MATCH_COOLDOWN_ENABLED=true` in production so recently matched pairs stay blocked for 2 days.
 
 7. **Run API Server**
    ```bash

@@ -8,6 +8,7 @@ export interface CreateProfileInput {
   // Basic info
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   birthDate: Date;
   gender: string;
   ethnicity?: string[] | null;
@@ -77,6 +78,7 @@ export class ProfileService {
       userId:                  input.userId,
       firstName:               input.firstName ?? null,
       lastName:                input.lastName ?? null,
+      nickname:                input.nickname ?? null,
       displayName:             input.firstName && input.lastName ? `${input.firstName} ${input.lastName}`.trim() : null,
       birthDate:               input.birthDate,
       gender:                  input.gender,
@@ -107,6 +109,22 @@ export class ProfileService {
       bio:                     input.bio,
       prompts:                 input.prompts,
     });
+  }
+
+  async updateLocation(
+    userId: string,
+    data: {
+      latitude: number;
+      longitude: number;
+      locationCity: string;
+      locationState: string;
+      locationZip: string;
+    },
+  ): Promise<boolean> {
+    const existing = await this.profileRepository.findByUserId(userId);
+    if (!existing) return false;
+    await this.profileRepository.updateLocation(userId, data);
+    return true;
   }
 
   async updateProfile(userId: string, data: UpdateProfileData): Promise<profiles | null> {

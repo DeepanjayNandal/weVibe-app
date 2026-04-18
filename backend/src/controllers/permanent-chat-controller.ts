@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { PermanentChatService } from '../services/permanent-chat-service';
 import { SpeedDatingService } from '../services/speed-dating-service';
 import { socketServer } from '../websocket/socket-server';
+import { notificationService } from '../services/notification-service';
 import { badRequest, unauthorized } from '../utils/errors';
 import { prisma } from '../db/prisma-client';
 import { generateReadURL } from '../services/storage.service';
@@ -160,6 +161,12 @@ export class PermanentChatController {
           },
         },
       });
+      void notificationService.sendPushToUser(
+        counterpartId,
+        'New message',
+        result.message.content,
+        { type: 'permanent_message', matchId },
+      );
     }
 
     await this.publishBadgeUpdates([userId, counterpartId]);

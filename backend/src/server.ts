@@ -7,15 +7,6 @@ import { SpeedDatingService } from './services/speed-dating-service';
 import { PermanentChatService } from './services/permanent-chat-service';
 import { UserRepository } from './repositories/user-repository';
 
-const EXPIRABLE_SPEED_DATING_STATUSES = [
-  'active',
-  'active_counter_pending',
-  'active_request_locked',
-  'awaiting_decision',
-  'awaiting_counter_decision',
-  'awaiting_decision_locked',
-] as const;
-
 const SPEED_DATING_EXPIRY_SWEEP_INTERVAL_MS = 30_000;
 // Run the deleted-user purge once per day
 const DELETED_USER_PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -53,54 +44,31 @@ async function publishBadgeUpdatesForUsers(userIds: Set<string>): Promise<void> 
 const speedDatingExpirySweepHandle = setInterval(() => {
   void (async () => {
     try {
-      const now = new Date();
-      const expiringSessions = await prisma.speed_dating_sessions.findMany({
-        where: {
-          expires_at: { lte: now },
-          status: { in: [...EXPIRABLE_SPEED_DATING_STATUSES] },
-        },
-        select: {
-          id: true,
-          user_a_id: true,
-          user_b_id: true,
-          status: true,
-        },
-      });
+      const results = await speedDatingService.expireDueSessions();
 
       const usersNeedingBadgeRefresh = new Set<string>();
 
-      await Promise.all(
-        expiringSessions.map(async (session) => {
-          const updateResult = await prisma.speed_dating_sessions.updateMany({
-            where: {
-              id: session.id,
-              status: { in: [...EXPIRABLE_SPEED_DATING_STATUSES] },
-            },
-            data: { status: 'expired' },
-          });
+      for (const result of results) {
+        const data: Record<string, unknown> = {
+          sessionId: result.sessionId,
+          reason: result.endedReason,
+        };
+        if (result.matchId) {
+          data.matchId = result.matchId;
+        }
 
-          if (updateResult.count === 0) {
-            return;
-          }
+        const payload = { v: 1 as const, data };
 
-          const payload = {
-            v: 1 as const,
-            data: {
-              sessionId: session.id,
-            },
-          };
+        if (result.userAId) {
+          socketServer.notifyUser(result.userAId, 'speed_dating.session.ended', payload);
+          usersNeedingBadgeRefresh.add(result.userAId);
+        }
 
-          if (session.user_a_id) {
-            socketServer.notifyUser(session.user_a_id, 'speed_dating.session.ended', payload);
-            usersNeedingBadgeRefresh.add(session.user_a_id);
-          }
-
-          if (session.user_b_id) {
-            socketServer.notifyUser(session.user_b_id, 'speed_dating.session.ended', payload);
-            usersNeedingBadgeRefresh.add(session.user_b_id);
-          }
-        }),
-      );
+        if (result.userBId) {
+          socketServer.notifyUser(result.userBId, 'speed_dating.session.ended', payload);
+          usersNeedingBadgeRefresh.add(result.userBId);
+        }
+      }
 
       if (usersNeedingBadgeRefresh.size > 0) {
         await publishBadgeUpdatesForUsers(usersNeedingBadgeRefresh);

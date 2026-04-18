@@ -68,7 +68,11 @@ private struct SpeedDatingTab: View {
                 case .main:         SpeedDatingPlaceholder()
                 case .rules:        SpeedDatingRules().navigationBarBackButtonHidden(true)
                 case .tests:        PersonalityTestView()
-                case .joinQueue:    JoinQueueView()
+                case .joinQueue:
+                    JoinQueueView(onGoToProfile: {
+                        speedDatingRouter.popToRoot()
+                        selectedTab = .profile
+                    })
                 case .findingMatch:
                     FindingMatchView { matchId in
                         speedDatingRouter.popToRoot()
@@ -89,11 +93,12 @@ private struct ChatTab: View {
     @Binding var pendingMatchId: String?
 
     @State private var chatRouter = ChatRouter()
+    @State private var chatInnerTab: ChatInnerTab = .anonymous
 
     var body: some View {
         NavigationStack(path: $chatRouter.path) {
             ZStack(alignment: .bottom) {
-                ChatListView()
+                ChatListView(innerTab: $chatInnerTab)
                 CustomTabBar(selectedTab: $selectedTab)
             }
             .ignoresSafeArea(edges: .bottom)
@@ -104,6 +109,7 @@ private struct ChatTab: View {
                     ActiveChatView(
                             matchId: matchId,
                             onClose: {
+                                chatInnerTab = .anonymous
                                 chatRouter.popToRoot()
                             },
                             onLeaveSession: {
@@ -111,12 +117,17 @@ private struct ChatTab: View {
                                 selectedTab = .speedDating
                             }
                         )
-                case .permanentChat(let matchId):
-                    PermanentChatView(matchId: matchId) {
-                        chatRouter.popToRoot()
-                    }
+                case .permanentChat(let matchId, let name, let counterpartUserId):
+                    PermanentChatView(
+                        matchId: matchId,
+                        matchName: name,
+                        counterpartUserId: counterpartUserId,
+                        onBack: {
+                            chatInnerTab = .matched
+                            chatRouter.popToRoot()
+                        }
+                    )
                 }
-                
             }
         }
         .onChange(of: pendingMatchId) { _, newMatchId in

@@ -58,6 +58,8 @@ targets:
         product: FirebaseAuth
       - package: firebase-ios-sdk
         product: FirebaseCrashlytics
+      - package: firebase-ios-sdk
+        product: FirebaseMessaging
       - package: GoogleSignIn-iOS
         product: GoogleSignIn
       - package: GoogleSignIn-iOS
@@ -104,12 +106,12 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_ENTITLEMENTS: WeVibe/WeVibe.entitlements
-        CODE_SIGN_IDENTITY: "Apple Development"
-        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Distribution: Nadia Hosseinzadeh (49DV8UBRZK)"
+        CODE_SIGN_STYLE: Manual
         CURRENT_PROJECT_VERSION: "1"
         DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         DEVELOPMENT_ASSET_PATHS: '"WeVibe/Preview Content"'
-        DEVELOPMENT_TEAM: 55X7CQGG3N
+        DEVELOPMENT_TEAM: 49DV8UBRZK
         ENABLE_PREVIEWS: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         GENERATE_INFOPLIST_FILE: YES
@@ -132,10 +134,15 @@ targets:
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         SWIFT_EMIT_LOC_STRINGS: YES
         SWIFT_VERSION: "5.0"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
+        INFOPLIST_KEY_UIBackgroundModes: remote-notification
         TARGETED_DEVICE_FAMILY: "1"
       configs:
         Debug:
-          PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.app.dev
+          PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.appdev
+          CODE_SIGN_IDENTITY: "Apple Development: Created via API (S2MGTS829R)"
           INFOPLIST_KEY_CFBundleDisplayName: "WeVibe Dev"
+          PROVISIONING_PROFILE_SPECIFIER: "match Development com.wevibe1.appdev"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.app
+          PROVISIONING_PROFILE_SPECIFIER: "match AppStore com.wevibe1.app"

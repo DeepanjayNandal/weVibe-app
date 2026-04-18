@@ -3,11 +3,14 @@ import FirebaseCore
 import FirebaseAnalytics
 import FirebaseAuth
 import FirebaseCrashlytics
+import FirebaseMessaging
 import GoogleSignIn
 import UserNotifications
 
 @main
 struct WeVibeApp: App {
+
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @State private var authManager = AuthManager()
     @State private var onboardingData = OnboardingData()
@@ -35,6 +38,10 @@ struct WeVibeApp: App {
         #if DEBUG
         Analytics.setAnalyticsCollectionEnabled(false)
         #endif
+        Task {
+            try? await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge])
+        }
         // GoogleSignIn v7+ requires explicit client ID configuration.
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
@@ -52,6 +59,15 @@ struct WeVibeApp: App {
                 .environment(matchmakingService)
                 .environmentObject(locationManager)
                 .task {
+                    // Wire location sync once at launch. The callback is a no-op until
+                    // the user is authenticated (syncLocation guards on appState).
+                    locationManager.onLocationUpdated = { lat, lng, city, state, zip in
+                        Task { @MainActor in
+                            await authManager.syncLocation(lat: lat, lng: lng, city: city, state: state, zip: zip)
+                        }
+                    }
+                    // Re-sync FCM token whenever Firebase refreshes it.
+                    authManager.observeFCMTokenRefresh()
                     // Restores a saved Firebase session on every launch.
                     await authManager.checkAuthState()
                 }

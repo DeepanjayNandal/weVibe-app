@@ -45,6 +45,20 @@ userRouter.patch(
   asyncHandler(profileController.updateProfile),
 );
 
+// PATCH /profile/location — dedicated lean endpoint for iOS background location sync
+userRouter.patch(
+  '/profile/location',
+  authenticate(authVerifier),
+  asyncHandler(profileController.updateLocation),
+);
+
+// PATCH /fcm-token — stores the device's Firebase Cloud Messaging token after login
+userRouter.patch(
+  '/fcm-token',
+  authenticate(authVerifier),
+  asyncHandler(userController.updateFcmToken),
+);
+
 // DELETE /me — soft-deletes the authenticated user's account (30-day grace period)
 userRouter.delete(
   '/me',

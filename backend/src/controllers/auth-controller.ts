@@ -64,7 +64,9 @@ export class AuthController {
   login = async (req: Request, res: Response): Promise<void> => {
     const provider = readProvider(req.body?.provider);
     const idToken = readIdToken(req.body?.idToken);
-    const user = await this.authService.login({ provider, idToken });
+    const appleAuthCode = typeof req.body?.appleAuthCode === 'string' ? req.body.appleAuthCode.trim() || undefined : undefined;
+    const appleBundleId = typeof req.body?.appleBundleId === 'string' ? req.body.appleBundleId.trim() || undefined : undefined;
+    const user = await this.authService.login({ provider, idToken, appleAuthCode, appleBundleId });
 
     res.status(200).json({
       success: true,

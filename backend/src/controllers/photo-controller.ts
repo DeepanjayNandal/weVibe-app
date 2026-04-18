@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
 import { UserRepository } from '../repositories/user-repository';
+import { unauthorized } from '../utils/errors';
 import {
   generateUploadURL,
   generateReadURL,
@@ -34,7 +35,7 @@ function toJsonArray(photos: StoredPhoto[]): Prisma.InputJsonValue {
 
 async function resolveUserId(firebaseUid: string): Promise<string> {
   const user = await userRepository.findByFirebaseUid(firebaseUid);
-  if (!user) throw new Error('USER_NOT_FOUND');
+  if (!user) return unauthorized('User not found', 'USER_NOT_FOUND');
   return user.id;   // ← this is the actual UUID used in profiles.user_id
 }
 

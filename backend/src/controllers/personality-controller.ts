@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma-client';
 import { UserRepository } from '../repositories/user-repository';
+import { unauthorized } from '../utils/errors';
 
 const userRepository = new UserRepository();
 
@@ -49,7 +50,7 @@ function computePersonality(answers: number[]): {
 // helper to get our internal user id from firebase uid
 async function resolveUserId(firebaseUid: string): Promise<string> {
   const user = await userRepository.findByFirebaseUid(firebaseUid);
-  if (!user) throw new Error('USER_NOT_FOUND');
+  if (!user) return unauthorized('User not found', 'USER_NOT_FOUND');
   return user.id;
 }
 
@@ -75,6 +76,15 @@ export const submitPersonalityTest = async (req: Request, res: Response) => {
 
   const { personality_primary, personality_secondary, personality_type } =
     computePersonality(answers);
+
+  // guard: profile must exist before we can save personality results
+  const existingProfile = await prisma.profiles.findUnique({ where: { user_id: uid } });
+  if (!existingProfile) {
+    return res.status(404).json({
+      code: 'PROFILE_NOT_FOUND',
+      message: 'Complete your profile before taking the personality test',
+    });
+  }
 
   // save the computed personality fields to the user's profile
   await prisma.profiles.update({

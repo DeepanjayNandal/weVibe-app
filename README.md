@@ -1,6 +1,21 @@
 # weVibe
 
-iOS dating app with a Node.js/Express backend.
+iOS dating app (SwiftUI) with a Node.js/Express backend — speed dating sessions, permanent matches, real-time messaging, and profile-driven matchmaking.
+
+---
+
+## Project Structure
+
+```
+weVibe-app/
+  frontend/iOS/       SwiftUI app (XcodeGen-generated Xcode project)
+  backend/            Node.js/Express API (TypeScript, Prisma, Socket.IO)
+  docs/               API contracts and design docs
+```
+
+Sub-workspace guides:
+- [frontend/iOS/CLAUDE.md](frontend/iOS/CLAUDE.md) — iOS architecture, state machine, conventions
+- [backend/CLAUDE.md](backend/CLAUDE.md) — backend architecture, API endpoints, conventions
 
 ---
 
@@ -9,18 +24,19 @@ iOS dating app with a Node.js/Express backend.
 ### Requirements
 
 - Xcode 16 or later
-- iOS 17.6+ deployment target
+- iOS 17.0+ deployment target
 - macOS Sonoma or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
+- [fastlane](https://fastlane.tools) — `brew install fastlane`
 
 > The Xcode project (`WeVibe.xcodeproj`) is not checked in. It is generated locally from
 > [frontend/iOS/project.yml](frontend/iOS/project.yml) via XcodeGen.
 
 ### Setup
 
-1. **Install XcodeGen** (one-time)
+1. **Install tools** (one-time)
    ```bash
-   brew install xcodegen
+   brew install xcodegen fastlane
    ```
 
 2. **Activate git hooks** (one-time) — auto-regenerates the project when `project.yml` changes after a pull or branch switch
@@ -28,10 +44,11 @@ iOS dating app with a Node.js/Express backend.
    git config core.hooksPath .githooks
    ```
 
-3. **Generate the Xcode project**
+3. **Sync certificates and provisioning profiles** (one-time)
    ```bash
-   cd frontend/iOS && xcodegen generate
+   cd frontend/iOS && bundle install && bundle exec fastlane sync_dev
    ```
+   You will need the **Match encryption passphrase** — get it from the team.
 
 4. **Add Firebase config files** (git-ignored — get from team)
    ```
@@ -39,7 +56,12 @@ iOS dating app with a Node.js/Express backend.
    frontend/iOS/WeVibe/Firebase/GoogleService-Info-Prod.plist  ← Release builds
    ```
 
-5. **Open and build**
+5. **Generate the Xcode project**
+   ```bash
+   cd frontend/iOS && xcodegen generate
+   ```
+
+6. **Open and build**
    ```bash
    open frontend/iOS/WeVibe.xcodeproj
    ```
@@ -53,15 +75,42 @@ cd frontend/iOS && xcodegen generate
 ```
 The git hooks handle this automatically after pulls and branch switches.
 
+### TestFlight
+
+```bash
+cd frontend/iOS && bundle exec fastlane beta
+```
+
+Requires `fastlane/api_key.json` (git-ignored) — get it from the team.
+
+### Adding your device
+
+Add your iPhone UDID to `frontend/iOS/fastlane/devices.txt`, then:
+```bash
+cd frontend/iOS && bundle exec fastlane add_device
+```
+
 ### Architecture
 
 | Layer | Description |
 |-------|-------------|
 | `AppState` | Enum driving the entire view hierarchy via `RootView` |
-| `AuthManager` | Firebase Auth — email/password and Google Sign-In |
+| `AuthManager` | Firebase Auth — email/password, Google Sign-In, Apple Sign-In |
 | `UserProfileStore` | In-memory profile state — fetched from backend, no local caching |
-| `OnboardingData` | Onboarding flow state |
-| `APIClient` | All REST calls to the backend |
+| `OnboardingData` | Onboarding survey draft — persisted to disk |
+| `LocationManager` | CLLocationManager wrapper — reverse geocodes and syncs to backend |
+| `SocketService` | Socket.IO client — real-time messaging and match events |
+| `MatchmakingService` | Speed dating queue join/leave + match-found coordination |
+| `APIClient` | All REST calls to the backend (auth, profile, photos, speed-dating, permanent chat) |
+| `ChatAPIClient` | Response model structs only (`SpeedDatingDetail`, `ActiveChatDetail`) |
+
+### SPM Dependencies
+
+| Package | Version |
+|---------|---------|
+| `firebase-ios-sdk` | >= 12.10.0 |
+| `GoogleSignIn-iOS` | >= 9.1.0 |
+| `socket.io-client-swift` | >= 16.1.0 |
 
 ---
 
@@ -73,7 +122,7 @@ Node.js/Express API serving the iOS app.
 
 - Node.js v20.x
 - npm v10+
-- PostgreSQL v14+
+- Docker (for PostgreSQL + Redis)
 
 ### Setup
 
@@ -96,6 +145,9 @@ Node.js/Express API serving the iOS app.
    | `FIREBASE_PROJECT_ID` | Firebase project ID — `wevibe-dev` (dev) or `wevibe-prod` (prod) |
    | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON — place in `backend/secrets/` (gitignored) |
    | `PORT` | API port — defaults to `3000` |
+   | `APPLE_TEAM_ID` | Apple Developer Team ID — `49DV8UBRZK` (required for Apple token revocation) |
+   | `APPLE_KEY_ID` | Sign in with Apple key ID from Apple Developer portal |
+   | `APPLE_PRIVATE_KEY` | Contents of the `.p8` private key — encode newlines as `\n` in `.env` |
 
    **Firebase service account files** (required when `AUTH_PROVIDER_MODE=firebase`):
    ```
@@ -106,7 +158,7 @@ Node.js/Express API serving the iOS app.
 
 3. **Set up database**
    ```bash
-   npm run db:start                                        # start PostgreSQL (Docker)
+   npm run db:start                                        # start PostgreSQL + Redis (Docker)
    npm run db:push                                         # apply schema
    npx prisma generate --schema src/db/schema.prisma      # generate Prisma client
    npm run db:seed                                         # optional: seed fake data
@@ -123,16 +175,33 @@ Node.js/Express API serving the iOS app.
    npm test
    ```
 
+### Backend Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start the API server (`ts-node src/server.ts`) |
+| `npm test` | Run Jest test suite |
+| `npm run db:start` | Start PostgreSQL + Redis via Docker Compose |
+| `npm run db:stop` | Stop Docker services |
+| `npm run db:push` | Apply Prisma schema to the database |
+| `npm run db:generate` | Regenerate Prisma client |
+| `npm run db:seed` | Seed the database with fake data |
+| `npm run db:setup` | Initial database setup |
+
 ### API Endpoints
+
+**Auth**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/auth/register` | Register with Firebase token |
-| `POST` | `/api/v1/auth/login` | Login with Firebase token |
+| `POST` | `/api/v1/auth/register` | Create backend user after Firebase registration |
+| `POST` | `/api/v1/auth/login` | Login / upsert backend user after Firebase sign-in |
 | `POST` | `/api/v1/auth/logout` | Logout (Bearer token required) |
 | `GET` | `/api/v1/auth/me` | Get current user (Bearer token required) |
 | `GET` | `/api/v1/users/profile` | Get own profile |
 | `PATCH` | `/api/v1/users/profile` | Update own profile |
+| `PATCH` | `/api/v1/users/fcm-token` | Update FCM push notification token |
+| `DELETE` | `/api/v1/users/me` | Delete account (30-day soft delete + Apple token revocation) |
 
 ### Folder Structure
 
@@ -143,7 +212,20 @@ backend/src/
   services/       Business logic
   repositories/   Database query layer (Prisma)
   middleware/     Auth, error handling
-  db/             Schema and DB setup
-  utils/          Shared helpers
-  config/         Environment config
+  websocket/      Socket.IO server + Redis pub/sub
+  db/             Schema (src/db/schema.prisma) and DB setup
+  utils/          Shared helpers (errors.ts — AppError factories)
+  config/         Environment config (env.ts)
+  types/          Shared type definitions
 ```
+
+### Deployment
+
+The backend is containerized. Cloud Build (`cloudbuild.yaml`) builds and pushes a Docker image to Google Container Registry on every push.
+
+```bash
+# Local container build
+docker build -t wevibe-api ./backend
+```
+
+The Docker image exposes port `8080` and uses `node:20` as the base image.

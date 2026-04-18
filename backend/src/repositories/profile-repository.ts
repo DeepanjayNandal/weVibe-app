@@ -80,6 +80,7 @@ export interface CreateProfileData {
   // Basic info
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   displayName?: string | null;
   birthDate: Date;
   gender: string;
@@ -131,6 +132,7 @@ export interface UpdateProfileData {
   // Identity
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   displayName?: string | null;
   birthDate?: Date;
   gender?: string;
@@ -225,6 +227,7 @@ export class ProfileRepository {
           user_id:                   data.userId,
           first_name:                data.firstName,
           last_name:                 data.lastName,
+          nickname:                  data.nickname ?? null,
           display_name:              data.displayName ?? null,
           birth_date:                data.birthDate,
           gender:                    data.gender,
@@ -285,6 +288,32 @@ export class ProfileRepository {
     });
   }
 
+  async updateLocation(
+    userId: string,
+    data: {
+      latitude: number;
+      longitude: number;
+      locationCity: string;
+      locationState: string;
+      locationZip: string;
+    },
+  ): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await tx.profiles.update({
+        where: { user_id: userId },
+        data: {
+          latitude:      data.latitude,
+          longitude:     data.longitude,
+          location_city: data.locationCity,
+          state:         data.locationState,
+          zip_code:      data.locationZip,
+        },
+      });
+
+      await updateLocationPoint(tx, userId, data.latitude, data.longitude);
+    });
+  }
+
   // Partial update — only fields present in data are updated
   async update(userId: string, data: UpdateProfileData): Promise<profiles> {
     // Build the update payload dynamically — only include keys that were passed
@@ -293,6 +322,7 @@ export class ProfileRepository {
     // Identity
     if (data.firstName        !== undefined) p.first_name          = data.firstName;
     if (data.lastName         !== undefined) p.last_name           = data.lastName;
+    if (data.nickname         !== undefined) p.nickname            = data.nickname;
     if (data.displayName      !== undefined) p.display_name        = data.displayName;
     if (data.birthDate        !== undefined) p.birth_date          = data.birthDate;
     if (data.gender           !== undefined) p.gender              = data.gender;

@@ -9,3 +9,7 @@ frontend/iOS/WeVibe.xcodeproj/
 **/GoogleService-Info-Dev.plist
 **/GoogleService-Info-Prod.plist
 **/GoogleService-Info.plist
+
+# Fastlane — never commit API key or build artifacts
+frontend/iOS/fastlane/api_key.json
+frontend/iOS/fastlane/report.xml

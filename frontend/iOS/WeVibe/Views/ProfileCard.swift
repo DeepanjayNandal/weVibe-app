@@ -526,9 +526,7 @@ struct ProfileCardView: View {
                         }
                     }
                 case .matchProfile:
-                    Image(systemName: isVisible ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(isVisible ? Color(hex: "#34C759") : Color(hex: "#FF3B30"))
+                    EmptyView()
                 }
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)

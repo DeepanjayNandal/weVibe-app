@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { forbidden, unauthorized } from '../utils/errors';
 import { AuthVerifier } from './auth/auth-verifier';
 import { LoginInput, RegisterInput } from './auth/types';
+import { exchangeAppleCode } from './apple-auth-service';
 
 export class AuthService {
   constructor(
@@ -55,11 +56,11 @@ export class AuthService {
     }
 
     if (!user) {
-      unauthorized('Unable to login with provided token', 'LOGIN_FAILED');
+      return unauthorized('Unable to login with provided token', 'LOGIN_FAILED');
     }
 
     if (user.is_banned) {
-      forbidden('User is banned', 'USER_BANNED');
+      return forbidden('User is banned', 'USER_BANNED');
     }
 
     // Grace period reactivation: if the user deleted their account but returns
@@ -75,6 +76,17 @@ export class AuthService {
     }
 
     await this.userRepository.touchLastActive(user.id);
+
+    // Exchange the one-time Apple authorization code for a refresh token and store it.
+    // Fire-and-forget: token exchange failure must not block the login response.
+    if (input.provider === 'apple' && input.appleAuthCode && input.appleBundleId) {
+      void exchangeAppleCode(input.appleAuthCode, input.appleBundleId).then((refreshToken) => {
+        if (refreshToken) {
+          void this.userRepository.updateAppleRefreshToken(user.id, refreshToken);
+        }
+      });
+    }
+
     return user;
   }
 
@@ -90,15 +102,19 @@ export class AuthService {
     }
 
     if (!user) {
-      unauthorized('User not found', 'USER_NOT_FOUND');
+      return unauthorized('User not found', 'USER_NOT_FOUND');
     }
 
     if (user.is_banned) {
-      forbidden('User is banned', 'USER_BANNED');
+      return forbidden('User is banned', 'USER_BANNED');
     }
 
     if (user.deleted_at) {
-      forbidden('Account has been deleted', 'USER_DELETED');
+      // /auth/me is a passive session check — it must never silently reactivate a deleted
+      // account. Only an explicit login() gesture (user typing credentials or tapping SSO)
+      // should trigger reactivation within the 30-day grace period.
+      // Return 403 regardless of how recently the account was deleted.
+      return forbidden('Account has been deleted', 'USER_DELETED');
     }
 
     return user;

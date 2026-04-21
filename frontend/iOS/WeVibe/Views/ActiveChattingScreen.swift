@@ -557,7 +557,7 @@ struct ActiveChatView: View {
                 ChatMessage(
                     id:           item.messageId,
                     text:         item.content,
-                    isMine:       item.senderId != counterpartUserId,
+                    isMine:       !item.senderId.isEmpty && item.senderId != counterpartUserId,
                     time:         formatTime(item.createdAt),
                     messagesLeft: nil
                 )
@@ -591,10 +591,13 @@ struct ActiveChatView: View {
             do {
                 let result = try await apiClient.sendSpeedDatingMessage(
                     token: token, sessionId: matchId, content: trimmed)
-                if let idx = messages.firstIndex(where: { $0.id == optimistic.id }) {
-                    messages[idx] = ChatMessage(
+                // Remove optimistic placeholder; if socket already delivered the real
+                // message (race), don't add a duplicate.
+                messages.removeAll { $0.id == optimistic.id }
+                if !messages.contains(where: { $0.id == result.messageId }) {
+                    messages.append(ChatMessage(
                         id: result.messageId, text: result.content,
-                        isMine: true, time: formatTime(result.createdAt), messagesLeft: messagesLeft)
+                        isMine: true, time: formatTime(result.createdAt), messagesLeft: messagesLeft))
                 }
             } catch {
                 messages.removeAll { $0.id == optimistic.id }

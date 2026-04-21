@@ -78,7 +78,11 @@ export class BioGeneratorService {
     `;
 
     const result = await model.generateContent(prompt);
-    let generatedBio = result.response.text();
+    let generatedBio = result.response.text().trim();
+
+    if (!generatedBio) {
+      throw new Error('Bio generation returned an empty response from Gemini');
+    }
 
     if (generatedBio.length > 500) {
       generatedBio = generatedBio.substring(0, 497) + '...';

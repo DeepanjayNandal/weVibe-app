@@ -303,7 +303,8 @@ struct PhotosEditSheet: View {
                     }
                 }
                 if let err = finalizeError { throw err }
-                uploadedPhotos.append(photo!)
+                guard let photo else { throw APIError.serverError(0) }
+                uploadedPhotos.append(photo)
             } catch {
                 saveError = "Failed to upload photo \(i + 1). Please try again."
                 return

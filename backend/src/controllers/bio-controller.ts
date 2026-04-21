@@ -1,14 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { BioGeneratorService } from '../services/bio-generator-service';
 import { UserRepository } from '../repositories/user-repository';
-import { unauthorized, forbidden } from '../utils/errors';
+import { unauthorized } from '../utils/errors';
 
 const bioGeneratorService = new BioGeneratorService();
 const userRepository = new UserRepository();
 
+// POST /api/v1/users/profile/generate-bio
+// Generates an AI bio for the authenticated user using their profile data.
+// Rate-limited: 5 generations per day, 60s cooldown between requests.
 export const generateUserBio = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const userId = req.params.id;
     const firebaseUid = req.auth?.uid;
 
     if (!firebaseUid) {
@@ -20,19 +22,13 @@ export const generateUserBio = async (req: Request, res: Response, next: NextFun
       unauthorized('User not found in database', 'USER_NOT_FOUND');
     }
 
-    if (user.id !== userId) {
-      forbidden('You can only generate your own bio', 'FORBIDDEN_ACTION');
-    }
-    
-    // Call Service to execute generation and storage
-    const bio = await bioGeneratorService.generateAndSaveBio(userId);
+    const { bio, remainingToday } = await bioGeneratorService.generateAndSaveBio(user!.id);
 
     res.status(200).json({
       success: true,
-      data: { bio },
-      message: 'Bio generated and saved successfully.',
+      data: { bio, remainingToday },
     });
   } catch (error) {
-    next(error); // Pass to the existing errorHandler middleware for unified handling
+    next(error);
   }
 };

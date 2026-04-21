@@ -395,6 +395,9 @@ struct AboutEditSheet: View {
     @State private var spotify = ""
     @State private var showValidation = false
     @State private var isSaving = false
+    @State private var isGeneratingBio = false
+    @State private var bioGenerateError: String? = nil
+    @State private var bioRemaining: Int? = nil
 
     var body: some View {
         editNav(title: "About Me", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
@@ -411,6 +414,7 @@ struct AboutEditSheet: View {
             }
             sectionLabel("Bio")
             editField("", "Tell people about yourself...", text: $bio, multiline: true)
+            generateBioButton
             sectionLabel("Social")
             handleField("Instagram", text: $instagram, maxLength: 30)
             handleField("TikTok",    text: $tiktok,    maxLength: 24)
@@ -423,6 +427,78 @@ struct AboutEditSheet: View {
             instagram = store.instagramHandle
             tiktok    = store.tiktokHandle
             spotify   = store.spotifyPlaylistURL
+        }
+    }
+
+    @ViewBuilder
+    private var generateBioButton: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Task { await generateBio() }
+            } label: {
+                HStack(spacing: 8) {
+                    if isGeneratingBio {
+                        ProgressView().tint(.black).scaleEffect(0.8)
+                        Text("Generating…")
+                            .font(.system(size: 14, weight: .semibold))
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Generate Bio with AI")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isGeneratingBio ? AppTheme.iconColor.opacity(0.6) : AppTheme.iconColor)
+                .cornerRadius(12)
+            }
+            .disabled(isGeneratingBio)
+
+            if let remaining = bioRemaining {
+                Text("\(remaining) generation\(remaining == 1 ? "" : "s") left today")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            if let err = bioGenerateError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill").font(.system(size: 12))
+                    Text(err).font(.system(size: 12))
+                }
+                .foregroundStyle(Color(hex: "#E74C3C"))
+            }
+        }
+    }
+
+    private func generateBio() async {
+        bioGenerateError = nil
+        isGeneratingBio = true
+        defer { isGeneratingBio = false }
+
+        guard let user = Auth.auth().currentUser else {
+            bioGenerateError = "Session expired. Please sign in again."
+            return
+        }
+        let token: String
+        do {
+            token = try await user.getIDToken()
+        } catch {
+            bioGenerateError = "Session expired. Please sign in again."
+            return
+        }
+
+        do {
+            let result = try await APIClient().generateBio(token: token)
+            bio = result.bio
+            bioRemaining = result.remainingToday
+        } catch APIError.rateLimited(let msg) {
+            bioGenerateError = msg
+        } catch APIError.unauthorized {
+            bioGenerateError = "Session expired. Please sign in again."
+        } catch {
+            bioGenerateError = "Generation failed. Please try again."
         }
     }
 

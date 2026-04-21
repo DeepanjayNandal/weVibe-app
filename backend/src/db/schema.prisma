@@ -131,6 +131,13 @@ model profiles {
   // Free-text bio, max 500 characters — enforced in application layer
   bio                   String?                   @db.VarChar(500)
 
+  // AI bio generation rate limiting
+  // bio_last_generated_at: timestamp of most recent generation — used to enforce 60s cooldown
+  // bio_daily_count / bio_daily_reset_date: track per-day usage against DAILY_LIMIT (5)
+  bio_last_generated_at DateTime?                 @db.Timestamp(6)
+  bio_daily_count       Int                       @default(0)
+  bio_daily_reset_date  String?                   @db.VarChar(10)
+
   // Social handles — set via profile edit, iOS strips @ before sending
   instagram_handle      String?                   @db.VarChar(100)
   tiktok_handle         String?                   @db.VarChar(100)

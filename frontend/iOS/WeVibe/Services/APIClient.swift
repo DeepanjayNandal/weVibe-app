@@ -164,6 +164,7 @@ enum APIError: LocalizedError {
     case unauthorized                   // 401
     case banned                         // 403 USER_BANNED
     case validationError([String: String]) // 422 — field-level errors from backend
+    case rateLimited(String)            // 429 — cooldown or daily limit hit
     case serverError(Int)               // any other non-2xx
     case network(Error)
     case decoding(Error)
@@ -174,6 +175,7 @@ enum APIError: LocalizedError {
         case .unauthorized:             return "Session expired. Please sign in again."
         case .banned:                   return "Your account has been suspended. Please contact support."
         case .validationError(let e):   return e.values.first
+        case .rateLimited(let msg):     return msg
         case .serverError(let c):       return "Server error (\(c)). Please try again."
         case .network(let e):           return e.localizedDescription
         case .decoding(let e):          return "Response error: \(e.localizedDescription)"
@@ -1063,6 +1065,46 @@ struct APIClient {
     }
 
     // MARK: - Helpers
+
+    // MARK: - AI Bio Generation
+
+    struct GenerateBioResult {
+        let bio: String
+        let remainingToday: Int
+    }
+
+    /// POST /users/profile/generate-bio — generates an AI bio using Gemini and saves it.
+    /// Rate-limited server-side: 5 per day, 60s cooldown between calls.
+    /// Throws `.rateLimited` when the daily cap or cooldown is hit.
+    func generateBio(token: String) async throws -> GenerateBioResult {
+        let req = request(path: "/users/profile/generate-bio", method: "POST", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 429 {
+            struct ErrorEnvelope: Decodable {
+                struct ErrorBody: Decodable { let message: String }
+                let error: ErrorBody
+            }
+            let msg = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error.message
+                ?? "Too many requests. Please try again later."
+            throw APIError.rateLimited(msg)
+        }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct BioResponse: Decodable {
+            struct DataBody: Decodable {
+                let bio: String
+                let remainingToday: Int
+            }
+            let data: DataBody
+        }
+        do {
+            let decoded = try JSONDecoder().decode(BioResponse.self, from: data)
+            return GenerateBioResult(bio: decoded.data.bio, remainingToday: decoded.data.remainingToday)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
 
     private func request(path: String, method: String, token: String) -> URLRequest {
         var req = URLRequest(url: base.appendingPathComponent(path))

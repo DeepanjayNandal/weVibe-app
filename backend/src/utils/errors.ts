@@ -28,3 +28,7 @@ export function notFound(message: string, code = 'NOT_FOUND'): never {
 export function conflict(message: string, code = 'CONFLICT'): never {
   throw new AppError(message, 409, code);
 }
+
+export function tooManyRequests(message: string, code = 'TOO_MANY_REQUESTS'): never {
+  throw new AppError(message, 429, code);
+}

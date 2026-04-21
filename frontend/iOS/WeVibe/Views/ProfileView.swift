@@ -7,6 +7,7 @@ struct ProfileView: View {
     @Environment(AuthManager.self)      private var authManager
     @Environment(OnboardingData.self)   private var onboarding
     @Environment(UserProfileStore.self) private var store
+    @Environment(ChatStore.self)        private var chatStore
 
     @State private var activeEdit: ProfileCardSection?
     @State private var showSettingsSheet = false
@@ -181,7 +182,7 @@ struct ProfileView: View {
                 .presentationDetents([.fraction(0.65), .large])
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
-            Button("Log Out", role: .destructive) { authManager.logout(profileStore: store, onboardingData: onboarding) }
+            Button("Log Out", role: .destructive) { authManager.logout(profileStore: store, onboardingData: onboarding, chatStore: chatStore) }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to log out?")
@@ -190,7 +191,7 @@ struct ProfileView: View {
             Button("Delete Account", role: .destructive) {
                 isDeletingAccount = true
                 Task {
-                    await authManager.deleteAccount(profileStore: store, onboardingData: onboarding)
+                    await authManager.deleteAccount(profileStore: store, onboardingData: onboarding, chatStore: chatStore)
                     isDeletingAccount = false
                 }
             }
@@ -212,7 +213,7 @@ struct ProfileView: View {
         .onChange(of: store.sessionExpired) { _, expired in
             guard expired else { return }
             // Token was rejected by the backend — force sign-out so the user re-authenticates.
-            authManager.logout(profileStore: store, onboardingData: onboarding)
+            authManager.logout(profileStore: store, onboardingData: onboarding, chatStore: chatStore)
         }
     }
 

@@ -5,6 +5,7 @@ struct ConfirmScreen: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(UserProfileStore.self) private var profileStore
     @Environment(OnboardingData.self) private var onboardingData
+    @Environment(ChatStore.self) private var chatStore
 
     @State private var isResending: Bool = false
     @State private var isChecking: Bool = false
@@ -69,7 +70,7 @@ struct ConfirmScreen: View {
                 VStack(spacing: 12) {
                     // Escape hatch — sign out and return to login screen
                     Button {
-                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
+                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData, chatStore: chatStore)
                     } label: {
                         Text("Use a different email")
                             .font(.system(size: 14))

@@ -763,77 +763,6 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
-    // MARK: - Get Permanent Messages
-    // GET /matching/matches/:matchId/messages
- 
-    func getPermanentMessages(token: String, matchId: String) async throws -> [PermanentMessageItem] {
-        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
-        let (data, response) = try await perform(req)
-        let status = response.statusCode
-        if status == 401 { throw APIError.unauthorized }
-        if !(200..<300).contains(status) { throw APIError.serverError(status) }
- 
-        struct Resp: Decodable {
-            struct DataBody: Decodable {
-                struct Msg: Decodable {
-                    let id: String
-                    let matchId: String
-                    let content: String
-                    let senderId: String
-                    let createdAt: String
-                }
-                let messages: [Msg]
-            }
-            let data: DataBody
-        }
- 
-        let resp = try JSONDecoder().decode(Resp.self, from: data)
-        return resp.data.messages.map {
-            PermanentMessageItem(
-                messageId: $0.id,
-                matchId:   $0.matchId,
-                content:   $0.content,
-                senderId:  $0.senderId,
-                createdAt: $0.createdAt
-            )
-        }
-    }
-    
-    // MARK: - Send Permanent Message
-    // POST /matching/matches/:matchId/messages
-    func sendPermanentMessage(token: String, matchId: String, content: String) async throws -> SendPermanentMessageResult {
-        var req = request(path: "/matching/matches/\(matchId)/messages", method: "POST", token: token)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: ["content": content])
- 
-        let (data, response) = try await perform(req)
-        let status = response.statusCode
-        if status == 401 { throw APIError.unauthorized }
-        if !(200..<300).contains(status) { throw APIError.serverError(status) }
- 
-        struct Resp: Decodable {
-            struct DataBody: Decodable {
-                struct Msg: Decodable {
-                    let id: String
-                    let content: String
-                    let senderId: String
-                    let createdAt: String
-                }
-                let message: Msg
-            }
-            let data: DataBody
-        }
- 
-        let resp = try JSONDecoder().decode(Resp.self, from: data)
-        return SendPermanentMessageResult(
-            messageId: resp.data.message.id,
-            content:   resp.data.message.content,
-            senderId:  resp.data.message.senderId,
-            createdAt: resp.data.message.createdAt
-        )
-    }
-    
-
     // MARK: - Match Profile
 
     /// GET /matching/matches/:matchId/profile — fetches the counterpart's full profile for a permanent match.
@@ -1068,7 +997,7 @@ struct APIClient {
                     messageId: $0.id,
                     matchId:   $0.matchId ?? matchId,
                     content:   $0.content ?? "", senderId:  $0.senderId ?? "",
-                    createdAt: $0.createdAt!
+                    createdAt: $0.createdAt ?? ""
                 )
             }
             return PermanentMessagesResult(

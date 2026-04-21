@@ -270,10 +270,9 @@ struct PermanentChatView: View {
                 return
             }
 
-            let history = try await apiClient.getPermanentMessages(token: token, matchId: matchId)
+            let result = try await apiClient.getMatchMessages(matchId: matchId, token: token)
 
-            messages = history.map { item in
- 
+            messages = result.messages.map { item in
                 let isMine = !item.senderId.isEmpty && item.senderId != counterpartUserId
                 return PermanentMessage(
                     id:     item.messageId,
@@ -307,7 +306,7 @@ struct PermanentChatView: View {
                   let token = try? await user.getIDToken() else { isSending = false; return }
             do {
                 let result = try await apiClient.sendPermanentMessage(
-                    token: token, matchId: matchId, content: trimmed)
+                    matchId: matchId, content: trimmed, token: token)
                 if let idx = messages.firstIndex(where: { $0.id == optimisticId }) {
                     messages[idx] = PermanentMessage(
                         id: result.messageId, text: result.content,

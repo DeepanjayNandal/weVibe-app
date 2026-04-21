@@ -197,7 +197,7 @@ struct FindingMatchView: View {
 
                 VStack(spacing: 10) {
                     HStack(spacing: 8) {
-                        Text("Finding A Match")
+                        Text("Finding a Match")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
                         if matchmakingService.isSearching { LoadingDots() }
@@ -215,13 +215,13 @@ struct FindingMatchView: View {
                                 errorMessage = nil
                                 startMatchmaking()
                             } label: {
-                                Text("try again")
+                                Text("Try Again")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(AppTheme.primaryButton)
                             }
                         }
                     } else {
-                        Text("We're finding someone for you to chat to you!")
+                        Text("We're finding someone for you to chat with!")
                             .font(.system(size: 14))
                             .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)

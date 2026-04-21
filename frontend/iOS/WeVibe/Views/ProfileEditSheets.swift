@@ -63,7 +63,7 @@ struct PhotosEditSheet: View {
                         }
 
                         if !photoItems.isEmpty {
-                            Text("Hold & drag to reorder")
+                            Text("Hold and drag to reorder")
                                 .font(.caption2)
                                 .foregroundStyle(.white.opacity(0.35))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -733,7 +733,7 @@ struct DateActivitiesEditSheet: View {
         editNav(title: "Date Activities", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             activitiesSection("Would love to do on a date (\(wouldDo.count)/\(Self.maxActivities))",
                               selected: $wouldDo, blocked: wouldNot, accent: AppTheme.iconColor)
-            activitiesSection("Would NOT do on a date (\(wouldNot.count)/\(Self.maxActivities))",
+            activitiesSection("Would not do on a date (\(wouldNot.count)/\(Self.maxActivities))",
                               selected: $wouldNot, blocked: wouldDo, accent: Color(hex: "#C0392B"))
         }
         .onAppear { wouldDo = Set(store.preferredDateActivities); wouldNot = Set(store.wouldNotDoActivities) }
@@ -818,12 +818,12 @@ struct LifestyleEditSheet: View {
             toggleRow("Flexible on sleep schedule", isOn: $isSleepFlexible)
             pickerRow("Pets", selection: $pets, options: FamilyPreference.allCases.map(\.rawValue))
 
-            sectionLabel("More about pets")
+            sectionLabel("More About Pets")
             editField("What type of pets?", "e.g. Dog, Cat, Fish", text: $petTypes)
-            editField("Pet's name", "e.g. Max, Luna", text: $petsName)
+            editField("Pet's Name", "e.g. Max, Luna", text: $petsName)
 
             sectionLabel("Cannabis")
-            pickerRow("", selection: $cannabis, options: UserProfileStore.cannabisOptions)
+            pickerRow("Cannabis", selection: $cannabis, options: UserProfileStore.cannabisOptions)
             toggleRow("Flexible on cannabis", isOn: $isCannabisFlexible)
 
             sectionLabel("Kids")
@@ -1108,7 +1108,7 @@ struct CareerEditSheet: View {
 // MARK: - Prompts Edit Sheet
 
 struct PromptsEditSheet: View {
-    @Environment(UserProfileStore.self) var store
+    @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     // Snapshot of prompt values on open — restored if user cancels without saving
@@ -1139,8 +1139,8 @@ struct PromptsEditSheet: View {
                         usedBy: [store.prompt1Question, store.prompt3Question])
             promptField("Prompt 3", question: $store.prompt3Question, answer: $store.prompt3Answer,
                         usedBy: [store.prompt1Question, store.prompt2Question])
-            sectionLabel("Your own prompt")
-            editField("Write your own question...", "", text: $store.customPromptQuestion)
+            sectionLabel("Your Own Prompt")
+            editField("", "Write your own question...", text: $store.customPromptQuestion)
             if !store.customPromptQuestion.isEmpty {
                 editField("Your answer", "Write your answer...", text: $store.customPromptAnswer, multiline: true)
             }

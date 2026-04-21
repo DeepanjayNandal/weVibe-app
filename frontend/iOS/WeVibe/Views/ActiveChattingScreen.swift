@@ -115,6 +115,7 @@ struct ActiveChatView: View {
     @Environment(ChatRouter.self) private var chatRouter
     @Environment(MatchmakingService.self) private var matchmakingService
     @Environment(SocketService.self) private var socketService
+    @Environment(ChatStore.self) private var chatStore
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var messageText: String = ""
@@ -328,7 +329,7 @@ struct ActiveChatView: View {
                 onLeave: {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
                     matchmakingService.cancelSearch()
-                    onLeaveSession()
+                    leaveAndEndSession()
                 },
                 onStay: {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showLeaveConfirm = false }
@@ -561,6 +562,9 @@ struct ActiveChatView: View {
                     messagesLeft: nil
                 )
             }
+            // Clear unread badge — fire-and-forget, non-critical
+            try? await apiClient.markSessionMessagesRead(sessionId: matchId, token: token)
+            chatStore.clearSessionUnread(sessionId: matchId)
         } catch { print("❌ [Chat] loadHistory: \(error)") }
 
         // Only start countdown if session is still going
@@ -658,6 +662,17 @@ struct ActiveChatView: View {
                     if secondsRemaining == 0 { triggerServerSessionEnd() }
                 }
             }
+        }
+    }
+
+    // MARK: - Leave Early
+
+    private func leaveAndEndSession() {
+        // Navigate immediately — don't block on the network call.
+        onLeaveSession()
+        Task {
+            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+            try? await apiClient.endSession(sessionId: matchId, token: token)
         }
     }
 

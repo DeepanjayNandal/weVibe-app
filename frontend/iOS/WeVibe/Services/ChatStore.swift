@@ -226,6 +226,26 @@ final class ChatStore {
         }
     }
 
+    /// Resets the unread badge for a speed-dating session to zero.
+    /// Call this when ActiveChattingScreen marks messages as read.
+    func clearSessionUnread(sessionId: String) {
+        sessions = sessions.map { item in
+            guard item.matchId == sessionId, item.unreadCount > 0 else { return item }
+            return ChatListItem(
+                matchId:           item.matchId,
+                name:              item.name,
+                initials:          item.initials,
+                counterpartUserId: item.counterpartUserId,
+                avatarSystemIcon:  item.avatarSystemIcon,
+                lastMessage:       item.lastMessage,
+                isMine:            item.isMine,
+                timeAgo:           item.timeAgo,
+                unreadCount:       0,
+                isTyping:          false
+            )
+        }
+    }
+
     /// Resets the unread badge for a match to zero.
     /// Call this when PermanentChattingScreen marks messages as read.
     func clearUnread(matchId: String) {

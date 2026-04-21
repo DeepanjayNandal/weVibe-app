@@ -713,6 +713,26 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
     
+    /// POST /matching/sessions/:sessionId/end — ends a speed-dating session early.
+    /// 404/409 are treated as no-ops (session already ended or not found).
+    func endSession(sessionId: String, token: String) async throws {
+        let req = request(path: "/matching/sessions/\(sessionId)/end", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 || status == 409 { return }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// PATCH /matching/sessions/:sessionId/read — marks all messages in the session as read.
+    func markSessionMessagesRead(sessionId: String, token: String) async throws {
+        let req = request(path: "/matching/sessions/\(sessionId)/read", method: "PATCH", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     // MARK: - Get Permanent Messages
     // GET /matching/matches/:matchId/messages
  

@@ -282,7 +282,7 @@ struct PermanentChatView: View {
                 )
             }
         } catch {
-            print("❌ [Permanent] loadMessages: \(error)")
+            AppLogger.recordError(error, context: "loadMessages", logger: AppLogger.permanentChat)
         }
     }
 
@@ -315,7 +315,7 @@ struct PermanentChatView: View {
             } catch {
                 messages.removeAll { $0.id == optimisticId }
                 messageText = trimmed
-                print("❌ [Permanent] send failed: \(error)")
+                AppLogger.recordError(error, context: "sendMessage", logger: AppLogger.permanentChat)
             }
             isSending = false
         }

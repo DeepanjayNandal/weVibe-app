@@ -543,13 +543,11 @@ struct ActiveChatView: View {
                     showPartnerRequestPopup = true
 
                 } else if mtp.requestStatus == "pending" && mtp.myDecision == "yes" {
-                    // We sent a request, waiting for partner — could show a subtle indicator
-                    // (no blocking popup — user can still chat)
-                    print("ℹ️ [Chat] We already sent a match request, waiting for partner response")
+                    // We sent a request, waiting for partner — no blocking popup, user can still chat
                 }
                 // Note: messagesLeft == 0 alone doesn't lock — heart button stays for early match
             }
-        } catch { print("❌ [Chat] loadSession: \(error)") }
+        } catch { AppLogger.recordError(error, context: "loadSession", logger: AppLogger.chat) }
 
         do {
             let history = try await apiClient.getSpeedDatingMessages(token: token, sessionId: matchId)
@@ -565,7 +563,7 @@ struct ActiveChatView: View {
             // Clear unread badge — fire-and-forget, non-critical
             try? await apiClient.markSessionMessagesRead(sessionId: matchId, token: token)
             chatStore.clearSessionUnread(sessionId: matchId)
-        } catch { print("❌ [Chat] loadHistory: \(error)") }
+        } catch { AppLogger.recordError(error, context: "loadHistory", logger: AppLogger.chat) }
 
         // Only start countdown if session is still going
         if !isSessionEnded {
@@ -619,7 +617,7 @@ struct ActiveChatView: View {
             do {
                 try await apiClient.requestMoveToPermanent(token: token, sessionId: matchId)
             } catch {
-                print("❌ [EarlyMatch] Request failed: \(error)")
+                AppLogger.recordError(error, context: "requestEarlyMatch", logger: AppLogger.chat)
             }
         }
     }
@@ -633,7 +631,7 @@ struct ActiveChatView: View {
             do {
                 try await apiClient.respondMoveToPermanent(token: token, sessionId: matchId, accept: accept)
             } catch {
-                print("❌ [EarlyMatch] Respond failed: \(error)")
+                AppLogger.recordError(error, context: "respondToPartnerRequest", logger: AppLogger.chat)
             }
         }
     }
@@ -647,7 +645,7 @@ struct ActiveChatView: View {
             do {
                 try await apiClient.submitFinalDecision(token: token, sessionId: matchId, decision: decision)
             } catch {
-                print("❌ [Decision] Failed: \(error)")
+                AppLogger.recordError(error, context: "submitDecision", logger: AppLogger.chat)
             }
         }
     }

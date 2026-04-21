@@ -2,8 +2,6 @@ import Foundation
 import Observation
 import FirebaseAuth
 
-// MARK: - ChatStore
-
 /// Source-of-truth for the chat list UI.
 ///
 /// - Owned fetch timing: views just read; they never hold their own arrays.
@@ -54,10 +52,9 @@ final class ChatStore {
                     isTyping:          false
                 )
             }
-            print("✅ [ChatStore] \(matches.count) matches loaded")
         } catch {
             matchesError = "Couldn't load matches"
-            print("❌ [ChatStore] fetchMatches: \(error)")
+            AppLogger.recordError(error, context: "fetchMatches", logger: AppLogger.chatStore)
         }
     }
 
@@ -95,10 +92,9 @@ final class ChatStore {
                     isTyping:          false
                 )
             }
-            print("✅ [ChatStore] \(sessions.count) speed dating sessions loaded")
         } catch {
             sessionsError = "Couldn't load sessions"
-            print("❌ [ChatStore] fetchSessions: \(error)")
+            AppLogger.recordError(error, context: "fetchSessions", logger: AppLogger.chatStore)
         }
     }
 

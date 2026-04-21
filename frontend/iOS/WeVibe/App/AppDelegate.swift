@@ -2,8 +2,6 @@ import UIKit
 import FirebaseMessaging
 import UserNotifications
 
-// MARK: - AppDelegate
-
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
     // Latest FCM token — read by AuthManager after login to sync with backend.
@@ -31,7 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        print("[APNs] Failed to register: \(error.localizedDescription)")
+        AppLogger.recordError(error, context: "APNs registration failed", logger: AppLogger.apns)
     }
 }
 

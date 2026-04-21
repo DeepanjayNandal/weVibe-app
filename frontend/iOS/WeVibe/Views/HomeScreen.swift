@@ -13,8 +13,9 @@ enum AppTab: Hashable {
 
 struct HomeScreen: View {
 
-    @State private var selectedTab: AppTab     = .speedDating
-    @State private var pendingMatchId: String? = nil
+    @State private var selectedTab: AppTab             = .speedDating
+    @State private var pendingMatchId: String?         = nil
+    @State private var pendingPermanentMatchId: String? = nil
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -33,7 +34,8 @@ struct HomeScreen: View {
 
                 ChatTab(
                     selectedTab: $selectedTab,
-                    pendingMatchId: $pendingMatchId
+                    pendingMatchId: $pendingMatchId,
+                    pendingPermanentMatchId: $pendingPermanentMatchId
                 )
                 .tag(AppTab.chat)
                 .toolbar(.hidden, for: .tabBar)
@@ -44,6 +46,23 @@ struct HomeScreen: View {
             }
         }
         .ignoresSafeArea(edges: .bottom)
+        .onReceive(NotificationCenter.default.publisher(for: .pushNotificationTapped)) { notification in
+            guard let userInfo = notification.userInfo,
+                  let type = userInfo["type"] as? String else { return }
+            selectedTab = .chat
+            switch type {
+            case "speed_dating_message":
+                if let sessionId = userInfo["sessionId"] as? String {
+                    pendingMatchId = sessionId
+                }
+            case "permanent_message":
+                if let matchId = userInfo["matchId"] as? String {
+                    pendingPermanentMatchId = matchId
+                }
+            default:
+                break
+            }
+        }
     }
 }
 
@@ -91,7 +110,9 @@ private struct SpeedDatingTab: View {
 private struct ChatTab: View {
     @Binding var selectedTab: AppTab
     @Binding var pendingMatchId: String?
+    @Binding var pendingPermanentMatchId: String?
 
+    @Environment(ChatStore.self) private var chatStore
     @State private var chatRouter = ChatRouter()
     @State private var chatInnerTab: ChatInnerTab = .anonymous
 
@@ -135,7 +156,40 @@ private struct ChatTab: View {
             chatRouter.navigate(to: .activeChat(matchId: matchId))
             pendingMatchId = nil
         }
+        .onChange(of: pendingPermanentMatchId) { _, matchId in
+            guard let matchId else { return }
+            chatInnerTab = .matched
+            if !tryNavigateToPermanentChat(matchId: matchId), !chatStore.isLoadingMatches {
+                // Matches already finished loading and the match isn't there —
+                // clear the intent so we don't retry forever; user lands on matched tab.
+                pendingPermanentMatchId = nil
+            }
+        }
+        .onChange(of: chatStore.isLoadingMatches) { _, isLoading in
+            // When a fetch completes, make one final navigation attempt.
+            // If still not found the match doesn't exist — clear and stay on matched tab.
+            guard !isLoading, let matchId = pendingPermanentMatchId else { return }
+            if !tryNavigateToPermanentChat(matchId: matchId) {
+                pendingPermanentMatchId = nil
+            }
+        }
         .environment(chatRouter)
+    }
+
+    /// Attempts to navigate to the permanent chat for `matchId`.
+    /// Returns `true` and clears `pendingPermanentMatchId` on success.
+    /// Returns `false` without side-effects when the match isn't in the local cache yet.
+    @discardableResult
+    private func tryNavigateToPermanentChat(matchId: String) -> Bool {
+        guard let match = chatStore.matches.first(where: { $0.matchId == matchId }),
+              let name = match.name else { return false }
+        pendingPermanentMatchId = nil
+        chatRouter.navigate(to: .permanentChat(
+            matchId: matchId,
+            name: name,
+            counterpartUserId: match.counterpartUserId
+        ))
+        return true
     }
 }
 

@@ -36,6 +36,7 @@ targets:
           - Firebase/**
           - Info.plist
           - WeVibe.entitlements
+          - WeVibe-Release.entitlements
           - App/**
           - Views/**
           - Components/**
@@ -69,6 +70,13 @@ targets:
 
     # Runs after Compile Sources, before Resources — mirrors original build phase order
     postCompileScripts:
+      - name: SwiftLint
+        script: |
+          if command -v swiftlint > /dev/null 2>&1; then
+            swiftlint --config "${SRCROOT}/.swiftlint.yml"
+          else
+            echo "warning: SwiftLint not installed. Run: brew install swiftlint"
+          fi
       - name: Firebase Plist Copy
         basedOnDependencyAnalysis: false
         script: |
@@ -146,3 +154,4 @@ targets:
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.wevibe1.app
           PROVISIONING_PROFILE_SPECIFIER: "match AppStore com.wevibe1.app"
+          CODE_SIGN_ENTITLEMENTS: WeVibe/WeVibe-Release.entitlements

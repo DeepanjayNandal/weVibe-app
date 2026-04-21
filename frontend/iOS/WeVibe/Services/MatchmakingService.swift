@@ -1,6 +1,5 @@
 import Foundation
 import FirebaseAuth
-import UserNotifications
 
 // MARK: - MatchmakingService
 
@@ -42,10 +41,6 @@ final class MatchmakingService {
         socketService.lastMatchEvent = nil  // clear stale event from any previous round
 
         searchTask = Task {
-            // Request notification permission on first queue join (needed for EC2 background alert)
-            _ = try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound])
-
             guard let token = try? await Auth.auth().currentUser?.getIDToken() else {
                 isSearching = false
                 onError("Not signed in.")

@@ -80,7 +80,7 @@ struct PermanentChatView: View {
         .navigationBarHidden(true)
         .task { await loadMessages() }
 
-        .onChange(of: socketService.lastPermanentMessage) { event in
+        .onChange(of: socketService.lastPermanentMessage) { _, event in
             guard let event, event.matchId == matchId else { return }
             guard !messages.contains(where: { $0.id == event.messageId }) else {
                 socketService.lastPermanentMessage = nil
@@ -98,19 +98,19 @@ struct PermanentChatView: View {
             socketService.lastPermanentMessage = nil
         }
 
-        .onChange(of: socketService.lastPermanentTyping) { event in
+        .onChange(of: socketService.lastPermanentTyping) { _, event in
             guard let event, event.matchId == matchId else { return }
             withAnimation { isCounterpartTyping = event.isTyping }
             socketService.lastPermanentTyping = nil
         }
 
-        .onChange(of: socketService.lastPermanentMatchRemoved) { event in
+        .onChange(of: socketService.lastPermanentMatchRemoved) { _, event in
             guard let event, event.matchId == matchId else { return }
             withAnimation { isMatchRemoved = true }
             socketService.lastPermanentMatchRemoved = nil
         }
 
-        .onChange(of: socketService.lastPermanentMatchBlocked) { event in
+        .onChange(of: socketService.lastPermanentMatchBlocked) { _, event in
             guard let event, event.matchId == matchId else { return }
             withAnimation { isMatchBlocked = true }
             socketService.lastPermanentMatchBlocked = nil

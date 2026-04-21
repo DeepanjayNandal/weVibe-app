@@ -244,7 +244,7 @@ struct ActiveChatView: View {
         .navigationBarHidden(true)
         .onDisappear { timerTask?.cancel() }
         .task { await loadSession() }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             guard phase == .active, !expiresAt.isEmpty else { return }
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -1202,7 +1202,7 @@ private struct SessionEndedSocketModifier: ViewModifier {
     let triggerServerSessionEnd: () -> Void
 
     func body(content: Content) -> some View {
-        content.onChange(of: socketService.lastSpeedDatingSessionEnded) { event in
+        content.onChange(of: socketService.lastSpeedDatingSessionEnded) { _, event in
             guard let event, event.sessionId == matchId else { return }
             if event.reason == "graduated", let mId = event.matchId, matchedPermanentMatchId == nil {
                 matchedPermanentMatchId = mId
@@ -1224,7 +1224,7 @@ private struct PartnerRequestSocketModifier: ViewModifier {
     let socketService: SocketService
 
     func body(content: Content) -> some View {
-        content.onChange(of: socketService.lastMoveToPermanentRequested) { event in
+        content.onChange(of: socketService.lastMoveToPermanentRequested) { _, event in
             guard let event, event.sessionId == matchId else { return }
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showPartnerRequestPopup = true }
             socketService.lastMoveToPermanentRequested = nil
@@ -1237,7 +1237,7 @@ private struct PartnerRespondedSocketModifier: ViewModifier {
     let socketService: SocketService
 
     func body(content: Content) -> some View {
-        content.onChange(of: socketService.lastMoveToPermanentResponded) { event in
+        content.onChange(of: socketService.lastMoveToPermanentResponded) { _, event in
             guard let event, event.sessionId == matchId else { return }
             socketService.lastMoveToPermanentResponded = nil
         }
@@ -1251,7 +1251,7 @@ private struct FinalDecisionSocketModifier: ViewModifier {
     let socketService: SocketService
 
     func body(content: Content) -> some View {
-        content.onChange(of: socketService.lastFinalDecisionUpdated) { event in
+        content.onChange(of: socketService.lastFinalDecisionUpdated) { _, event in
             guard let event, event.sessionId == matchId else { return }
             socketService.lastFinalDecisionUpdated = nil
             if !hasSubmittedDecision && !showMatchPopup {
@@ -1269,7 +1269,7 @@ private struct MoveToPermanentSocketModifier: ViewModifier {
     let socketService: SocketService
 
     func body(content: Content) -> some View {
-        content.onChange(of: socketService.lastMoveToPermanentUpdated) { event in
+        content.onChange(of: socketService.lastMoveToPermanentUpdated) { _, event in
             guard let event, event.sessionId == matchId else { return }
             matchedPermanentMatchId = event.matchId
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {

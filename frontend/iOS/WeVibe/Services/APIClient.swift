@@ -448,8 +448,26 @@ struct APIClient {
         if status == 404 { return }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
-    
-    
+
+    /// GET /matching/queue/status — returns current queue state.
+    /// Used as a polling fallback when the socket drops while waiting for a match.
+    func getQueueStatus(token: String) async throws -> JoinQueueResult {
+        let req = request(path: "/matching/queue/status", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                let state: String
+                let sessionId: String?
+            }
+            let data: DataBody
+        }
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return JoinQueueResult(state: resp.data.state, sessionId: resp.data.sessionId)
+    }
+
     /// GET /matching/sessions - get all the speed dating sessions
     /// Returns all the chat sessions that user are matching too
     func getAllSpeedDatingSessions(token: String) async throws -> ListSessionsResult {

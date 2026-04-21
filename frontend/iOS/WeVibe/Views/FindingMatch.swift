@@ -264,6 +264,16 @@ struct FindingMatchView: View {
                 speedDatingRouter.popToRoot()
             }
         }
+        .onChange(of: socketService.isConnected) { _, isConnected in
+            // Socket just reconnected — check if a match event was missed while disconnected.
+            if isConnected {
+                matchmakingService.recoverIfMatched()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // App returning to foreground — poll once in case a match arrived while backgrounded.
+            matchmakingService.recoverIfMatched()
+        }
     }
 
     // MARK: - Matchmaking

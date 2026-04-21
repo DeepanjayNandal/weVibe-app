@@ -341,6 +341,18 @@ final class AuthManager {
         appState = .unauthenticated
     }
 
+    // MARK: - Account Deletion
+
+    /// Soft-deletes the account on the backend (30-day grace period), then signs out locally.
+    /// Best-effort — local sign-out always succeeds even if the backend call fails.
+    func deleteAccount(profileStore: UserProfileStore, onboardingData: OnboardingData) async {
+        if let user = Auth.auth().currentUser,
+           let token = try? await user.getIDToken() {
+            try? await APIClient().deleteAccount(token: token)
+        }
+        logout(profileStore: profileStore, onboardingData: onboardingData)
+    }
+
     // MARK: - FCM Token
 
     /// Sends the current FCM token to the backend. Fire-and-forget — never blocks auth flow.

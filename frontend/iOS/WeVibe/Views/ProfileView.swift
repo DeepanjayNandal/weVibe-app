@@ -11,6 +11,8 @@ struct ProfileView: View {
     @State private var activeEdit: ProfileCardSection?
     @State private var showSettingsSheet = false
     @State private var showLogoutConfirm = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeletingAccount = false
 
     // MARK: - Build display data from environments
 
@@ -174,15 +176,27 @@ struct ProfileView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSettingsSheet) {
-            ProfileSettingsSheet(showLogoutConfirm: $showLogoutConfirm)
+            ProfileSettingsSheet(showLogoutConfirm: $showLogoutConfirm, showDeleteConfirm: $showDeleteConfirm)
                 .presentationDragIndicator(.visible)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
             Button("Log Out", role: .destructive) { authManager.logout(profileStore: store, onboardingData: onboarding) }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to log out?")
+        }
+        .alert("Delete Account", isPresented: $showDeleteConfirm) {
+            Button("Delete Account", role: .destructive) {
+                isDeletingAccount = true
+                Task {
+                    await authManager.deleteAccount(profileStore: store, onboardingData: onboarding)
+                    isDeletingAccount = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your account will be scheduled for permanent deletion in 30 days. You can cancel by logging back in within that period.\n\nThis action cannot be undone after 30 days.")
         }
         .alert("Save Failed", isPresented: Binding(
             get: { store.patchError != nil },
@@ -225,6 +239,7 @@ struct ProfileView: View {
 
 struct ProfileSettingsSheet: View {
     @Binding var showLogoutConfirm: Bool
+    @Binding var showDeleteConfirm: Bool
     @AppStorage("profileCardLightTheme") private var isLightTheme: Bool = false
     @Environment(\.dismiss) private var dismiss
 
@@ -262,6 +277,15 @@ struct ProfileSettingsSheet: View {
                             showLogoutConfirm = true
                         } label: {
                             Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                                .foregroundStyle(.red)
+                        }
+                        .listRowBackground(Color.white.opacity(0.06))
+
+                        Button(role: .destructive) {
+                            dismiss()
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete Account", systemImage: "trash")
                                 .foregroundStyle(.red)
                         }
                         .listRowBackground(Color.white.opacity(0.06))

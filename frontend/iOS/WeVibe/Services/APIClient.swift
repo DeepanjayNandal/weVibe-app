@@ -866,6 +866,18 @@ struct APIClient {
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
 
+    // MARK: - Account
+
+    /// DELETE /users/me — soft-deletes the account (30-day grace period).
+    /// Revokes Firebase + Apple tokens server-side. Backend returns 200 on success.
+    func deleteAccount(token: String) async throws {
+        let req = request(path: "/users/me", method: "DELETE", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     /// POST /matching/matches/:matchId/block — blocks the counterpart and removes the match.
     /// reason is optional free text.
     func blockMatch(matchId: String, reason: String?, token: String) async throws {

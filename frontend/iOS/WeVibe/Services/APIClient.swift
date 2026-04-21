@@ -868,6 +868,16 @@ struct APIClient {
 
     // MARK: - Account
 
+    /// POST /auth/logout — notifies the backend of sign-out. Best-effort; 401 treated as success
+    /// (token may already be expired). Never throws in practice — always call with try?.
+    func logout(token: String) async throws {
+        let req = request(path: "/auth/logout", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { return }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
     /// DELETE /users/me — soft-deletes the account (30-day grace period).
     /// Revokes Firebase + Apple tokens server-side. Backend returns 200 on success.
     func deleteAccount(token: String) async throws {

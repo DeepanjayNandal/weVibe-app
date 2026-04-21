@@ -178,7 +178,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showSettingsSheet) {
             ProfileSettingsSheet(showLogoutConfirm: $showLogoutConfirm, showDeleteConfirm: $showDeleteConfirm)
                 .presentationDragIndicator(.visible)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.fraction(0.65), .large])
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
             Button("Log Out", role: .destructive) { authManager.logout(profileStore: store, onboardingData: onboarding) }

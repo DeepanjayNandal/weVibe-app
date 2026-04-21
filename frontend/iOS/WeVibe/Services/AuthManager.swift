@@ -326,6 +326,13 @@ final class AuthManager {
     // MARK: - Sign Out
 
     func logout(profileStore: UserProfileStore, onboardingData: OnboardingData) {
+        // Best-effort backend logout — capture user before Firebase sign-out invalidates the token
+        let currentUser = Auth.auth().currentUser
+        Task {
+            if let token = try? await currentUser?.getIDToken() {
+                try? await APIClient().logout(token: token)
+            }
+        }
         try? Auth.auth().signOut()
 
         // MARK: - Store Cleanup on Logout

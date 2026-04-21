@@ -63,6 +63,18 @@ struct ListMatchesResult {
     let success: Bool
     let matches: [MatchListItem]
 }
+
+struct MatchDetail {
+    let matchId: String
+    let status: String
+    let canOpen: Bool
+    let canSendMessage: Bool
+    let counterpartUserId: String?
+    let counterpartDisplayName: String?
+    let counterpartPhotoUrl: String?
+
+    var isActive: Bool { status == "active" && canOpen }
+}
 struct SessionCounterpart {
     let userId: String
     let firstName: String
@@ -888,6 +900,55 @@ struct APIClient {
                 )
             }
             return ListMatchesResult(success: resp.success, matches: matches)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
+    // MARK: - Match Detail
+
+    /// GET /matching/matches/:matchId — returns match status and counterpart summary.
+    func getMatch(matchId: String, token: String) async throws -> MatchDetail {
+        let req = request(path: "/matching/matches/\(matchId)", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 {
+            return MatchDetail(matchId: matchId, status: "unmatched", canOpen: false,
+                               canSendMessage: false, counterpartUserId: nil,
+                               counterpartDisplayName: nil, counterpartPhotoUrl: nil)
+        }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Match: Decodable {
+                    struct Counterpart: Decodable {
+                        let userId: String?
+                        let displayName: String?
+                        let photoUrl: String?
+                    }
+                    let matchId: String?
+                    let status: String?
+                    let canOpen: Bool?
+                    let canSendMessage: Bool?
+                    let counterpart: Counterpart?
+                }
+                let match: Match
+            }
+            let data: DataBody?
+        }
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            guard let m = resp.data?.match else { throw APIError.serverError(status) }
+            return MatchDetail(
+                matchId:        m.matchId ?? matchId,
+                status:         m.status ?? "unknown",
+                canOpen:        m.canOpen ?? true,
+                canSendMessage: m.canSendMessage ?? true,
+                counterpartUserId:      m.counterpart?.userId,
+                counterpartDisplayName: m.counterpart?.displayName,
+                counterpartPhotoUrl:    m.counterpart?.photoUrl
+            )
         } catch {
             throw APIError.decoding(error)
         }

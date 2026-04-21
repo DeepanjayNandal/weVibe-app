@@ -264,6 +264,12 @@ struct PermanentChatView: View {
         guard let user  = Auth.auth().currentUser,
               let token = try? await user.getIDToken() else { return }
         do {
+            let detail = try await apiClient.getMatch(matchId: matchId, token: token)
+            if !detail.isActive {
+                withAnimation { isMatchRemoved = true }
+                return
+            }
+
             let history = try await apiClient.getPermanentMessages(token: token, matchId: matchId)
 
             messages = history.map { item in

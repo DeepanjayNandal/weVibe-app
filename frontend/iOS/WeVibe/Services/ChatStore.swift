@@ -36,17 +36,26 @@ final class ChatStore {
         do {
             let result = try await apiClient.getAllMatches(token: token)
             matches = result.matches.map { match in
+                let isActive = match.status == "active"
                 let lastMsg = match.lastMessageContent?.isEmpty == false
                     ? match.lastMessageContent!
-                    : "Say hello! 👋"
+                    : (isActive ? "Say hello! 👋" : "Match removed")
+                // Heuristic: if there are unread messages, the last message is from
+                // the counterpart (isMine = false). If unreadCount == 0 and there's
+                // a last message, assume the user sent it (isMine = true).
+                let isMine = isActive && match.unreadCount == 0 && match.lastMessageContent != nil
+                // Anonymize name and photo for removed/blocked/reported matches
+                let displayName = isActive ? match.counterpartDisplayName : "Unknown user"
+                let photoUrl    = isActive ? match.counterpartPhotoUrl    : nil
                 return ChatListItem(
                     matchId:           match.matchId,
-                    name:              match.counterpartDisplayName,
+                    name:              displayName,
                     initials:          nil,
+                    photoUrl:          photoUrl,
                     counterpartUserId: match.counterpartUserId ?? "",
                     avatarSystemIcon:  nil,
                     lastMessage:       lastMsg,
-                    isMine:            false,
+                    isMine:            isMine,
                     timeAgo:           timeAgoLabel(match.lastMessageAt),
                     unreadCount:       match.unreadCount,
                     isTyping:          false
@@ -83,6 +92,7 @@ final class ChatStore {
                     matchId:           sessionId,
                     name:              nil,
                     initials:          session.counterpart?.initials,
+                    photoUrl:          nil,
                     counterpartUserId: session.counterpart?.userId ?? "",
                     avatarSystemIcon:  nil,
                     lastMessage:       lastMsg,
@@ -111,6 +121,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       event.content,
@@ -125,14 +136,20 @@ final class ChatStore {
     /// Updates the speed-dating session list preview without a re-fetch.
     /// Called from WeVibeApp on every `socket.lastSpeedDatingMessage` event,
     /// and optionally from ActiveChattingScreen when the user sends a message.
-    func applyIncomingSpeedDatingMessage(_ event: IncomingSpeedDatingMessage, currentUserId: String?) {
+    /// Updates the speed-dating session list preview without a re-fetch.
+    /// Returns `true` if the session was found in the list, `false` if not (caller should re-fetch).
+    @discardableResult
+    func applyIncomingSpeedDatingMessage(_ event: IncomingSpeedDatingMessage, currentUserId: String?) -> Bool {
         let isMine = event.senderId == currentUserId
+        var found = false
         sessions = sessions.map { item in
             guard item.matchId == event.sessionId else { return item }
+            found = true
             return ChatListItem(
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       event.content,
@@ -142,6 +159,7 @@ final class ChatStore {
                 isTyping:          false
             )
         }
+        return found
     }
 
     // MARK: - Typing Indicators
@@ -156,6 +174,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       item.lastMessage,
@@ -176,6 +195,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       item.lastMessage,
@@ -211,6 +231,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       label,
@@ -231,6 +252,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       item.lastMessage,
@@ -251,6 +273,7 @@ final class ChatStore {
                 matchId:           item.matchId,
                 name:              item.name,
                 initials:          item.initials,
+                photoUrl:          item.photoUrl,
                 counterpartUserId: item.counterpartUserId,
                 avatarSystemIcon:  item.avatarSystemIcon,
                 lastMessage:       item.lastMessage,

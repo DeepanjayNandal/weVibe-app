@@ -3,7 +3,7 @@ import Observation
 
 enum ChatRoute: Hashable {
     case activeChat(matchId: String)
-    case permanentChat(matchId: String, name: String, counterpartUserId: String)
+    case permanentChat(matchId: String, name: String, counterpartUserId: String, photoUrl: String?)
 }
 
 @Observable

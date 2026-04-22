@@ -578,9 +578,9 @@ struct APIClient {
                   let moveToPermanent: RawMoveToPermanent
               }
               struct RawCounterpart: Decodable {
-                  let userId: String
-                  let firstName: String
-                  let initials: String
+                  let userId: String?
+                  let firstName: String?
+                  let initials: String?
                   let blurredPhotoUrl: String?
               }
               struct RawMoveToPermanent: Decodable {
@@ -612,9 +612,9 @@ struct APIClient {
                   otherMessageCount:  raw.otherMessageCount,
                   messageLimit:       raw.messageLimit,
                   counterpart: SessionCounterpart(
-                      userId:          raw.counterpart.userId,
-                      firstName:       raw.counterpart.firstName,
-                      initials:        raw.counterpart.initials,
+                      userId:          raw.counterpart.userId ?? "",
+                      firstName:       raw.counterpart.firstName ?? "",
+                      initials:        raw.counterpart.initials ?? "??",
                       blurredPhotoUrl: raw.counterpart.blurredPhotoUrl
                   ),
                   moveToPermanent: SessionMoveToPermanent(
@@ -961,11 +961,22 @@ struct APIClient {
     struct PermanentMessagesResult {
         let counterpartUserId: String
         let messages: [PermanentMessageItem]
+        let hasMore: Bool
     }
 
-    /// GET /matching/matches/:matchId/messages — fetches full message history for a permanent match.
-    func getMatchMessages(matchId: String, token: String) async throws -> PermanentMessagesResult {
-        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
+    /// GET /matching/matches/:matchId/messages — fetches paginated message history.
+    /// Pass `before` (message ID) to load older messages; `limit` controls page size.
+    func getMatchMessages(
+        matchId: String,
+        token: String,
+        before: String? = nil,
+        limit: Int = 30
+    ) async throws -> PermanentMessagesResult {
+        var path = "/matching/matches/\(matchId)/messages?limit=\(limit)"
+        if let before {
+            path += "&before=\(before)"
+        }
+        let req = request(path: path, method: "GET", token: token)
         let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
@@ -988,6 +999,7 @@ struct APIClient {
                 }
                 let match: MatchItem
                 let messages: [Msg]
+                let hasMore: Bool
             }
             let data: DataBody
         }
@@ -998,13 +1010,15 @@ struct APIClient {
                 PermanentMessageItem(
                     messageId: $0.id,
                     matchId:   $0.matchId ?? matchId,
-                    content:   $0.content,       senderId:  $0.senderId ?? "",
+                    content:   $0.content,
+                    senderId:  $0.senderId ?? "",
                     createdAt: $0.createdAt ?? ""
                 )
             }
             return PermanentMessagesResult(
                 counterpartUserId: resp.data.match.counterpart.userId ?? "",
-                messages: items
+                messages: items,
+                hasMore: resp.data.hasMore
             )
         } catch {
             throw APIError.decoding(error)
@@ -1107,7 +1121,13 @@ struct APIClient {
     }
 
     private func request(path: String, method: String, token: String) -> URLRequest {
-        var req = URLRequest(url: base.appendingPathComponent(path))
+        // Use string concatenation instead of appendingPathComponent, which
+        // percent-encodes '?' and '&' — breaking query strings like ?limit=30&before=xyz.
+        let urlString = base.absoluteString + path
+        guard let url = URL(string: urlString) else {
+            fatalError("APIClient: malformed URL '\(urlString)'")
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return req

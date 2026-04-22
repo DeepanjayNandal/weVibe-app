@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 // MARK: - Tab Identity
 
@@ -136,13 +137,26 @@ private struct ChatTab: View {
                             onLeaveSession: {
                                 chatRouter.popToRoot()
                                 selectedTab = .speedDating
+                            },
+                            onMatchedToPermanent: { permanentMatchId in
+                                chatRouter.popToRoot()
+                                chatInnerTab = .matched
+                                Task {
+                                    guard let token = try? await Auth.auth().currentUser?.getIDToken() else {
+                                        pendingPermanentMatchId = permanentMatchId
+                                        return
+                                    }
+                                    await chatStore.fetchMatches(token: token)
+                                    pendingPermanentMatchId = permanentMatchId
+                                }
                             }
                         )
-                case .permanentChat(let matchId, let name, let counterpartUserId):
+                case .permanentChat(let matchId, let name, let counterpartUserId, let photoUrl):
                     PermanentChatView(
                         matchId: matchId,
                         matchName: name,
                         counterpartUserId: counterpartUserId,
+                        photoUrl: photoUrl,
                         onBack: {
                             chatInnerTab = .matched
                             chatRouter.popToRoot()
@@ -187,7 +201,8 @@ private struct ChatTab: View {
         chatRouter.navigate(to: .permanentChat(
             matchId: matchId,
             name: name,
-            counterpartUserId: match.counterpartUserId
+            counterpartUserId: match.counterpartUserId,
+            photoUrl: match.photoUrl
         ))
         return true
     }

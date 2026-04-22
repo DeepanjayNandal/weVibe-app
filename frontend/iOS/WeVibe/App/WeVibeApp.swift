@@ -102,7 +102,14 @@ struct WeVibeApp: App {
                 .onChange(of: socketService.lastSpeedDatingMessage) { _, event in
                     guard let event else { return }
                     let uid = Auth.auth().currentUser?.uid
-                    chatStore.applyIncomingSpeedDatingMessage(event, currentUserId: uid)
+                    let found = chatStore.applyIncomingSpeedDatingMessage(event, currentUserId: uid)
+                    if !found {
+                        // Session not yet in list (e.g. match just created) — fetch to add it.
+                        Task {
+                            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                            await chatStore.fetchSessions(token: token)
+                        }
+                    }
                 }
                 .onChange(of: socketService.lastPermanentTyping) { _, event in
                     guard let event else { return }
@@ -134,11 +141,32 @@ struct WeVibeApp: App {
                         await chatStore.fetchMatches(token: token)
                     }
                 }
+                .onChange(of: socketService.lastMatchEvent) { _, event in
+                    // A match was found — fetch sessions immediately so the new session is in the
+                    // list before any socket messages for it arrive (applyIncomingSpeedDatingMessage
+                    // is a no-op when the session isn't cached yet).
+                    guard event != nil else { return }
+                    Task {
+                        guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                        await chatStore.fetchSessions(token: token)
+                    }
+                }
                 .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active, authManager.appState == .authenticated {
+                        // Re-fetch when app comes to foreground so missed socket events don't
+                        // leave the chat list stale (e.g. messages received while backgrounded).
+                        Task {
+                            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                            async let matches: () = chatStore.fetchMatches(token: token)
+                            async let sessions: () = chatStore.fetchSessions(token: token)
+                            _ = await (matches, sessions)
+                        }
+                    }
                     // EC2: app goes to background while searching — cancel search and notify user.
-                    guard newPhase == .background, matchmakingService.isSearching else { return }
-                    matchmakingService.cancelSearch()
-                    scheduleRemovedFromQueueNotification()
+                    if newPhase == .background, matchmakingService.isSearching {
+                        matchmakingService.cancelSearch()
+                        scheduleRemovedFromQueueNotification()
+                    }
                 }
         }
     }

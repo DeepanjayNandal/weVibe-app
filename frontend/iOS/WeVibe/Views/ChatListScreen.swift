@@ -8,6 +8,7 @@ struct ChatListItem: Identifiable {
     let matchId: String
     let name: String?
     let initials: String?
+    let photoUrl: String?              // profile photo for permanent chat rows; nil for anonymous
     let counterpartUserId: String      // used by PermanentChatView for isMine logic
     let avatarSystemIcon: String?
     let lastMessage: String
@@ -69,11 +70,12 @@ struct ChatListView: View {
     }
 
     @ViewBuilder private var anonymousContent: some View {
-        if chatStore.isLoadingSessions {
+        // Initial load — no data yet, show full spinner
+        if chatStore.isLoadingSessions && chatStore.sessions.isEmpty {
             Spacer()
             ProgressView().tint(AppTheme.primaryButton)
             Spacer()
-        } else if let error = chatStore.sessionsError {
+        } else if let error = chatStore.sessionsError, chatStore.sessions.isEmpty {
             Spacer()
             errorView(message: error) {
                 Task {
@@ -94,16 +96,24 @@ struct ChatListView: View {
                 }
             }
         } else {
+            // Data present — keep list visible; show inline badge during background refresh
             chatList(items: chatStore.sessions, isAnonymous: true)
+                .overlay(alignment: .top) {
+                    if chatStore.isLoadingSessions {
+                        refreshingBanner.padding(.top, 8)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: chatStore.isLoadingSessions)
         }
     }
 
     @ViewBuilder private var matchedContent: some View {
-        if chatStore.isLoadingMatches {
+        // Initial load — no data yet, show full spinner
+        if chatStore.isLoadingMatches && chatStore.matches.isEmpty {
             Spacer()
             ProgressView().tint(AppTheme.primaryButton)
             Spacer()
-        } else if let error = chatStore.matchesError {
+        } else if let error = chatStore.matchesError, chatStore.matches.isEmpty {
             Spacer()
             errorView(message: error) {
                 Task {
@@ -124,8 +134,29 @@ struct ChatListView: View {
                 }
             }
         } else {
+            // Data present — keep list visible; show inline badge during background refresh
             chatList(items: chatStore.matches, isAnonymous: false)
+                .overlay(alignment: .top) {
+                    if chatStore.isLoadingMatches {
+                        refreshingBanner.padding(.top, 8)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: chatStore.isLoadingMatches)
         }
+    }
+
+    private var refreshingBanner: some View {
+        HStack(spacing: 7) {
+            ProgressView()
+                .scaleEffect(0.7)
+                .tint(.white.opacity(0.55))
+            Text("Refreshing...")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.45))
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     @ViewBuilder private func errorView(message: String, retry: @escaping () -> Void) -> some View {
@@ -173,7 +204,8 @@ struct ChatListView: View {
             chatRouter.navigate(to: .permanentChat(
                 matchId:           item.matchId,
                 name:              item.name ?? "Match",
-                counterpartUserId: item.counterpartUserId
+                counterpartUserId: item.counterpartUserId,
+                photoUrl:          item.photoUrl
             ))
         }
     }
@@ -287,6 +319,27 @@ private struct ChatRowView: View {
     }
 
     @ViewBuilder
+    private func permanentInitialsAvatar(item: ChatListItem) -> some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+            if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
+                Text(initials)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.9))
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
+    }
+
+    @ViewBuilder
     private var avatarView: some View {
         if isAnonymous {
             ZStack {
@@ -304,23 +357,21 @@ private struct ChatRowView: View {
                 }
             }
         } else {
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
-                    Text(initials)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
-                } else {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white.opacity(0.8))
+            if let photoUrl = item.photoUrl, let url = URL(string: photoUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                            .frame(width: 56, height: 56)
+                            .clipShape(Circle())
+                            .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
+                    default:
+                        permanentInitialsAvatar(item: item)
+                    }
                 }
+            } else {
+                permanentInitialsAvatar(item: item)
             }
-            .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
         }
     }
 }

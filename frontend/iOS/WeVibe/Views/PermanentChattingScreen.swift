@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import UserNotifications
 
 // MARK: - Permanent Message Model
 
@@ -17,19 +18,44 @@ struct PermanentChatView: View {
     let matchId: String
     let matchName: String
     let counterpartUserId: String
+    var photoUrl: String? = nil
     var onBack: (() -> Void)? = nil
 
     @Environment(ChatRouter.self)      private var chatRouter
     @Environment(SocketService.self)   private var socketService
+    @Environment(ChatStore.self)       private var chatStore
 
-    @State private var messageText: String        = ""
-    @State private var messages: [PermanentMessage] = []
-    @State private var isSending: Bool            = false
-    @State private var isMatchRemoved: Bool       = false
-    @State private var isMatchBlocked: Bool       = false
-    @State private var isCounterpartTyping: Bool  = false
+    @State private var messageText: String           = ""
+    @State private var messages: [PermanentMessage]  = []
+    @State private var isSending: Bool               = false
+    @State private var isMatchRemoved: Bool          = false
+    @State private var isMatchBlocked: Bool          = false
+    @State private var isCounterpartTyping: Bool     = false
+    @State private var matchProfile: MatchProfile?   = nil
+    @State private var showProfile: Bool             = false
+    @State private var showMenu: Bool                = false
+    @State private var showBlockSheet: Bool          = false
+    @State private var showReportSheet: Bool         = false
+    @State private var isRemovingMatch: Bool          = false
+    @State private var isLoadingProfile: Bool         = false
+    @State private var isLoadingMore: Bool            = false
+    @State private var hasMore: Bool                  = false
 
     @FocusState private var inputFocused: Bool
+
+    private var initialsCircle: some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+                .frame(width: 40, height: 40)
+            Text(matchName.prefix(2).uppercased())
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+        }
+    }
 
     private let apiClient = APIClient()
 
@@ -43,24 +69,40 @@ struct PermanentChatView: View {
 
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 0) {
+                            // Load-more trigger — appears when user scrolls to the top
+                            if hasMore {
+                                Color.clear.frame(height: 1)
+                                    .onAppear {
+                                        guard !isLoadingMore, !messages.isEmpty else { return }
+                                        Task { await loadMoreMessages() }
+                                    }
+                            }
+                            if isLoadingMore {
+                                ProgressView()
+                                    .tint(Color(hex: "#22A855"))
+                                    .padding(.vertical, 12)
+                            }
+
                             ForEach(messages) { message in
                                 PermanentMessageBubble(message: message).id(message.id)
                             }
-                            // Typing indicator
+
                             if isCounterpartTyping {
                                 TypingBubble()
                                     .id("typing")
                                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
-                            Color.clear.frame(height: 90)
+
+                            Color.clear.frame(height: 90).id("bottom")
                         }
                         .padding(.top, 12)
                     }
+                    .defaultScrollAnchor(.bottom)
                     .onChange(of: messages.count) { _, _ in
-                        if let last = messages.last {
-                            withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                        }
+                        // Only auto-scroll for newly appended messages, not prepended pages
+                        guard !isLoadingMore, let last = messages.last else { return }
+                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                     .onChange(of: isCounterpartTyping) { _, typing in
                         if typing { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
@@ -76,9 +118,35 @@ struct PermanentChatView: View {
                 }
             }
         }
-        .overlay { removedOverlay }
         .navigationBarHidden(true)
+        .onAppear  { AppDelegate.activeMatchId = matchId }
+        .onDisappear { AppDelegate.activeMatchId = nil }
         .task { await loadMessages() }
+        .sheet(isPresented: $showProfile) {
+            if let profile = matchProfile {
+                OtherUserProfileView(profile: profile, onDismiss: { showProfile = false })
+            }
+        }
+        .sheet(isPresented: $showBlockSheet) {
+            BlockMatchSheet(matchId: matchId, onSuccess: {
+                showBlockSheet = false
+                if let onBack { onBack() } else { chatRouter.pop() }
+            })
+        }
+        .sheet(isPresented: $showReportSheet) {
+            ReportMatchSheet(matchId: matchId, onSuccess: { showReportSheet = false })
+        }
+        .sheet(isPresented: $showMenu) {
+            MatchMenuSheet(
+                onBlock:   { showMenu = false; showBlockSheet  = true },
+                onReport:  { showMenu = false; showReportSheet = true },
+                onRemove:  { showMenu = false; Task { await removeMatchAndPop() } },
+                onDismiss: { showMenu = false }
+            )
+            .presentationDetents([.height(240)])
+            .presentationBackground(Color(hex: "#111111"))
+            .presentationDragIndicator(.hidden)
+        }
 
         .onChange(of: socketService.lastPermanentMessage) { _, event in
             guard let event, event.matchId == matchId else { return }
@@ -131,44 +199,70 @@ struct PermanentChatView: View {
             }
 
 
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 40, height: 40)
-                Text(matchName.prefix(2).uppercased())
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .overlay(Circle().strokeBorder(Color.white.opacity(0.15), lineWidth: 1.5))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(matchName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                if isCounterpartTyping {
-                    Text("typing...")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: "#22A855"))
-                        .transition(.opacity)
-                } else {
-                    HStack(spacing: 4) {
-                        Circle().fill(Color(hex: "#22A855")).frame(width: 6, height: 6)
-                        Text("Online").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
+            Button {
+                guard !isLoadingProfile else { return }
+                isLoadingProfile = true
+                Task {
+                    await fetchMatchProfile()
+                    isLoadingProfile = false
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Group {
+                        if let photoUrl, let url = URL(string: photoUrl) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let img):
+                                    img.resizable().scaledToFill()
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                default:
+                                    initialsCircle
+                                }
+                            }
+                        } else {
+                            initialsCircle
+                        }
                     }
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.15), lineWidth: 1.5))
+                    .overlay {
+                        if isLoadingProfile {
+                            ProgressView().tint(.white).scaleEffect(0.55)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(matchName)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !isMatchRemoved && !isMatchBlocked {
+                            if isCounterpartTyping {
+                                Text("typing...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color(hex: "#22A855"))
+                                    .transition(.opacity)
+                            } else {
+                                HStack(spacing: 4) {
+                                    Circle().fill(Color(hex: "#22A855")).frame(width: 6, height: 6)
+                                    Text("Online").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
+                                }
+                            }
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: isCounterpartTyping)
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: isCounterpartTyping)
+            .buttonStyle(.plain)
 
             Spacer()
 
-            Button {} label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .rotationEffect(.degrees(90))
+            if !isMatchRemoved && !isMatchBlocked {
+                Button { showMenu = true } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .rotationEffect(.degrees(90))
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -235,29 +329,6 @@ struct PermanentChatView: View {
     }
 
 
-    @ViewBuilder private var removedOverlay: some View {
-        if isMatchRemoved || isMatchBlocked {
-            VStack {
-                Spacer()
-                VStack(spacing: 8) {
-                    Image(systemName: isMatchBlocked ? "hand.raised.fill" : "trash.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white.opacity(0.4))
-                    Text(isMatchBlocked ? "You've been blocked" : "Match removed")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                    Text("You can no longer send messages")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.35))
-                }
-                .padding(24)
-                .background(RoundedRectangle(cornerRadius: 20).fill(Color.white.opacity(0.05)))
-                .padding(.horizontal, 40)
-                .padding(.bottom, 120)
-            }
-            .transition(.opacity)
-        }
-    }
 
 
     private func loadMessages() async {
@@ -267,10 +338,10 @@ struct PermanentChatView: View {
             let detail = try await apiClient.getMatch(matchId: matchId, token: token)
             if !detail.isActive {
                 withAnimation { isMatchRemoved = true }
-                return
+                // Don't return — still load message history so old messages are visible
             }
 
-            let result = try await apiClient.getMatchMessages(matchId: matchId, token: token)
+            let result = try await apiClient.getMatchMessages(matchId: matchId, token: token, limit: 30)
 
             messages = result.messages.map { item in
                 let isMine = !item.senderId.isEmpty && item.senderId != counterpartUserId
@@ -281,9 +352,80 @@ struct PermanentChatView: View {
                     time:   formatTime(item.createdAt)
                 )
             }
+            hasMore = result.hasMore
+
+            try? await apiClient.markMatchMessagesRead(matchId: matchId, token: token)
+            chatStore.clearUnread(matchId: matchId)
+            clearMatchNotifications()
         } catch {
             AppLogger.recordError(error, context: "loadMessages", logger: AppLogger.permanentChat)
         }
+    }
+
+    private func loadMoreMessages() async {
+        guard hasMore, !isLoadingMore, let cursor = messages.first?.id else { return }
+        guard let user  = Auth.auth().currentUser,
+              let token = try? await user.getIDToken() else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let result = try await apiClient.getMatchMessages(
+                matchId: matchId, token: token, before: cursor, limit: 30)
+            let older = result.messages.map { item in
+                let isMine = !item.senderId.isEmpty && item.senderId != counterpartUserId
+                return PermanentMessage(
+                    id:     item.messageId,
+                    text:   item.content,
+                    isMine: isMine,
+                    time:   formatTime(item.createdAt)
+                )
+            }
+            messages = older + messages
+            hasMore = result.hasMore
+        } catch {
+            AppLogger.recordError(error, context: "loadMoreMessages", logger: AppLogger.permanentChat)
+        }
+    }
+
+    private func clearMatchNotifications() {
+        let threadId = "match_\(matchId)"
+        UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+            let ids = notifications
+                .filter { $0.request.content.threadIdentifier == threadId }
+                .map    { $0.request.identifier }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+        }
+    }
+
+    // MARK: - Profile
+
+    private func fetchMatchProfile() async {
+        guard let user  = Auth.auth().currentUser,
+              let token = try? await user.getIDToken() else { return }
+        do {
+            let profile = try await apiClient.fetchMatchProfile(token: token, matchId: matchId)
+            matchProfile = profile
+            showProfile  = true
+        } catch {
+            AppLogger.recordError(error, context: "fetchMatchProfile", logger: AppLogger.permanentChat)
+        }
+    }
+
+    // MARK: - Remove Match
+
+    private func removeMatchAndPop() async {
+        guard !isRemovingMatch else { return }
+        isRemovingMatch = true
+        guard let user  = Auth.auth().currentUser,
+              let token = try? await user.getIDToken() else { isRemovingMatch = false; return }
+        do {
+            try await apiClient.removeMatch(matchId: matchId, token: token)
+            chatStore.removeMatch(matchId: matchId)
+            if let onBack { onBack() } else { chatRouter.pop() }
+        } catch {
+            AppLogger.recordError(error, context: "removeMatch", logger: AppLogger.permanentChat)
+        }
+        isRemovingMatch = false
     }
 
     // MARK: - Send

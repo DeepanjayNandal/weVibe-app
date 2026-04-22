@@ -2,6 +2,7 @@ import { Prisma, matches, messages } from '@prisma/client';
 import { prisma } from '../db/prisma-client';
 import { AppError, badRequest } from '../utils/errors';
 import { assertTwoPartyParticipant, isUserAInTwoParty } from './chat/two-party-access';
+import { generateReadURL } from './storage.service';
 
 type MatchStatus = string | null;
 
@@ -49,6 +50,7 @@ export type PermanentMessagePayload = {
 export type PermanentChatMessagesResult = {
   match: PermanentChatMatchItem;
   messages: PermanentMessagePayload[];
+  hasMore: boolean;
 };
 
 export type PermanentChatSendResult = {
@@ -91,7 +93,9 @@ function normalizeMatchStatus(status: MatchStatus): MatchStatus {
   return status.trim().toLowerCase();
 }
 
-function extractPhotoUrl(photos: Prisma.JsonValue | null): string | null {
+// Returns the storagePath (for fresh URL generation) or a url string (legacy/manual users),
+// whichever is found first in the first photo object.
+function extractPhotoPathOrUrl(photos: Prisma.JsonValue | null): string | null {
   if (!photos) return null;
 
   if (Array.isArray(photos)) {
@@ -99,10 +103,16 @@ function extractPhotoUrl(photos: Prisma.JsonValue | null): string | null {
       if (typeof item === 'string' && item.trim().length > 0) {
         return item;
       }
-      if (item && typeof item === 'object' && 'url' in item) {
-        const maybeUrl = (item as { url?: unknown }).url;
-        if (typeof maybeUrl === 'string' && maybeUrl.trim().length > 0) {
-          return maybeUrl;
+      if (item && typeof item === 'object') {
+        // Prefer storagePath so caller can generate a fresh signed URL
+        if ('storagePath' in item) {
+          const sp = (item as { storagePath?: unknown }).storagePath;
+          if (typeof sp === 'string' && sp.trim().length > 0) return sp;
+        }
+        // Fall back to url (manually created test users without storagePath)
+        if ('url' in item) {
+          const maybeUrl = (item as { url?: unknown }).url;
+          if (typeof maybeUrl === 'string' && maybeUrl.trim().length > 0) return maybeUrl;
         }
       }
     }
@@ -164,33 +174,55 @@ export class PermanentChatService {
     const matchIds = rows.map((row) => row.id);
     const unreadCountMap = await this.buildUnreadCountMap(matchIds, userId);
 
-    return rows.map((row) => this.toMatchItem(row, userId, unreadCountMap));
+    return Promise.all(rows.map((row) => this.toMatchItem(row, userId, unreadCountMap)));
   }
 
   async getMatchDetail(userId: string, matchId: string): Promise<PermanentChatMatchItem> {
     const match = await this.getAuthorizedMatch(userId, matchId);
     const unreadCountMap = await this.buildUnreadCountMap([matchId], userId);
-    return this.toMatchItem(match, userId, unreadCountMap);
+    return await this.toMatchItem(match, userId, unreadCountMap);
   }
 
-  async getMatchMessages(userId: string, matchId: string): Promise<PermanentChatMessagesResult> {
+  async getMatchMessages(
+    userId: string,
+    matchId: string,
+    options?: { before?: string; limit?: number },
+  ): Promise<PermanentChatMessagesResult> {
+    const limit = options?.limit ?? 30;
+    const before = options?.before;
+
     return prisma.$transaction(async (tx) => {
       const match = await this.getAuthorizedMatch(userId, matchId, tx);
 
+      // Build where clause — if `before` is set, only fetch messages older than that ID
+      let whereClause: Prisma.messagesWhereInput = { match_id: matchId };
+      if (before) {
+        try {
+          const cursorId = BigInt(before);
+          whereClause = { match_id: matchId, id: { lt: cursorId } };
+        } catch {
+          badRequest('Invalid before cursor', 'INVALID_CURSOR');
+        }
+      }
+
+      // Fetch one extra to determine if more pages exist
       const rows = await tx.messages.findMany({
-        where: {
-          match_id: matchId,
-        },
-        orderBy: {
-          created_at: 'asc',
-        },
+        where: whereClause,
+        orderBy: { created_at: 'desc' },
+        take: limit + 1,
       });
+
+      const hasMore = rows.length > limit;
+      const pageRows = hasMore ? rows.slice(0, limit) : rows;
+      // Reverse to ascending (chronological) order for display
+      const ascRows = [...pageRows].reverse();
 
       const unreadCountMap = await this.buildUnreadCountMap([matchId], userId, tx);
 
       return {
-        match: this.toMatchItem(match, userId, unreadCountMap),
-        messages: rows.map(messageToPayload),
+        match: await this.toMatchItem(match, userId, unreadCountMap),
+        messages: ascRows.map(messageToPayload),
+        hasMore,
       };
     });
   }
@@ -213,7 +245,7 @@ export class PermanentChatService {
       const refreshedMatch = await this.getAuthorizedMatch(userId, matchId, tx);
       const unreadCountMap = await this.buildUnreadCountMap([matchId], userId, tx);
 
-      return this.toMatchItem(refreshedMatch, userId, unreadCountMap);
+      return await this.toMatchItem(refreshedMatch, userId, unreadCountMap);
     });
   }
 
@@ -277,7 +309,7 @@ export class PermanentChatService {
 
       return {
         message: messageToPayload(message),
-        match: this.toMatchItem(updatedMatch, userId),
+        match: await this.toMatchItem(updatedMatch, userId),
       };
     });
   }
@@ -384,7 +416,7 @@ export class PermanentChatService {
       });
 
       return {
-        match: this.toMatchItem(reportedMatch, userId),
+        match: await this.toMatchItem(reportedMatch, userId),
         counterpartUserId,
         reportId: report.id,
       };
@@ -449,17 +481,30 @@ export class PermanentChatService {
     return map;
   }
 
-  private toMatchItem(
+  private async toMatchItem(
     match: MatchWithProfiles,
     userId: string,
     unreadCountMap: Map<string, number> = new Map<string, number>(),
-  ): PermanentChatMatchItem {
+  ): Promise<PermanentChatMatchItem> {
     const isUserA = isUserAInTwoParty(match, userId);
     const counterpartUser = isUserA
       ? match.users_matches_user_b_idTousers
       : match.users_matches_user_a_idTousers;
 
     const status = normalizeMatchStatus(match.status);
+
+    // Generate a fresh signed URL for the counterpart's first photo.
+    // storagePath → fresh signed URL via generateReadURL.
+    // url-only (manually created test users) → returned as-is.
+    const rawPhotoRef = extractPhotoPathOrUrl(counterpartUser?.profiles?.photos ?? null);
+    let photoUrl: string | null = null;
+    if (rawPhotoRef) {
+      if (rawPhotoRef.startsWith('https://') || rawPhotoRef.startsWith('http://')) {
+        photoUrl = rawPhotoRef;
+      } else {
+        photoUrl = await generateReadURL(rawPhotoRef);
+      }
+    }
 
     return {
       matchId: match.id,
@@ -474,7 +519,7 @@ export class PermanentChatService {
       counterpart: {
         userId: counterpartUser?.id ?? null,
         displayName: counterpartUser?.profiles?.display_name ?? null,
-        photoUrl: extractPhotoUrl(counterpartUser?.profiles?.photos ?? null),
+        photoUrl,
       },
     };
   }
@@ -529,7 +574,7 @@ export class PermanentChatService {
     });
 
     return {
-      match: this.toMatchItem(updatedMatch, userId),
+      match: await this.toMatchItem(updatedMatch, userId),
       counterpartUserId,
     };
   }

@@ -141,7 +141,8 @@ struct FindingMatchView: View {
     @State private var glowScale: CGFloat    = 1.0
     @State private var glowOpacity: Double   = 0.15
 
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?   = nil
+    @State private var showCancelConfirm: Bool = false
 
     var body: some View {
         ZStack {
@@ -165,8 +166,7 @@ struct FindingMatchView: View {
                 HStack {
                     Spacer()
                     Button {
-                        matchmakingService.cancelSearch()
-                        speedDatingRouter.popToRoot()
+                        showCancelConfirm = true
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
@@ -246,6 +246,19 @@ struct FindingMatchView: View {
             }
         }
         .navigationBarHidden(true)
+        .confirmationDialog(
+            "Cancel your search?",
+            isPresented: $showCancelConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel Search", role: .destructive) {
+                matchmakingService.cancelSearch()
+                speedDatingRouter.popToRoot()
+            }
+            Button("Keep Searching", role: .cancel) {}
+        } message: {
+            Text("You'll be removed from the queue and will need to rejoin.")
+        }
         .onAppear {
             animateIn()
             startMatchmaking()

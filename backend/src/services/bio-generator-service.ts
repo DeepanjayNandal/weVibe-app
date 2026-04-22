@@ -11,6 +11,9 @@ export interface GenerateBioResult {
 }
 
 export class BioGeneratorService {
+  private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  private readonly model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
   async generateAndSaveBio(userId: string): Promise<GenerateBioResult> {
     const userProfile = await prisma.profiles.findUnique({
       where: { user_id: userId },
@@ -30,7 +33,7 @@ export class BioGeneratorService {
         : 0;
 
     if (dailyCount >= DAILY_LIMIT) {
-      tooManyRequests(
+      return tooManyRequests(
         'Daily bio generation limit reached. Try again tomorrow.',
         'BIO_LIMIT_EXCEEDED',
       );
@@ -41,7 +44,7 @@ export class BioGeneratorService {
         (Date.now() - userProfile.bio_last_generated_at.getTime()) / 1000;
       if (secondsSince < COOLDOWN_SECONDS) {
         const waitSeconds = Math.ceil(COOLDOWN_SECONDS - secondsSince);
-        tooManyRequests(
+        return tooManyRequests(
           `Please wait ${waitSeconds}s before generating again.`,
           'BIO_COOLDOWN',
         );
@@ -58,8 +61,6 @@ export class BioGeneratorService {
       relationshipGoals: userProfile.relationship_goals,
     });
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const prompt = `
     You are a world-class dating profile copywriter. Your style is "Punchy, Minimalist, and Unexpected."
     Write a charismatic bio (under 400 characters) based on: ${userDataJson}.
@@ -77,7 +78,7 @@ export class BioGeneratorService {
     - [The Kinetic Adventurer]: High energy, focuses on movement (skiing, tennis) and quick wit.
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await this.model.generateContent(prompt);
     let generatedBio = result.response.text().trim();
 
     if (!generatedBio) {

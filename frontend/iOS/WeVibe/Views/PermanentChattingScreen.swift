@@ -120,7 +120,13 @@ struct PermanentChatView: View {
         }
         .navigationBarHidden(true)
         .onAppear  { AppDelegate.activeMatchId = matchId }
-        .onDisappear { AppDelegate.activeMatchId = nil }
+        .onDisappear {
+            AppDelegate.activeMatchId = nil
+            Task {
+                guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                await chatStore.fetchMatches(token: token)
+            }
+        }
         .task { await loadMessages() }
         .sheet(isPresented: $showProfile) {
             if let profile = matchProfile {
@@ -163,6 +169,7 @@ struct PermanentChatView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 messages.append(msg)
             }
+            chatStore.clearUnread(matchId: matchId)
             socketService.lastPermanentMessage = nil
         }
 
@@ -235,18 +242,11 @@ struct PermanentChatView: View {
                         Text(matchName)
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
-                        if !isMatchRemoved && !isMatchBlocked {
-                            if isCounterpartTyping {
-                                Text("typing...")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Color(hex: "#22A855"))
-                                    .transition(.opacity)
-                            } else {
-                                HStack(spacing: 4) {
-                                    Circle().fill(Color(hex: "#22A855")).frame(width: 6, height: 6)
-                                    Text("Online").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
-                                }
-                            }
+                        if !isMatchRemoved && !isMatchBlocked && isCounterpartTyping {
+                            Text("typing...")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color(hex: "#22A855"))
+                                .transition(.opacity)
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: isCounterpartTyping)

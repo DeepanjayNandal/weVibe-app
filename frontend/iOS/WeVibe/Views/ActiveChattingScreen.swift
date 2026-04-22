@@ -155,6 +155,8 @@ struct ActiveChatView: View {
     @State private var hasPendingMatchRequest: Bool = false
     @State private var showDeclinedFeedback:   Bool = false
     @State private var heartPulse: CGFloat          = 1.0
+    /// Mirrors mtp.canRequest from the server. Set false after sending a request (one-shot per session).
+    @State private var canRequestMatch: Bool        = true
 
     // UI state
     @State private var timerTask: Task<Void, Never>? = nil
@@ -168,6 +170,10 @@ struct ActiveChatView: View {
     private var isTextDisabled: Bool { isSessionEnded || messagesLeft == 0 }
     // Full chat disabled (including heart) only when session truly ended server-side
     private var isChatDisabled: Bool { isSessionEnded }
+    // Heart disabled when chat is over OR request already used (and not in pending/session-end mode)
+    private var isHeartDisabled: Bool {
+        isChatDisabled || (!canRequestMatch && !hasPendingMatchRequest)
+    }
 
     var body: some View {
         mainContent
@@ -220,14 +226,15 @@ struct ActiveChatView: View {
 
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 0) {
-                            LogoWithoutText(size: 60).padding(.top, 20).padding(.bottom, 20)
+                        LazyVStack(spacing: 0) {
                             ForEach(messages) { msg in
                                 MessageBubble(message: msg).id(msg.id)
                             }
                             Color.clear.frame(height: 90)
                         }
+                        .padding(.top, 12)
                     }
+                    .defaultScrollAnchor(.bottom)
                     .onChange(of: messages.count) { _, _ in
                         if let last = messages.last {
                             withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -247,7 +254,13 @@ struct ActiveChatView: View {
         .overlay(alignment: .bottom) { partnerRequestSheet }
         .overlay { matchedCelebration }
         .navigationBarHidden(true)
-        .onDisappear { timerTask?.cancel() }
+        .onDisappear {
+            timerTask?.cancel()
+            Task {
+                guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                await chatStore.fetchSessions(token: token)
+            }
+        }
         .sheet(isPresented: $showLeaveConfirm) {
             LeaveSessionSheet(
                 onLeave: {
@@ -462,6 +475,19 @@ struct ActiveChatView: View {
                 .background(Capsule().fill(Color(hex: "#FFF8E1")))
                 .padding(.bottom, 6)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if !canRequestMatch {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(hex: "#5A8A5A"))
+                    Text("Match request already sent — only one per session")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(hex: "#5A8A5A"))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(Capsule().fill(Color(hex: "#E8F5E9")))
+                .padding(.bottom, 6)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             HStack(spacing: 10) {
@@ -469,7 +495,7 @@ struct ActiveChatView: View {
                 Button {
                     if isSessionEnded {
                         triggerSessionEnd()
-                    } else if !hasPendingMatchRequest {
+                    } else if canRequestMatch && !hasPendingMatchRequest {
                         inputFocused = false
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             showEarlyMatchConfirm = true
@@ -483,15 +509,21 @@ struct ActiveChatView: View {
                         .background(Circle().fill(LinearGradient(
                             colors: hasPendingMatchRequest
                                 ? [Color(hex: "#1A8C4E"), Color(hex: "#22A855")]
-                                : [Color(hex: "#22A855"), Color(hex: "#1A8C4E")],
+                                : canRequestMatch
+                                    ? [Color(hex: "#22A855"), Color(hex: "#1A8C4E")]
+                                    : [Color(hex: "#9E9E9E"), Color(hex: "#757575")],
                             startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .shadow(color: Color(hex: "#1A8C4E").opacity(0.4), radius: 8, x: 0, y: 3))
+                            .shadow(color: canRequestMatch ? Color(hex: "#1A8C4E").opacity(0.4) : .clear, radius: 8, x: 0, y: 3))
                 }
                 .disabled(isChatDisabled).opacity(isChatDisabled ? 0.4 : 1)
 
                 // Text field — disabled when out of messages OR session ended
-                TextField(messagesLeft > 0 ? "Your message" : "No messages left",
-                          text: $messageText, axis: .vertical)
+                TextField(
+                    text: $messageText,
+                    prompt: Text(messagesLeft > 0 ? "Your message" : "No messages left")
+                        .foregroundStyle(Color(hex: "#1A3A1A").opacity(0.6)),
+                    axis: .vertical
+                ) { EmptyView() }
                     .font(.system(size: 15)).foregroundStyle(Color(hex: "#1A3A1A"))
                     .lineLimit(1...4).focused($inputFocused).disabled(isTextDisabled)
                     .padding(.horizontal, 16).padding(.vertical, 12)
@@ -552,24 +584,23 @@ struct ActiveChatView: View {
 
             // ── Restore UI state based on server-side moveToPermanent fields
 
-            if s.status != "active" && s.status != "awaiting_decision" {
-                // Terminal state (graduated/archived/expired/ended_early) — lock everything
+            if s.status == "awaiting_decision" {
+                // Natural decision phase (timer expired or message limit hit)
                 isSessionEnded = true
-                showMatchPopup = true
-
-            } else if s.status == "awaiting_decision" {
-                // Both hit 20 messages — final decision phase
                 if decision == "yes" || decision == "no" {
                     // Already submitted — show waiting screen
                     hasSubmittedDecision = true
                     myDecision           = decision
-                    isSessionEnded       = true
                     showMatchPopup       = true
                 } else {
                     // Haven't decided yet — show decision sheet
-                    isSessionEnded = true
                     showMatchPopup = true
                 }
+
+            } else if s.status != "active" {
+                // Terminal state (ended_early, graduated, expired, archived) — lock only
+                // canSubmitFinalDecision is false for these; no decision popup
+                isSessionEnded = true
 
             } else if secondsRemaining == 0 {
                 // Timer expired locally
@@ -580,10 +611,11 @@ struct ActiveChatView: View {
                 // Partner sent a request and we haven't responded yet — show respond popup
                 showPartnerRequestPopup = true
 
-            } else if mtp.requestStatus == "pending" && mtp.myDecision == "yes" {
+            } else if mtp.requestStatus == "sent" {
                 // We sent a request, waiting for partner — restore pending indicator
                 hasPendingMatchRequest = true
             }
+            canRequestMatch = mtp.canRequest
             // Note: messagesLeft == 0 alone doesn't lock — heart button stays for early match
         } catch { AppLogger.recordError(error, context: "loadSession", logger: AppLogger.chat) }
 
@@ -650,15 +682,17 @@ struct ActiveChatView: View {
 
     private func requestEarlyMatch() {
         hasPendingMatchRequest = true   // optimistic — show indicator immediately
+        canRequestMatch = false         // one-shot: block further requests immediately
         Task {
             guard let user  = Auth.auth().currentUser,
                   let token = try? await user.getIDToken() else {
-                hasPendingMatchRequest = false; return
+                hasPendingMatchRequest = false; canRequestMatch = true; return
             }
             do {
                 try await apiClient.requestMoveToPermanent(token: token, sessionId: matchId)
             } catch {
                 hasPendingMatchRequest = false  // revert on failure
+                canRequestMatch = true
                 AppLogger.recordError(error, context: "requestEarlyMatch", logger: AppLogger.chat)
             }
         }
@@ -735,8 +769,21 @@ struct ActiveChatView: View {
         guard !isSessionEnded else { return }
         timerTask?.cancel()
         withAnimation(.easeInOut(duration: 0.4)) { isSessionEnded = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
+        // Reload session to check if final decision is allowed (not the case for ended_early)
+        Task {
+            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+            guard let result = try? await apiClient.getSpeedDatingSession(token: token, sessionId: matchId),
+                  let s = result.session else {
+                // Fallback: show popup only for awaiting_decision
+                return
+            }
+            let canDecide = s.moveToPermanent.canSubmitFinalDecision
+            await MainActor.run {
+                guard canDecide else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { showMatchPopup = true }
+                }
+            }
         }
     }
 
@@ -976,7 +1023,7 @@ private struct LeaveSessionSheet: View {
                 .padding(.bottom, 6)
 
             // Subtitle
-            Text("If you leave now, this chat will end\nand you won't be able to come back.")
+            Text("Ending early forfeits your match decision. If you want to match, use the ❤️ button before leaving.")
                 .font(.system(size: 14))
                 .foregroundStyle(Color(hex: "#5A8A5A"))
                 .multilineTextAlignment(.center)
@@ -1001,7 +1048,7 @@ private struct LeaveSessionSheet: View {
 
                 // Destructive — plain text
                 Button(action: onLeave) {
-                    Text("Yes, end session")
+                    Text("End session")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(Color.red.opacity(0.8))
                         .frame(maxWidth: .infinity)
@@ -1173,6 +1220,14 @@ private struct EarlyMatchConfirmSheet: View {
                 .foregroundStyle(Color(hex: "#5A8A5A"))
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 12)
+
+            // One-shot warning
+            Text("You only get one match request per session — use it wisely!")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color(hex: "#C05050"))
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 28)
 

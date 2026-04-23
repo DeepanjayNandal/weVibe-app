@@ -188,7 +188,7 @@ struct RegisterScreen: View {
                                         satisfied: password.contains(where: { $0.isUppercase }))
                                     passwordRuleRow("One number",
                                         satisfied: password.contains(where: { $0.isNumber }))
-                                    passwordRuleRow("One special character  ! @ # $ % ^ * _ + = ~ ? -",
+                                    passwordRuleRow("One special character: ! @ # $ % ^ * _ + = ~ ? -",
                                         satisfied: password.unicodeScalars.contains(where: { specialCharacters.contains($0) }))
                                 }
                                 .padding(12)

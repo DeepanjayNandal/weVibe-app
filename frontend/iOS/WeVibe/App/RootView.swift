@@ -106,6 +106,7 @@ struct NetworkErrorView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(UserProfileStore.self) private var profileStore
     @Environment(OnboardingData.self) private var onboardingData
+    @Environment(ChatStore.self) private var chatStore
 
     @State private var isRetrying = false
 
@@ -158,7 +159,7 @@ struct NetworkErrorView: View {
                 Spacer()
 
                 Button("Sign out") {
-                    authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
+                    authManager.logout(profileStore: profileStore, onboardingData: onboardingData, chatStore: chatStore)
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(.white.opacity(0.4))

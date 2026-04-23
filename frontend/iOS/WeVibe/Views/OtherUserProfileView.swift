@@ -11,10 +11,7 @@ struct OtherUserProfileView: View {
     var body: some View {
         ProfileCardView(
             data: ProfileDisplayData(from: profile),
-            mode: .matchProfile(
-                onDismiss: onDismiss,
-                onRemove:  onDismiss   // caller handles actual removal
-            )
+            mode: .matchProfile(onDismiss: onDismiss)
         )
     }
 }

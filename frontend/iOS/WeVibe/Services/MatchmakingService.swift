@@ -1,6 +1,5 @@
 import Foundation
 import FirebaseAuth
-import UserNotifications
 
 // MARK: - MatchmakingService
 
@@ -21,6 +20,11 @@ final class MatchmakingService {
     private var searchTask: Task<Void, Never>?
     private let apiClient = APIClient()
 
+    /// Stored callbacks from the active `startSearch` call.
+    /// Retained so `recoverIfMatched` can fire them after a socket drop.
+    private var onFoundHandler: ((String) -> Void)?
+    private var onErrorHandler: ((String) -> Void)?
+
     // MARK: - Search
 
     /// Joins the queue and waits for a match.
@@ -32,13 +36,11 @@ final class MatchmakingService {
     ) {
         searchTask?.cancel()
         isSearching = true
+        onFoundHandler = onFound
+        onErrorHandler = onError
         socketService.lastMatchEvent = nil  // clear stale event from any previous round
 
         searchTask = Task {
-            // Request notification permission on first queue join (needed for EC2 background alert)
-            _ = try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound])
-
             guard let token = try? await Auth.auth().currentUser?.getIDToken() else {
                 isSearching = false
                 onError("Not signed in.")
@@ -52,6 +54,8 @@ final class MatchmakingService {
                 if result.state == "matched", let sessionId = result.sessionId {
                     guard !Task.isCancelled else { return }
                     isSearching = false
+                    onFoundHandler = nil
+                    onErrorHandler = nil
                     onFound(sessionId)
                     return
                 }
@@ -61,6 +65,8 @@ final class MatchmakingService {
                     if let event = socketService.lastMatchEvent {
                         socketService.lastMatchEvent = nil
                         isSearching = false
+                        onFoundHandler = nil
+                        onErrorHandler = nil
                         onFound(event.sessionId)
                         return
                     }
@@ -82,11 +88,33 @@ final class MatchmakingService {
         searchTask?.cancel()
         searchTask = nil
         isSearching = false
+        onFoundHandler = nil
+        onErrorHandler = nil
 
         // Fire-and-forget — best effort, non-blocking
         Task {
             guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
             try? await apiClient.leaveQueue(token: token)
+        }
+    }
+
+    /// Polls the queue status endpoint once to recover from a missed socket event.
+    /// Call this on socket reconnect or when the app returns to the foreground.
+    /// No-op if not currently searching or if no callbacks are stored.
+    func recoverIfMatched() {
+        guard isSearching, let onFound = onFoundHandler else { return }
+
+        Task {
+            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+            guard let result = try? await apiClient.getQueueStatus(token: token) else { return }
+            guard result.state == "matched", let sessionId = result.sessionId else { return }
+            guard isSearching else { return }  // cancelled while awaiting
+            searchTask?.cancel()
+            searchTask = nil
+            isSearching = false
+            onFoundHandler = nil
+            onErrorHandler = nil
+            onFound(sessionId)
         }
     }
 }

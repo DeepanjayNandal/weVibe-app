@@ -1,5 +1,9 @@
 # weVibe iOS App
 
+SwiftUI app for iOS 17+. The Xcode project (`WeVibe.xcodeproj`) is not committed — it is generated locally from `frontend/iOS/project.yml` via XcodeGen.
+
+---
+
 ## Requirements
 
 - Xcode 16 or later
@@ -7,9 +11,6 @@
 - macOS Sonoma or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
 - [fastlane](https://fastlane.tools) — `brew install fastlane`
-
-> The Xcode project (`WeVibe.xcodeproj`) is not committed. It is generated locally from
-> `frontend/iOS/project.yml` via XcodeGen.
 
 ---
 
@@ -23,7 +24,7 @@ brew install xcodegen fastlane
 
 ### 2. Activate git hooks
 
-Auto-regenerates the Xcode project when `project.yml` changes after a pull or branch switch.
+Run from the **repo root** — auto-regenerates the Xcode project when `project.yml` changes after a pull or branch switch.
 
 ```bash
 git config core.hooksPath .githooks
@@ -38,7 +39,7 @@ git config core.hooksPath .githooks
 | `frontend/iOS/fastlane/api_key.json` | App Store Connect API key for TestFlight uploads |
 | Match encryption passphrase | Used to decrypt certs from the `wevibe-certs` repo |
 
-All of these are git-ignored — ask a team member.
+All of these are gitignored — ask a team member.
 
 ### 4. Install Ruby dependencies
 
@@ -70,6 +71,27 @@ Press **Cmd + R**, select your device or an iOS 17+ simulator.
 
 ---
 
+## Backend
+
+By default the app points to the production Cloud Run backend:
+
+```
+https://wevibe-backend19-1001323522506.us-central1.run.app
+```
+
+To test against a local backend, update `AppConfig.apiBaseURL` in `frontend/iOS/WeVibe/App/AppConfig.swift` to your machine's LAN IP (e.g. `http://192.168.0.28:3000`).
+
+---
+
+## Bundle IDs
+
+| Config | Bundle ID | Purpose |
+|--------|-----------|---------|
+| Debug | `com.wevibe1.appdev` | Local development and device testing |
+| Release | `com.wevibe1.app` | TestFlight and App Store |
+
+---
+
 ## Adding Your iPhone for Device Testing
 
 1. Connect your iPhone to your Mac
@@ -95,7 +117,7 @@ cd frontend/iOS
 bundle exec fastlane beta
 ```
 
-Builds a Release archive and uploads it to TestFlight. The build appears in App Store Connect within ~10 minutes.
+Builds a Release archive and uploads it to TestFlight. The build appears in App Store Connect within ~10 minutes. Requires `fastlane/api_key.json` (gitignored).
 
 ---
 
@@ -138,9 +160,10 @@ The project uses **manual signing** via [fastlane match](https://docs.fastlane.t
 
 ---
 
-## Bundle IDs
+## SPM Dependencies
 
-| Config | Bundle ID | Purpose |
-|--------|-----------|---------|
-| Debug | `com.wevibe1.appdev` | Local development and device testing |
-| Release | `com.wevibe1.app` | TestFlight and App Store |
+| Package | Version |
+|---------|---------|
+| `firebase-ios-sdk` | >= 12.10.0 |
+| `GoogleSignIn-iOS` | >= 9.1.0 |
+| `socket.io-client-swift` | >= 16.1.0 |

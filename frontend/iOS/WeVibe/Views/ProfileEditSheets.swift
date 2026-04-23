@@ -63,7 +63,7 @@ struct PhotosEditSheet: View {
                         }
 
                         if !photoItems.isEmpty {
-                            Text("Hold & drag to reorder")
+                            Text("Hold and drag to reorder")
                                 .font(.caption2)
                                 .foregroundStyle(.white.opacity(0.35))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -303,7 +303,8 @@ struct PhotosEditSheet: View {
                     }
                 }
                 if let err = finalizeError { throw err }
-                uploadedPhotos.append(photo!)
+                guard let photo else { throw APIError.serverError(0) }
+                uploadedPhotos.append(photo)
             } catch {
                 saveError = "Failed to upload photo \(i + 1). Please try again."
                 return
@@ -395,6 +396,9 @@ struct AboutEditSheet: View {
     @State private var spotify = ""
     @State private var showValidation = false
     @State private var isSaving = false
+    @State private var isGeneratingBio = false
+    @State private var bioGenerateError: String? = nil
+    @State private var bioRemaining: Int? = nil
 
     var body: some View {
         editNav(title: "About Me", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
@@ -411,6 +415,7 @@ struct AboutEditSheet: View {
             }
             sectionLabel("Bio")
             editField("", "Tell people about yourself...", text: $bio, multiline: true)
+            generateBioButton
             sectionLabel("Social")
             handleField("Instagram", text: $instagram, maxLength: 30)
             handleField("TikTok",    text: $tiktok,    maxLength: 24)
@@ -423,6 +428,78 @@ struct AboutEditSheet: View {
             instagram = store.instagramHandle
             tiktok    = store.tiktokHandle
             spotify   = store.spotifyPlaylistURL
+        }
+    }
+
+    @ViewBuilder
+    private var generateBioButton: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Task { await generateBio() }
+            } label: {
+                HStack(spacing: 8) {
+                    if isGeneratingBio {
+                        ProgressView().tint(.black).scaleEffect(0.8)
+                        Text("Generating…")
+                            .font(.system(size: 14, weight: .semibold))
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Generate Bio with AI")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isGeneratingBio ? AppTheme.iconColor.opacity(0.6) : AppTheme.iconColor)
+                .cornerRadius(12)
+            }
+            .disabled(isGeneratingBio)
+
+            if let remaining = bioRemaining {
+                Text("\(remaining) generation\(remaining == 1 ? "" : "s") left today")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            if let err = bioGenerateError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill").font(.system(size: 12))
+                    Text(err).font(.system(size: 12))
+                }
+                .foregroundStyle(Color(hex: "#E74C3C"))
+            }
+        }
+    }
+
+    private func generateBio() async {
+        bioGenerateError = nil
+        isGeneratingBio = true
+        defer { isGeneratingBio = false }
+
+        guard let user = Auth.auth().currentUser else {
+            bioGenerateError = "Session expired. Please sign in again."
+            return
+        }
+        let token: String
+        do {
+            token = try await user.getIDToken()
+        } catch {
+            bioGenerateError = "Session expired. Please sign in again."
+            return
+        }
+
+        do {
+            let result = try await APIClient().generateBio(token: token)
+            bio = result.bio
+            bioRemaining = result.remainingToday
+        } catch APIError.rateLimited(let msg) {
+            bioGenerateError = msg
+        } catch APIError.unauthorized {
+            bioGenerateError = "Session expired. Please sign in again."
+        } catch {
+            bioGenerateError = "Generation failed. Please try again."
         }
     }
 
@@ -656,7 +733,7 @@ struct DateActivitiesEditSheet: View {
         editNav(title: "Date Activities", isSaving: isSaving, onCancel: { dismiss() }, onSave: save) {
             activitiesSection("Would love to do on a date (\(wouldDo.count)/\(Self.maxActivities))",
                               selected: $wouldDo, blocked: wouldNot, accent: AppTheme.iconColor)
-            activitiesSection("Would NOT do on a date (\(wouldNot.count)/\(Self.maxActivities))",
+            activitiesSection("Would not do on a date (\(wouldNot.count)/\(Self.maxActivities))",
                               selected: $wouldNot, blocked: wouldDo, accent: Color(hex: "#C0392B"))
         }
         .onAppear { wouldDo = Set(store.preferredDateActivities); wouldNot = Set(store.wouldNotDoActivities) }
@@ -741,12 +818,12 @@ struct LifestyleEditSheet: View {
             toggleRow("Flexible on sleep schedule", isOn: $isSleepFlexible)
             pickerRow("Pets", selection: $pets, options: FamilyPreference.allCases.map(\.rawValue))
 
-            sectionLabel("More about pets")
+            sectionLabel("More About Pets")
             editField("What type of pets?", "e.g. Dog, Cat, Fish", text: $petTypes)
-            editField("Pet's name", "e.g. Max, Luna", text: $petsName)
+            editField("Pet's Name", "e.g. Max, Luna", text: $petsName)
 
             sectionLabel("Cannabis")
-            pickerRow("", selection: $cannabis, options: UserProfileStore.cannabisOptions)
+            pickerRow("Cannabis", selection: $cannabis, options: UserProfileStore.cannabisOptions)
             toggleRow("Flexible on cannabis", isOn: $isCannabisFlexible)
 
             sectionLabel("Kids")
@@ -1031,7 +1108,7 @@ struct CareerEditSheet: View {
 // MARK: - Prompts Edit Sheet
 
 struct PromptsEditSheet: View {
-    @Environment(UserProfileStore.self) var store
+    @Environment(UserProfileStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     // Snapshot of prompt values on open — restored if user cancels without saving
@@ -1062,8 +1139,8 @@ struct PromptsEditSheet: View {
                         usedBy: [store.prompt1Question, store.prompt3Question])
             promptField("Prompt 3", question: $store.prompt3Question, answer: $store.prompt3Answer,
                         usedBy: [store.prompt1Question, store.prompt2Question])
-            sectionLabel("Your own prompt")
-            editField("Write your own question...", "", text: $store.customPromptQuestion)
+            sectionLabel("Your Own Prompt")
+            editField("", "Write your own question...", text: $store.customPromptQuestion)
             if !store.customPromptQuestion.isEmpty {
                 editField("Your answer", "Write your answer...", text: $store.customPromptAnswer, multiline: true)
             }

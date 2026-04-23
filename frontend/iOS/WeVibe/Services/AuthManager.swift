@@ -325,20 +325,39 @@ final class AuthManager {
 
     // MARK: - Sign Out
 
-    func logout(profileStore: UserProfileStore, onboardingData: OnboardingData) {
+    func logout(profileStore: UserProfileStore, onboardingData: OnboardingData, chatStore: ChatStore) {
+        // Best-effort backend logout — capture user before Firebase sign-out invalidates the token
+        let currentUser = Auth.auth().currentUser
+        Task {
+            if let token = try? await currentUser?.getIDToken() {
+                try? await APIClient().logout(token: token)
+            }
+        }
         try? Auth.auth().signOut()
 
         // MARK: - Store Cleanup on Logout
         // When adding new stores, clear them here to prevent data leaking between accounts.
-        // Current stores:
+        // Socket disconnect is handled by WeVibeApp's onChange(of: appState) observer.
         profileStore.clear()          // UserProfileStore — profile/edit fields
         onboardingData.clear()        // OnboardingData — clears partial draft if user abandoned onboarding
-        // TODO: chatStore.clear()    — add when chat feature is built
+        chatStore.clear()             // ChatStore — matches and sessions list cache
 
         lastSyncedLocation = nil
         lastSyncedZip = ""
         pendingVerificationEmail = ""
         appState = .unauthenticated
+    }
+
+    // MARK: - Account Deletion
+
+    /// Soft-deletes the account on the backend (30-day grace period), then signs out locally.
+    /// Best-effort — local sign-out always succeeds even if the backend call fails.
+    func deleteAccount(profileStore: UserProfileStore, onboardingData: OnboardingData, chatStore: ChatStore) async {
+        if let user = Auth.auth().currentUser,
+           let token = try? await user.getIDToken() {
+            try? await APIClient().deleteAccount(token: token)
+        }
+        logout(profileStore: profileStore, onboardingData: onboardingData, chatStore: chatStore)
     }
 
     // MARK: - FCM Token

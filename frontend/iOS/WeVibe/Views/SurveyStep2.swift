@@ -50,7 +50,7 @@ struct SurveyStep2: View {
 
                     // MARK: Age preference
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Age preference")
+                        Text("Age Preference")
                             .foregroundStyle(.white)
                             .font(.system(size: 18, weight: .bold))
 
@@ -86,7 +86,7 @@ struct SurveyStep2: View {
                     // MARK: Relationship goals
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(spacing: 2) {
-                            Text("Relationship goals")
+                            Text("Relationship Goals")
                                 .foregroundStyle(.white)
                                 .font(.system(size: 18, weight: .bold))
                             Text("*").foregroundStyle(.red).font(.system(size: 18, weight: .bold))

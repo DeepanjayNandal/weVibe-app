@@ -18,6 +18,7 @@ export class NotificationService {
     title: string,
     body: string,
     data?: PushData,
+    threadId?: string,
   ): Promise<void> {
     if (admin.apps.length === 0) return;
 
@@ -35,10 +36,12 @@ export class NotificationService {
         notification: { title, body },
         ...(data ? { data } : {}),
         apns: {
+          ...(threadId ? { headers: { 'apns-collapse-id': threadId } } : {}),
           payload: {
             aps: {
               alert: { title, body },
               sound: 'default',
+              ...(threadId ? { threadId } : {}),
             },
           },
         },

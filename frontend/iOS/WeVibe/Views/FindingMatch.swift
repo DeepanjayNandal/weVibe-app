@@ -141,7 +141,8 @@ struct FindingMatchView: View {
     @State private var glowScale: CGFloat    = 1.0
     @State private var glowOpacity: Double   = 0.15
 
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?   = nil
+    @State private var showCancelConfirm: Bool = false
 
     var body: some View {
         ZStack {
@@ -165,8 +166,7 @@ struct FindingMatchView: View {
                 HStack {
                     Spacer()
                     Button {
-                        matchmakingService.cancelSearch()
-                        speedDatingRouter.popToRoot()
+                        showCancelConfirm = true
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
@@ -197,7 +197,7 @@ struct FindingMatchView: View {
 
                 VStack(spacing: 10) {
                     HStack(spacing: 8) {
-                        Text("Finding A Match")
+                        Text("Finding a Match")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
                         if matchmakingService.isSearching { LoadingDots() }
@@ -215,13 +215,13 @@ struct FindingMatchView: View {
                                 errorMessage = nil
                                 startMatchmaking()
                             } label: {
-                                Text("try again")
+                                Text("Try Again")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(AppTheme.primaryButton)
                             }
                         }
                     } else {
-                        Text("We're finding someone for you to chat to you!")
+                        Text("We're finding someone for you to chat with!")
                             .font(.system(size: 14))
                             .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
@@ -246,6 +246,19 @@ struct FindingMatchView: View {
             }
         }
         .navigationBarHidden(true)
+        .confirmationDialog(
+            "Cancel your search?",
+            isPresented: $showCancelConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel Search", role: .destructive) {
+                matchmakingService.cancelSearch()
+                speedDatingRouter.popToRoot()
+            }
+            Button("Keep Searching", role: .cancel) {}
+        } message: {
+            Text("You'll be removed from the queue and will need to rejoin.")
+        }
         .onAppear {
             animateIn()
             startMatchmaking()
@@ -263,6 +276,16 @@ struct FindingMatchView: View {
             if !isSearching && errorMessage == nil {
                 speedDatingRouter.popToRoot()
             }
+        }
+        .onChange(of: socketService.isConnected) { _, isConnected in
+            // Socket just reconnected — check if a match event was missed while disconnected.
+            if isConnected {
+                matchmakingService.recoverIfMatched()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // App returning to foreground — poll once in case a match arrived while backgrounded.
+            matchmakingService.recoverIfMatched()
         }
     }
 

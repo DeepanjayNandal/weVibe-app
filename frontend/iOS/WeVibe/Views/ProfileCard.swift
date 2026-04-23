@@ -53,7 +53,6 @@ struct ProfileCardView: View {
 
     @AppStorage("profileCardLightTheme") private var isLightTheme: Bool = false
 
-    @State private var showRemoveAlert    = false
     @State private var lightboxItem:      LightboxItem?
     @State private var currentPhotoIndex  = 0
 
@@ -84,14 +83,6 @@ struct ProfileCardView: View {
         .fullScreenCover(item: $lightboxItem) { item in
             PhotoLightboxView(urls: data.photoURLs, startIndex: item.startIndex)
         }
-        .alert("Remove from Matches?", isPresented: $showRemoveAlert) {
-            if case .matchProfile(_, let onRemove) = mode {
-                Button("Yes", role: .destructive) { onRemove() }
-            }
-            Button("No", role: .cancel) {}
-        } message: {
-            Text("Do you want to remove this user from your matches?")
-        }
     }
 
     // MARK: - Header button
@@ -107,7 +98,7 @@ struct ProfileCardView: View {
                         .padding(10)
                         .background(t.iconBg, in: Circle())
                 }
-            case .matchProfile(let onDismiss, _):
+            case .matchProfile(let onDismiss):
                 Button { onDismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .semibold))
@@ -488,12 +479,7 @@ struct ProfileCardView: View {
         case .ownProfile:
             EmptyView()
         case .matchProfile:
-            Button { showRemoveAlert = true } label: {
-                Text("Remove from Matches")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color(hex: "#C0392B"))
-            }
-            .padding(.top, 8)
+            EmptyView()
         }
     }
 

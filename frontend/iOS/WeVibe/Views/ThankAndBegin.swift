@@ -6,6 +6,7 @@ struct ThankAndBegin: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(UserProfileStore.self) private var profileStore
     @Environment(OnboardingData.self) private var onboardingData
+    @Environment(ChatStore.self) private var chatStore
 
     var body: some View {
         ZStack {
@@ -16,7 +17,7 @@ struct ThankAndBegin: View {
                 HStack {
                     Spacer()
                     Button("Log Out") {
-                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData)
+                        authManager.logout(profileStore: profileStore, onboardingData: onboardingData, chatStore: chatStore)
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))

@@ -2,12 +2,15 @@ import UIKit
 import FirebaseMessaging
 import UserNotifications
 
-// MARK: - AppDelegate
-
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
     // Latest FCM token — read by AuthManager after login to sync with backend.
     static var fcmToken: String?
+
+    // The matchId of the permanent chat currently visible on screen.
+    // Set by PermanentChatView.onAppear / cleared by onDisappear.
+    // Used to suppress push notifications when the user is already reading that conversation.
+    static var activeMatchId: String?
 
     func application(
         _ application: UIApplication,
@@ -31,7 +34,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        print("[APNs] Failed to register: \(error.localizedDescription)")
+        AppLogger.recordError(error, context: "APNs registration failed", logger: AppLogger.apns)
     }
 }
 
@@ -55,11 +58,17 @@ extension AppDelegate: MessagingDelegate {
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
 
-    // Show banner + sound even when app is in foreground.
+    // Show banner + sound in foreground, but suppress if user is already in that chat.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        let userInfo = notification.request.content.userInfo
+        if let matchId = userInfo["matchId"] as? String,
+           matchId == AppDelegate.activeMatchId {
+            // User is already viewing this conversation — no banner needed.
+            return []
+        }
         return [.banner, .sound, .badge]
     }
 

@@ -107,12 +107,12 @@ private struct NoPhotoSheet: View {
                 .padding(.top, 36)
                 .padding(.bottom, 24)
 
-                Text("add a photo first")
+                Text("Add a Photo First")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.bottom, 12)
 
-                Text("you need at least 1 photo on your profile before joining the queue. let others see who they're connecting with!")
+                Text("You need at least 1 photo on your profile before joining the queue. Let others see who they're connecting with!")
                     .font(.system(size: 15))
                     .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
@@ -122,7 +122,7 @@ private struct NoPhotoSheet: View {
 
                 VStack(spacing: 12) {
                     PrimaryButton(
-                        title: "add a photo →",
+                        title: "Add a Photo →",
                         background: AppTheme.primaryButton,
                         foreground: .white,
                         height: 52,
@@ -135,7 +135,7 @@ private struct NoPhotoSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("not now")
+                        Text("Not Now")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.45))
                             .frame(maxWidth: .infinity)
@@ -242,7 +242,7 @@ struct JoinQueueView: View {
 
                     // ── Show on profile toggle
                     HStack {
-                        Text("show my trait on my profile")
+                        Text("Show my trait on my profile")
                             .font(.system(size: 15))
                             .foregroundStyle(.white.opacity(0.7))
                         Spacer()
@@ -272,7 +272,7 @@ struct JoinQueueView: View {
                     // ── Buttons
                     VStack(spacing: 12) {
                         PrimaryButton(
-                            title: "let's join the queue →",
+                            title: "Let's Join the Queue →",
                             background: AppTheme.primaryButton,
                             foreground: .white,
                             height: 52,
@@ -289,7 +289,7 @@ struct JoinQueueView: View {
                         Button {
                             speedDatingRouter.navigate(to: .tests)
                         } label: {
-                            Text("retake the test")
+                            Text("Retake the Test")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.45))
                                 .frame(maxWidth: .infinity)

@@ -43,7 +43,12 @@ export class PermanentChatController {
   getMatchMessages = async (req: Request, res: Response): Promise<void> => {
     const userId = await this.resolveUserId(req);
     const matchId = this.readMatchId(req.params.matchId);
-    const result = await this.permanentChatService.getMatchMessages(userId, matchId);
+
+    const before = typeof req.query.before === 'string' ? req.query.before : undefined;
+    const limitRaw = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
+    const limit = limitRaw && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 30;
+
+    const result = await this.permanentChatService.getMatchMessages(userId, matchId, { before, limit });
 
     res.status(200).json({
       success: true,
@@ -120,10 +125,27 @@ export class PermanentChatController {
       badRequest('Profile not found', 'PROFILE_NOT_FOUND');
     }
 
-    // Generate read URLs for photos
-    const photos = profile.photos ? await Promise.all(
-      (profile.photos as string[]).map(url => generateReadURL(url))
-    ) : null;
+    // Build an array of signed photo URLs for the iOS client, which expects [String].
+    // DB photos are stored as { id, storagePath, order, createdAt } objects (standard
+    // upload flow). Manually created test users may only have { id, url } without
+    // storagePath — in that case we return the stored URL as-is (best effort).
+    const rawPhotos = Array.isArray(profile.photos) ? (profile.photos as unknown[]) : [];
+    const photoEntries = await Promise.all(
+      rawPhotos.map(async (item: unknown): Promise<string | null> => {
+        if (!item || typeof item !== 'object') return null;
+        const p = item as Record<string, unknown>;
+        // Standard path: regenerate a fresh signed URL from storagePath
+        if (typeof p.storagePath === 'string' && p.storagePath.trim()) {
+          return generateReadURL(p.storagePath);
+        }
+        // Fallback for manually-created users with no storagePath
+        if (typeof p.url === 'string' && p.url.trim()) {
+          return p.url;
+        }
+        return null;
+      }),
+    );
+    const photos = photoEntries.filter((u): u is string => u !== null);
 
     res.status(200).json({
       success: true,
@@ -161,11 +183,17 @@ export class PermanentChatController {
           },
         },
       });
+      const senderProfile = await prisma.profiles.findUnique({
+        where: { user_id: userId },
+        select: { display_name: true },
+      });
+      const senderName = senderProfile?.display_name ?? 'Someone';
       void notificationService.sendPushToUser(
         counterpartId,
-        'New message',
+        senderName,
         result.message.content,
         { type: 'permanent_message', matchId },
+        `match_${matchId}`,
       );
     }
 

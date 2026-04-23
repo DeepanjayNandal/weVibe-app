@@ -4,10 +4,11 @@ import FirebaseAuth
 // MARK: - Data Models
 
 struct ChatListItem: Identifiable {
-    let id = UUID()
+    var id: String { matchId }
     let matchId: String
     let name: String?
     let initials: String?
+    let photoUrl: String?              // profile photo for permanent chat rows; nil for anonymous
     let counterpartUserId: String      // used by PermanentChatView for isMine logic
     let avatarSystemIcon: String?
     let lastMessage: String
@@ -15,6 +16,13 @@ struct ChatListItem: Identifiable {
     let timeAgo: String
     let unreadCount: Int
     let isTyping: Bool
+}
+
+// ChatListItem identity for diffing (UUID id changes on every rebuild; matchId is stable)
+extension ChatListItem: Equatable {
+    static func == (lhs: ChatListItem, rhs: ChatListItem) -> Bool {
+        lhs.matchId == rhs.matchId
+    }
 }
 
 // MARK: - Inner Tab
@@ -34,24 +42,10 @@ enum ChatInnerTab: CaseIterable {
 struct ChatListView: View {
 
     @Environment(ChatRouter.self) private var chatRouter
+    @Environment(ChatStore.self)  private var chatStore
 
     @Binding var innerTab: ChatInnerTab
     @Namespace private var tabAnimation
-
-    // ── API state
-    @State private var anonymousChats: [ChatListItem] = []
-    @State private var isLoadingSessions  = false
-    @State private var sessionsError: String? = nil
-
-    @State private var matchedChats: [ChatListItem] = []
-    @State private var isLoadingMatches = false
-    @State private var matchesError: String? = nil
-
-    private let apiClient = APIClient()
-
-    private var currentList: [ChatListItem] {
-        innerTab == .anonymous ? anonymousChats : matchedChats
-    }
 
     var body: some View {
         ZStack {
@@ -65,17 +59,6 @@ struct ChatListView: View {
                 contentArea
             }
         }
-        .task {
-            async let s: () = fetchSessions()
-            async let m: () = fetchMatches()
-            _ = await (s, m)
-        }
-        .onChange(of: innerTab) { _, tab in
-            switch tab {
-            case .anonymous: Task { await fetchSessions() }
-            case .matched:   Task { await fetchMatches() }
-            }
-        }
     }
 
     @ViewBuilder private var contentArea: some View {
@@ -87,35 +70,93 @@ struct ChatListView: View {
     }
 
     @ViewBuilder private var anonymousContent: some View {
-        if isLoadingSessions {
+        // Initial load — no data yet, show full spinner
+        if chatStore.isLoadingSessions && chatStore.sessions.isEmpty {
             Spacer()
             ProgressView().tint(AppTheme.primaryButton)
             Spacer()
-        } else if let error = sessionsError {
+        } else if let error = chatStore.sessionsError, chatStore.sessions.isEmpty {
             Spacer()
-            errorView(message: error) { Task { await fetchSessions() } }
+            errorView(message: error) {
+                Task {
+                    guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                    await chatStore.fetchSessions(token: token)
+                }
+            }
             Spacer()
-        } else if anonymousChats.isEmpty {
-            EmptySessionsView()
+        } else if chatStore.sessions.isEmpty {
+            GeometryReader { geo in
+                ScrollView {
+                    EmptySessionsView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+                .refreshable {
+                    guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                    await chatStore.fetchSessions(token: token)
+                }
+            }
         } else {
-            chatList(items: anonymousChats, isAnonymous: true)
+            // Data present — keep list visible; show inline badge during background refresh
+            chatList(items: chatStore.sessions, isAnonymous: true)
+                .overlay(alignment: .top) {
+                    if chatStore.isLoadingSessions {
+                        refreshingBanner.padding(.top, 8)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: chatStore.isLoadingSessions)
         }
     }
 
     @ViewBuilder private var matchedContent: some View {
-        if isLoadingMatches {
+        // Initial load — no data yet, show full spinner
+        if chatStore.isLoadingMatches && chatStore.matches.isEmpty {
             Spacer()
             ProgressView().tint(AppTheme.primaryButton)
             Spacer()
-        } else if let error = matchesError {
+        } else if let error = chatStore.matchesError, chatStore.matches.isEmpty {
             Spacer()
-            errorView(message: error) { Task { await fetchMatches() } }
+            errorView(message: error) {
+                Task {
+                    guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                    await chatStore.fetchMatches(token: token)
+                }
+            }
             Spacer()
-        } else if matchedChats.isEmpty {
-            EmptyMatchedView()
+        } else if chatStore.matches.isEmpty {
+            GeometryReader { geo in
+                ScrollView {
+                    EmptyMatchedView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+                .refreshable {
+                    guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                    await chatStore.fetchMatches(token: token)
+                }
+            }
         } else {
-            chatList(items: matchedChats, isAnonymous: false)
+            // Data present — keep list visible; show inline badge during background refresh
+            chatList(items: chatStore.matches, isAnonymous: false)
+                .overlay(alignment: .top) {
+                    if chatStore.isLoadingMatches {
+                        refreshingBanner.padding(.top, 8)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: chatStore.isLoadingMatches)
         }
+    }
+
+    private var refreshingBanner: some View {
+        HStack(spacing: 7) {
+            ProgressView()
+                .scaleEffect(0.7)
+                .tint(.white.opacity(0.55))
+            Text("Refreshing...")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.45))
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     @ViewBuilder private func errorView(message: String, retry: @escaping () -> Void) -> some View {
@@ -149,8 +190,9 @@ struct ChatListView: View {
             .padding(.bottom, 100)
         }
         .refreshable {
-            if isAnonymous { await fetchSessions() }
-            else { await fetchMatches() }
+            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+            if isAnonymous { await chatStore.fetchSessions(token: token) }
+            else           { await chatStore.fetchMatches(token: token) }
         }
         .animation(.easeInOut(duration: 0.2), value: innerTab)
     }
@@ -162,159 +204,22 @@ struct ChatListView: View {
             chatRouter.navigate(to: .permanentChat(
                 matchId:           item.matchId,
                 name:              item.name ?? "Match",
-                counterpartUserId: item.counterpartUserId
+                counterpartUserId: item.counterpartUserId,
+                photoUrl:          item.photoUrl
             ))
         }
-    }
-
-    // MARK: - Fetch Sessions
-
-    private func fetchSessions() async {
-        isLoadingSessions = true
-        sessionsError     = nil
-
-        guard let user  = Auth.auth().currentUser,
-              let token = try? await user.getIDToken()
-        else {
-            isLoadingSessions = false
-            sessionsError     = "Not signed in"
-            return
-        }
-
-        do {
-            let result   = try await apiClient.getAllSpeedDatingSessions(token: token)
-            let sessions = result.data?.sessions ?? []
-
-            anonymousChats = sessions.compactMap { session -> ChatListItem? in
-                guard let sessionId = session.sessionId else { return nil }
-
-                // ── Last message display logic
-                // unread > 0  → message is from partner (not mine)
-                // unread = 0  → last message is mine or no messages yet
-                let lastMsg: String
-                let isMine: Bool
-
-                if let content = session.lastMessageContent, !content.isEmpty {
-                    lastMsg = content
-                    isMine  = session.unreadCount == 0 && session.isLastMessageMine
-                } else {
-                    lastMsg = statusLabel(session.status)
-                    isMine  = false
-                }
-
-                return ChatListItem(
-                    matchId:           sessionId,
-                    name:              nil,
-                    initials:          session.counterpart?.initials,
-                    counterpartUserId: session.counterpart?.userId ?? "",
-                    avatarSystemIcon:  nil,
-                    lastMessage:       lastMsg,
-                    isMine:            isMine,
-                    timeAgo:           timeAgoLabel(session.lastMessageAt ?? session.sessionExpiresAt),
-                    unreadCount:       session.unreadCount,
-                    isTyping:          false
-                )
-            }
-            print("✅ [ChatList] \(anonymousChats.count) speed dating sessions loaded")
-        } catch {
-            sessionsError = "Couldn't load sessions"
-            print("❌ [ChatList] fetchSessions: \(error)")
-        }
-
-        isLoadingSessions = false
-    }
-
-    // MARK: - Fetch Matches
-
-    private func fetchMatches() async {
-        isLoadingMatches = true
-        matchesError     = nil
-
-        guard let user  = Auth.auth().currentUser,
-              let token = try? await user.getIDToken()
-        else {
-            isLoadingMatches = false
-            matchesError     = "Not signed in"
-            return
-        }
-
-        do {
-            let result = try await apiClient.getAllMatches(token: token)
-            matchedChats = result.matches.map { match in
-                let lastMsg = match.lastMessageContent?.isEmpty == false
-                    ? match.lastMessageContent!
-                    : "Say hello! 👋"
-
-                return ChatListItem(
-                    matchId:           match.matchId,
-                    name:              match.counterpartDisplayName,
-                    initials:          nil,
-                    counterpartUserId: match.counterpartUserId ?? "",
-                    avatarSystemIcon:  nil,
-                    lastMessage:       lastMsg,
-                    isMine:            false,
-                    timeAgo:           timeAgoLabel(match.lastMessageAt),
-                    unreadCount:       match.unreadCount,
-                    isTyping:          false
-                )
-            }
-            print("✅ [ChatList] \(matchedChats.count) matches loaded")
-        } catch {
-            matchesError = "Couldn't load matches"
-            print("❌ [ChatList] fetchMatches: \(error)")
-        }
-
-        isLoadingMatches = false
-    }
-
-    // MARK: - Helpers
-
-    private func statusLabel(_ status: String?) -> String {
-        switch status {
-        case "active":  return "Say hello! 👋"
-        case "ended":   return "Session ended"
-        case "matched": return "Matched! 🎉"
-        default:        return ""
-        }
-    }
-
-    private func timeAgoLabel(_ isoString: String?) -> String {
-        guard let isoString else { return "" }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoString)
-                      ?? ISO8601DateFormatter().date(from: isoString)
-        else { return "" }
-
-        let diff = Int(Date().timeIntervalSince(date))
-        if diff < 60                { return "just now" }
-        if diff < 3600              { return "\(diff / 60)m ago" }
-        if diff < 86400             { return "\(diff / 3600)h ago" }
-        if diff < 86400 * 7         { return "\(diff / 86400)d ago" }
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
-        return f.string(from: date)
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .center) {
-            HStack(spacing: 10) {
-                Text("Chats")
-                    .font(.system(size: 32, weight: .black))
-                    .foregroundStyle(.white)
-                LogoWithoutText(size: 50)
-            }
-            Spacer()
-            Button { Task { await fetchSessions() } } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(AppTheme.smallText)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.white.opacity(0.08)))
-            }
+        HStack(spacing: 10) {
+            Text("Chats")
+                .font(.system(size: 32, weight: .black))
+                .foregroundStyle(.white)
+            LogoWithoutText(size: 50)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
         .padding(.top, 16)
         .padding(.bottom, 8)
@@ -414,6 +319,27 @@ private struct ChatRowView: View {
     }
 
     @ViewBuilder
+    private func permanentInitialsAvatar(item: ChatListItem) -> some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+            if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
+                Text(initials)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.9))
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
+    }
+
+    @ViewBuilder
     private var avatarView: some View {
         if isAnonymous {
             ZStack {
@@ -431,23 +357,21 @@ private struct ChatRowView: View {
                 }
             }
         } else {
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [Color(hex: "#1A8C4E"), Color(hex: "#0d5c32")],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                if let initials = item.initials ?? item.name?.prefix(2).uppercased(), !initials.isEmpty {
-                    Text(initials)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
-                } else {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white.opacity(0.8))
+            if let photoUrl = item.photoUrl, let url = URL(string: photoUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                            .frame(width: 56, height: 56)
+                            .clipShape(Circle())
+                            .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
+                    default:
+                        permanentInitialsAvatar(item: item)
+                    }
                 }
+            } else {
+                permanentInitialsAvatar(item: item)
             }
-            .overlay(Circle().strokeBorder(Color(hex: "#2A4A35"), lineWidth: 1.5))
         }
     }
 }

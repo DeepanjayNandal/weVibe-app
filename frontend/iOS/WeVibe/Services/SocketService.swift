@@ -368,7 +368,6 @@ final class SocketService {
                   let payload  = envelope["data"] as? [String: Any],
                   let event    = IncomingMoveToPermanentResponded(payload) else { return }
             Task { @MainActor [weak self] in
-                print("💔 [Socket] move_to_permanent_responded — accepted: \(event.accepted)")
                 self?.lastMoveToPermanentResponded = event
             }
         }

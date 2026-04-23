@@ -63,6 +63,18 @@ struct ListMatchesResult {
     let success: Bool
     let matches: [MatchListItem]
 }
+
+struct MatchDetail {
+    let matchId: String
+    let status: String
+    let canOpen: Bool
+    let canSendMessage: Bool
+    let counterpartUserId: String?
+    let counterpartDisplayName: String?
+    let counterpartPhotoUrl: String?
+
+    var isActive: Bool { status == "active" && canOpen }
+}
 struct SessionCounterpart {
     let userId: String
     let firstName: String
@@ -152,6 +164,7 @@ enum APIError: LocalizedError {
     case unauthorized                   // 401
     case banned                         // 403 USER_BANNED
     case validationError([String: String]) // 422 — field-level errors from backend
+    case rateLimited(String)            // 429 — cooldown or daily limit hit
     case serverError(Int)               // any other non-2xx
     case network(Error)
     case decoding(Error)
@@ -162,6 +175,7 @@ enum APIError: LocalizedError {
         case .unauthorized:             return "Session expired. Please sign in again."
         case .banned:                   return "Your account has been suspended. Please contact support."
         case .validationError(let e):   return e.values.first
+        case .rateLimited(let msg):     return msg
         case .serverError(let c):       return "Server error (\(c)). Please try again."
         case .network(let e):           return e.localizedDescription
         case .decoding(let e):          return "Response error: \(e.localizedDescription)"
@@ -448,8 +462,26 @@ struct APIClient {
         if status == 404 { return }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
-    
-    
+
+    /// GET /matching/queue/status — returns current queue state.
+    /// Used as a polling fallback when the socket drops while waiting for a match.
+    func getQueueStatus(token: String) async throws -> JoinQueueResult {
+        let req = request(path: "/matching/queue/status", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                let state: String
+                let sessionId: String?
+            }
+            let data: DataBody
+        }
+        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        return JoinQueueResult(state: resp.data.state, sessionId: resp.data.sessionId)
+    }
+
     /// GET /matching/sessions - get all the speed dating sessions
     /// Returns all the chat sessions that user are matching too
     func getAllSpeedDatingSessions(token: String) async throws -> ListSessionsResult {
@@ -546,9 +578,9 @@ struct APIClient {
                   let moveToPermanent: RawMoveToPermanent
               }
               struct RawCounterpart: Decodable {
-                  let userId: String
-                  let firstName: String
-                  let initials: String
+                  let userId: String?
+                  let firstName: String?
+                  let initials: String?
                   let blurredPhotoUrl: String?
               }
               struct RawMoveToPermanent: Decodable {
@@ -580,9 +612,9 @@ struct APIClient {
                   otherMessageCount:  raw.otherMessageCount,
                   messageLimit:       raw.messageLimit,
                   counterpart: SessionCounterpart(
-                      userId:          raw.counterpart.userId,
-                      firstName:       raw.counterpart.firstName,
-                      initials:        raw.counterpart.initials,
+                      userId:          raw.counterpart.userId ?? "",
+                      firstName:       raw.counterpart.firstName ?? "",
+                      initials:        raw.counterpart.initials ?? "??",
                       blurredPhotoUrl: raw.counterpart.blurredPhotoUrl
                   ),
                   moveToPermanent: SessionMoveToPermanent(
@@ -675,114 +707,63 @@ struct APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: ["decision": decision])
      
-            let (data, response) = try await perform(req)
+            let (_, response) = try await perform(req)
             let status = response.statusCode
-     
+
             if status == 401 { throw APIError.unauthorized }
             if !(200..<300).contains(status) { throw APIError.serverError(status) }
         }
-    
+
     // MARK: - Request Early Match (heart button during active session)
     // POST /matching/sessions/:sessionId/move-to-permanent/request
- 
+
     func requestMoveToPermanent(token: String, sessionId: String) async throws {
         var req = request(path: "/matching/sessions/\(sessionId)/move-to-permanent/request",
                           method: "POST", token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
- 
-        let (data, response) = try await perform(req)
+
+        let (_, response) = try await perform(req)
         let status = response.statusCode
- 
+
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
- 
+
     // MARK: - Respond to Early Match Request (partner responds yes/no)
     // POST /matching/sessions/:sessionId/move-to-permanent/respond
- 
+
     func respondMoveToPermanent(token: String, sessionId: String, accept: Bool) async throws {
         var req = request(path: "/matching/sessions/\(sessionId)/move-to-permanent/respond",
                           method: "POST", token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: ["accept": accept])
- 
-        let (data, response) = try await perform(req)
+
+        let (_, response) = try await perform(req)
         let status = response.statusCode
  
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
     }
     
-    // MARK: - Get Permanent Messages
-    // GET /matching/matches/:matchId/messages
- 
-    func getPermanentMessages(token: String, matchId: String) async throws -> [PermanentMessageItem] {
-        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
-        let (data, response) = try await perform(req)
+    /// POST /matching/sessions/:sessionId/end — ends a speed-dating session early.
+    /// 404/409 are treated as no-ops (session already ended or not found).
+    func endSession(sessionId: String, token: String) async throws {
+        let req = request(path: "/matching/sessions/\(sessionId)/end", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 || status == 409 { return }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// PATCH /matching/sessions/:sessionId/read — marks all messages in the session as read.
+    func markSessionMessagesRead(sessionId: String, token: String) async throws {
+        let req = request(path: "/matching/sessions/\(sessionId)/read", method: "PATCH", token: token)
+        let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(status) { throw APIError.serverError(status) }
- 
-        struct Resp: Decodable {
-            struct DataBody: Decodable {
-                struct Msg: Decodable {
-                    let id: String
-                    let matchId: String
-                    let content: String
-                    let senderId: String
-                    let createdAt: String
-                }
-                let messages: [Msg]
-            }
-            let data: DataBody
-        }
- 
-        let resp = try JSONDecoder().decode(Resp.self, from: data)
-        return resp.data.messages.map {
-            PermanentMessageItem(
-                messageId: $0.id,
-                matchId:   $0.matchId,
-                content:   $0.content,
-                senderId:  $0.senderId,
-                createdAt: $0.createdAt
-            )
-        }
     }
-    
-    // MARK: - Send Permanent Message
-    // POST /matching/matches/:matchId/messages
-    func sendPermanentMessage(token: String, matchId: String, content: String) async throws -> SendPermanentMessageResult {
-        var req = request(path: "/matching/matches/\(matchId)/messages", method: "POST", token: token)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: ["content": content])
- 
-        let (data, response) = try await perform(req)
-        let status = response.statusCode
-        if status == 401 { throw APIError.unauthorized }
-        if !(200..<300).contains(status) { throw APIError.serverError(status) }
- 
-        struct Resp: Decodable {
-            struct DataBody: Decodable {
-                struct Msg: Decodable {
-                    let id: String
-                    let content: String
-                    let senderId: String
-                    let createdAt: String
-                }
-                let message: Msg
-            }
-            let data: DataBody
-        }
- 
-        let resp = try JSONDecoder().decode(Resp.self, from: data)
-        return SendPermanentMessageResult(
-            messageId: resp.data.message.id,
-            content:   resp.data.message.content,
-            senderId:  resp.data.message.senderId,
-            createdAt: resp.data.message.createdAt
-        )
-    }
-    
 
     // MARK: - Match Profile
 
@@ -855,11 +836,82 @@ struct APIClient {
         }
     }
 
+    // MARK: - Match Detail
+
+    /// GET /matching/matches/:matchId — returns match status and counterpart summary.
+    func getMatch(matchId: String, token: String) async throws -> MatchDetail {
+        let req = request(path: "/matching/matches/\(matchId)", method: "GET", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 404 {
+            return MatchDetail(matchId: matchId, status: "unmatched", canOpen: false,
+                               canSendMessage: false, counterpartUserId: nil,
+                               counterpartDisplayName: nil, counterpartPhotoUrl: nil)
+        }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct Resp: Decodable {
+            struct DataBody: Decodable {
+                struct Match: Decodable {
+                    struct Counterpart: Decodable {
+                        let userId: String?
+                        let displayName: String?
+                        let photoUrl: String?
+                    }
+                    let matchId: String?
+                    let status: String?
+                    let canOpen: Bool?
+                    let canSendMessage: Bool?
+                    let counterpart: Counterpart?
+                }
+                let match: Match
+            }
+            let data: DataBody?
+        }
+        do {
+            let resp = try JSONDecoder().decode(Resp.self, from: data)
+            guard let m = resp.data?.match else { throw APIError.serverError(status) }
+            return MatchDetail(
+                matchId:        m.matchId ?? matchId,
+                status:         m.status ?? "unknown",
+                canOpen:        m.canOpen ?? true,
+                canSendMessage: m.canSendMessage ?? true,
+                counterpartUserId:      m.counterpart?.userId,
+                counterpartDisplayName: m.counterpart?.displayName,
+                counterpartPhotoUrl:    m.counterpart?.photoUrl
+            )
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     // MARK: - Permanent Chat Actions
 
     /// POST /matching/matches/:matchId/remove — removes the match for both users.
     func removeMatch(matchId: String, token: String) async throws {
         let req = request(path: "/matching/matches/\(matchId)/remove", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    // MARK: - Account
+
+    /// POST /auth/logout — notifies the backend of sign-out. Best-effort; 401 treated as success
+    /// (token may already be expired). Never throws in practice — always call with try?.
+    func logout(token: String) async throws {
+        let req = request(path: "/auth/logout", method: "POST", token: token)
+        let (_, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { return }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+    }
+
+    /// DELETE /users/me — soft-deletes the account (30-day grace period).
+    /// Revokes Firebase + Apple tokens server-side. Backend returns 200 on success.
+    func deleteAccount(token: String) async throws {
+        let req = request(path: "/users/me", method: "DELETE", token: token)
         let (_, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
@@ -909,11 +961,22 @@ struct APIClient {
     struct PermanentMessagesResult {
         let counterpartUserId: String
         let messages: [PermanentMessageItem]
+        let hasMore: Bool
     }
 
-    /// GET /matching/matches/:matchId/messages — fetches full message history for a permanent match.
-    func getMatchMessages(matchId: String, token: String) async throws -> PermanentMessagesResult {
-        let req = request(path: "/matching/matches/\(matchId)/messages", method: "GET", token: token)
+    /// GET /matching/matches/:matchId/messages — fetches paginated message history.
+    /// Pass `before` (message ID) to load older messages; `limit` controls page size.
+    func getMatchMessages(
+        matchId: String,
+        token: String,
+        before: String? = nil,
+        limit: Int = 30
+    ) async throws -> PermanentMessagesResult {
+        var path = "/matching/matches/\(matchId)/messages?limit=\(limit)"
+        if let before {
+            path += "&before=\(before)"
+        }
+        let req = request(path: path, method: "GET", token: token)
         let (data, response) = try await perform(req)
         let status = response.statusCode
         if status == 401 { throw APIError.unauthorized }
@@ -936,6 +999,7 @@ struct APIClient {
                 }
                 let match: MatchItem
                 let messages: [Msg]
+                let hasMore: Bool
             }
             let data: DataBody
         }
@@ -946,13 +1010,15 @@ struct APIClient {
                 PermanentMessageItem(
                     messageId: $0.id,
                     matchId:   $0.matchId ?? matchId,
-                    content:   $0.content ?? "", senderId:  $0.senderId ?? "",
-                    createdAt: $0.createdAt!
+                    content:   $0.content,
+                    senderId:  $0.senderId ?? "",
+                    createdAt: $0.createdAt ?? ""
                 )
             }
             return PermanentMessagesResult(
                 counterpartUserId: resp.data.match.counterpart.userId ?? "",
-                messages: items
+                messages: items,
+                hasMore: resp.data.hasMore
             )
         } catch {
             throw APIError.decoding(error)
@@ -1014,8 +1080,54 @@ struct APIClient {
 
     // MARK: - Helpers
 
+    // MARK: - AI Bio Generation
+
+    struct GenerateBioResult {
+        let bio: String
+        let remainingToday: Int
+    }
+
+    /// POST /users/profile/generate-bio — generates an AI bio using Gemini and saves it.
+    /// Rate-limited server-side: 5 per day, 60s cooldown between calls.
+    /// Throws `.rateLimited` when the daily cap or cooldown is hit.
+    func generateBio(token: String) async throws -> GenerateBioResult {
+        let req = request(path: "/users/profile/generate-bio", method: "POST", token: token)
+        let (data, response) = try await perform(req)
+        let status = response.statusCode
+        if status == 401 { throw APIError.unauthorized }
+        if status == 429 {
+            struct ErrorEnvelope: Decodable {
+                struct ErrorBody: Decodable { let message: String }
+                let error: ErrorBody
+            }
+            let msg = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error.message
+                ?? "Too many requests. Please try again later."
+            throw APIError.rateLimited(msg)
+        }
+        if !(200..<300).contains(status) { throw APIError.serverError(status) }
+        struct BioResponse: Decodable {
+            struct DataBody: Decodable {
+                let bio: String
+                let remainingToday: Int
+            }
+            let data: DataBody
+        }
+        do {
+            let decoded = try JSONDecoder().decode(BioResponse.self, from: data)
+            return GenerateBioResult(bio: decoded.data.bio, remainingToday: decoded.data.remainingToday)
+        } catch {
+            throw APIError.decoding(error)
+        }
+    }
+
     private func request(path: String, method: String, token: String) -> URLRequest {
-        var req = URLRequest(url: base.appendingPathComponent(path))
+        // Use string concatenation instead of appendingPathComponent, which
+        // percent-encodes '?' and '&' — breaking query strings like ?limit=30&before=xyz.
+        let urlString = base.absoluteString + path
+        guard let url = URL(string: urlString) else {
+            fatalError("APIClient: malformed URL '\(urlString)'")
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return req

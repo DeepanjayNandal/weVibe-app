@@ -138,5 +138,5 @@ enum ProfileCardSection: String, CaseIterable, Identifiable {
 
 enum ProfileCardMode {
     case ownProfile(onEdit: (ProfileCardSection) -> Void, onSettings: () -> Void)
-    case matchProfile(onDismiss: () -> Void, onRemove: () -> Void)
+    case matchProfile(onDismiss: () -> Void)
 }

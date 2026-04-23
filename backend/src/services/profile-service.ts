@@ -134,6 +134,18 @@ export class ProfileService {
       return null;
     }
 
-    return this.profileRepository.update(userId, data);
+    // Auto-recompute display_name when first or last name changes,
+    // unless the caller is explicitly setting displayName themselves.
+    let updatedData = data;
+    if ((data.firstName !== undefined || data.lastName !== undefined) && data.displayName === undefined) {
+      const firstName = data.firstName !== undefined ? data.firstName : existing.first_name;
+      const lastName = data.lastName !== undefined ? data.lastName : existing.last_name;
+      updatedData = {
+        ...data,
+        displayName: firstName && lastName ? `${firstName} ${lastName}`.trim() : null,
+      };
+    }
+
+    return this.profileRepository.update(userId, updatedData);
   }
 }

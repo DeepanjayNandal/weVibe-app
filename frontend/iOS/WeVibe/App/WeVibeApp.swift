@@ -15,6 +15,7 @@ struct WeVibeApp: App {
     @State private var authManager = AuthManager()
     @State private var onboardingData = OnboardingData()
     @State private var profileStore = UserProfileStore()
+    @State private var chatStore = ChatStore()
     @State private var networkMonitor = NetworkMonitor()
     @State private var socketService = SocketService()
     @State private var matchmakingService = MatchmakingService()
@@ -54,6 +55,7 @@ struct WeVibeApp: App {
                 .environment(authManager)
                 .environment(onboardingData)
                 .environment(profileStore)
+                .environment(chatStore)
                 .environment(networkMonitor)
                 .environment(socketService)
                 .environment(matchmakingService)
@@ -82,16 +84,89 @@ struct WeVibeApp: App {
                             guard let token = try? await Auth.auth().currentUser?.getIDToken()
                             else { return }
                             socketService.connect(token: token)
+                            // Initial chat list load — store caches data so views never re-fetch on navigation.
+                            async let matches: () = chatStore.fetchMatches(token: token)
+                            async let sessions: () = chatStore.fetchSessions(token: token)
+                            _ = await (matches, sessions)
                         }
                     } else if newState == .unauthenticated {
                         socketService.disconnect()
                     }
                 }
+                .onChange(of: socketService.lastPermanentMessage) { _, event in
+                    // Push incoming permanent-chat messages into the list preview without a re-fetch.
+                    guard let event else { return }
+                    let uid = Auth.auth().currentUser?.uid
+                    chatStore.applyIncomingMessage(event, currentUserId: uid)
+                }
+                .onChange(of: socketService.lastSpeedDatingMessage) { _, event in
+                    guard let event else { return }
+                    let uid = Auth.auth().currentUser?.uid
+                    let found = chatStore.applyIncomingSpeedDatingMessage(event, currentUserId: uid)
+                    if !found {
+                        // Session not yet in list (e.g. match just created) — fetch to add it.
+                        Task {
+                            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                            await chatStore.fetchSessions(token: token)
+                        }
+                    }
+                }
+                .onChange(of: socketService.lastPermanentTyping) { _, event in
+                    guard let event else { return }
+                    let uid = Auth.auth().currentUser?.uid
+                    chatStore.applyPermanentTyping(event, currentUserId: uid)
+                }
+                .onChange(of: socketService.lastSpeedDatingTyping) { _, event in
+                    guard let event else { return }
+                    let uid = Auth.auth().currentUser?.uid
+                    chatStore.applySpeedDatingTyping(event, currentUserId: uid)
+                }
+                .onChange(of: socketService.lastPermanentMatchRemoved) { _, event in
+                    guard let event else { return }
+                    chatStore.removeMatch(matchId: event.matchId)
+                }
+                .onChange(of: socketService.lastPermanentMatchBlocked) { _, event in
+                    guard let event else { return }
+                    chatStore.removeMatch(matchId: event.matchId)
+                }
+                .onChange(of: socketService.lastSpeedDatingSessionEnded) { _, event in
+                    guard let event else { return }
+                    chatStore.applySessionEnded(event)
+                }
+                .onChange(of: socketService.lastMoveToPermanentUpdated) { _, event in
+                    // Session graduated to a permanent match — refresh matches tab so the new row appears.
+                    guard event != nil else { return }
+                    Task {
+                        guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                        await chatStore.fetchMatches(token: token)
+                    }
+                }
+                .onChange(of: socketService.lastMatchEvent) { _, event in
+                    // A match was found — fetch sessions immediately so the new session is in the
+                    // list before any socket messages for it arrive (applyIncomingSpeedDatingMessage
+                    // is a no-op when the session isn't cached yet).
+                    guard event != nil else { return }
+                    Task {
+                        guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                        await chatStore.fetchSessions(token: token)
+                    }
+                }
                 .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active, authManager.appState == .authenticated {
+                        // Re-fetch when app comes to foreground so missed socket events don't
+                        // leave the chat list stale (e.g. messages received while backgrounded).
+                        Task {
+                            guard let token = try? await Auth.auth().currentUser?.getIDToken() else { return }
+                            async let matches: () = chatStore.fetchMatches(token: token)
+                            async let sessions: () = chatStore.fetchSessions(token: token)
+                            _ = await (matches, sessions)
+                        }
+                    }
                     // EC2: app goes to background while searching — cancel search and notify user.
-                    guard newPhase == .background, matchmakingService.isSearching else { return }
-                    matchmakingService.cancelSearch()
-                    scheduleRemovedFromQueueNotification()
+                    if newPhase == .background, matchmakingService.isSearching {
+                        matchmakingService.cancelSearch()
+                        scheduleRemovedFromQueueNotification()
+                    }
                 }
         }
     }

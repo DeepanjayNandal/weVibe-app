@@ -22,7 +22,9 @@ export const generateUserBio = async (req: Request, res: Response, next: NextFun
       unauthorized('User not found in database', 'USER_NOT_FOUND');
     }
 
-    const { bio, remainingToday } = await bioGeneratorService.generateAndSaveBio(user!.id);
+    const customPrompt = typeof req.body?.prompt === 'string' ? req.body.prompt : undefined;
+
+    const { bio, remainingToday } = await bioGeneratorService.generateAndSaveBio(user!.id, customPrompt);
 
     res.status(200).json({
       success: true,

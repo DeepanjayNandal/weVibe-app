@@ -2,7 +2,11 @@ import Foundation
 
 enum AppConfig {
     // MARK: - Backend
+    #if DEBUG
     private static let backendHost = "https://wevibe-backend19-1001323522506.us-central1.run.app"
+    #else
+    private static let backendHost = "https://wevibe-backend-prod-1001323522506.us-central1.run.app"
+    #endif
     static let apiBaseURL = "\(backendHost)/api/v1"
     static let wsBaseURL  = backendHost
     // MARK: - Firebase

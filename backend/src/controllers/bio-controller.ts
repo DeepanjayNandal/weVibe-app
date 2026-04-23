@@ -23,9 +23,12 @@ export const generateUserBio = async (req: Request, res: Response, next: NextFun
     if (user.id !== userId) {
       forbidden('You can only generate your own bio', 'FORBIDDEN_ACTION');
     }
+
+    // Get the user's custom prompt from the request body (if provided)
+    const customPrompt = typeof req.body?.prompt === 'string' ? req.body.prompt : undefined;
     
-    // Call Service to execute generation and storage
-    const bio = await bioGeneratorService.generateAndSaveBio(userId);
+    // Call Service to execute generation and storage, passing in customPrompt
+    const bio = await bioGeneratorService.generateAndSaveBio(userId, customPrompt);
 
     res.status(200).json({
       success: true,

@@ -97,7 +97,8 @@ backend/src/
   utils/            errors.ts — AppError factory functions
   config/           env.ts — validated environment config
   types/            Shared TypeScript types
-tests/              Jest integration test suites
+  jobs/             Background jobs (photo cleanup)
+backend/tests/      Jest integration test suites
 ```
 
 ---

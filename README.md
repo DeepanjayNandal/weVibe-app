@@ -166,6 +166,7 @@ backend/tests/      Jest integration test suites
    ```bash
    npm test
    ```
+   Covers auth, matchmaking, speed dating, permanent chat, photo uploads, soft-delete, and Apple revocation.
 
 ### Mock Auth (Local Dev)
 

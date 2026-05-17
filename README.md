@@ -99,6 +99,7 @@ backend/src/
   types/            Shared TypeScript types
   jobs/             Background jobs (photo cleanup)
 backend/tests/      Jest integration test suites
+backend/docs/       API contract and endpoint reference
 ```
 
 ---

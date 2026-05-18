@@ -4,6 +4,14 @@ iOS dating app featuring real-time speed dating sessions, matchmaking queue, per
 
 ---
 
+## Demo
+
+[▶ Watch on YouTube](https://www.youtube.com/watch?v=il7ff0XOEFY)
+
+![WeVibe App Screenshot](assets/1778052008949.jpeg)
+
+---
+
 ## Tech Stack
 
 | Layer | Tech |

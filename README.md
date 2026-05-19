@@ -69,7 +69,7 @@ iOS dating app featuring real-time speed dating sessions, matchmaking queue, per
 
 1. iOS sends HTTP request with Firebase Bearer token
 2. `authenticate` middleware verifies JWT via Firebase Admin SDK
-3. Request hits Controller — validates input, calls Service
+3. Request hits Controller, validates input, calls Service
 4. Service runs business logic, calls Repository
 5. Repository queries PostgreSQL via Prisma
 6. Response returned as `{ success, data }` or `{ success, error }` envelope
@@ -102,8 +102,8 @@ backend/src/
   middleware/       authenticate.ts, error-handler.ts
   websocket/        Socket.IO server + Redis pub/sub
   db/               schema.prisma, migrations, prisma-client
-  utils/            errors.ts — AppError factory functions
-  config/           env.ts — validated environment config
+  utils/            errors.ts (AppError factory functions)
+  config/           env.ts (validated environment config)
   types/            Shared TypeScript types
   jobs/             Background jobs (photo cleanup)
 backend/tests/      Jest integration test suites
@@ -114,16 +114,16 @@ backend/docs/       API contract and endpoint reference
 
 ## Features
 
-- **Speed dating** — timed matchmaking sessions with a queue system
-- **Permanent matches** — messaging for mutually liked pairs after a session
-- **Real-time chat** — Socket.IO with typing indicators and instant delivery
-- **Personality test** — 6-question survey that determines user personality type
-- **Photo uploads** — direct-to-GCS via signed URLs, stored as signed read URLs
-- **AI bio generation** — Gemini 2.5 Flash with rate limiting (5/day, 60s cooldown)
-- **Push notifications** — FCM for new messages in speed dating and permanent chat
-- **Apple Sign-In** — full token exchange and revocation on account deletion
-- **Soft delete** — 30-day grace period with reactivation on explicit login
-- **Block & report** — in-match moderation
+- **Speed dating**: timed matchmaking sessions with a queue system
+- **Permanent matches**: messaging for mutually liked pairs after a session
+- **Real-time chat**: Socket.IO with typing indicators and instant delivery
+- **Personality test**: 6-question survey that determines user personality type
+- **Photo uploads**: direct-to-GCS via signed URLs, stored as signed read URLs
+- **AI bio generation**: Gemini 2.5 Flash with rate limiting (5/day, 60s cooldown)
+- **Push notifications**: FCM for new messages in speed dating and permanent chat
+- **Apple Sign-In**: full token exchange and revocation on account deletion
+- **Soft delete**: 30-day grace period with reactivation on explicit login
+- **Block & report**: in-match moderation
 
 ---
 
@@ -150,7 +150,7 @@ backend/docs/       API contract and endpoint reference
    | Variable | Description |
    |----------|-------------|
    | `DATABASE_URL` | `postgresql://admin:password@localhost:5432/wevibe_dev` |
-   | `AUTH_PROVIDER_MODE` | `firebase` (prod) or `mock` (local — no Firebase needed) |
+   | `AUTH_PROVIDER_MODE` | `firebase` (prod) or `mock` (local, no Firebase needed) |
    | `FIREBASE_PROJECT_ID` | Firebase project ID |
    | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON |
    | `GEMINI_API_KEY` | Google Gemini API key |
@@ -179,7 +179,7 @@ backend/docs/       API contract and endpoint reference
 
 ### Mock Auth (Local Dev)
 
-Set `AUTH_PROVIDER_MODE=mock` — no Firebase needed. Token format:
+Set `AUTH_PROVIDER_MODE=mock`. No Firebase credentials needed. Token format:
 
 ```
 mock:<provider>:<uid>:<email>

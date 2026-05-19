@@ -6,5 +6,8 @@ postgres_data/
 .DS_Store
 Thumbs.db
 
-# Firebase service account keys — never commit these
+# Firebase service account keys, never commit these
 secrets/
+
+# Deployment script with env-specific config, not for version control
+upload_gcp.sh

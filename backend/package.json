@@ -1,7 +1,7 @@
 {
   "name": "wevibe-app-root",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend API for WeVibe, a real-time iOS speed dating app built with Node.js, PostgreSQL, Socket.IO, and Firebase",
   "main": "index.js",
   "scripts": {
     "db:start": "docker-compose up -d",
@@ -16,7 +16,7 @@
     "test": "jest"
   },
   "keywords": [],
-  "author": "",
+  "author": "Deepanjay Nandal",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
